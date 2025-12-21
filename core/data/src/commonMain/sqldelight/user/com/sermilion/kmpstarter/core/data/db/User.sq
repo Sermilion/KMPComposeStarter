@@ -1,0 +1,22 @@
+CREATE TABLE UserEntity (
+  id TEXT NOT NULL PRIMARY KEY,
+  name TEXT NOT NULL,
+  email TEXT,
+  createdAt INTEGER NOT NULL
+);
+
+selectAll:
+SELECT * FROM UserEntity;
+
+selectById:
+SELECT * FROM UserEntity WHERE id = ?;
+
+insert:
+INSERT OR REPLACE INTO UserEntity(id, name, email, createdAt)
+VALUES (?, ?, ?, ?);
+
+deleteAll:
+DELETE FROM UserEntity;
+
+deleteById:
+DELETE FROM UserEntity WHERE id = ?;
