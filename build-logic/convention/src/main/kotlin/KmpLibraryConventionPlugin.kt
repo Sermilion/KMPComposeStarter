@@ -14,6 +14,7 @@ class KmpLibraryConventionPlugin : Plugin<Project> {
         apply("org.jetbrains.kotlin.multiplatform")
         apply("kmp.lint")
         apply("kmp.detekt")
+        apply("kmp.kotlininject")
       }
 
       extensions.configure<KotlinMultiplatformExtension> {

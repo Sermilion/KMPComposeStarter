@@ -2,6 +2,7 @@ plugins {
   alias(libs.plugins.kmp.compose)
   alias(libs.plugins.kotlin.serialization)
   alias(libs.plugins.ksp)
+  alias(libs.plugins.kmp.kotlininject)
 }
 
 android {
@@ -22,6 +23,14 @@ kotlin {
       implementation(libs.jetbrains.lifecycle.viewmodel.compose)
       implementation(libs.kermit)
     }
+
+    jvmTest.dependencies {
+      implementation(libs.kotest.framework.engine)
+      implementation(libs.kotest.assertions.core)
+      implementation(libs.kotest.runner.junit5.jvm)
+      implementation(libs.kotlinx.coroutines.test)
+      implementation(libs.mockk.core)
+    }
   }
 
   compilerOptions {
@@ -29,15 +38,6 @@ kotlin {
   }
 }
 
-dependencies {
-  add("kspAndroid", libs.kotlin.inject.compiler)
-  add("kspAndroid", libs.kotlin.inject.anvil.compiler)
-  add("kspIosArm64", libs.kotlin.inject.compiler)
-  add("kspIosArm64", libs.kotlin.inject.anvil.compiler)
-  add("kspIosSimulatorArm64", libs.kotlin.inject.compiler)
-  add("kspIosSimulatorArm64", libs.kotlin.inject.anvil.compiler)
-  add("kspIosX64", libs.kotlin.inject.compiler)
-  add("kspIosX64", libs.kotlin.inject.anvil.compiler)
-  add("kspJvm", libs.kotlin.inject.compiler)
-  add("kspJvm", libs.kotlin.inject.anvil.compiler)
+tasks.named<Test>("jvmTest") {
+  useJUnitPlatform()
 }

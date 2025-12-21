@@ -2,6 +2,7 @@ plugins {
   alias(libs.plugins.kmp.compose)
   alias(libs.plugins.kotlin.serialization)
   alias(libs.plugins.ksp)
+  alias(libs.plugins.kmp.kotlininject)
 }
 
 android {
@@ -27,17 +28,4 @@ kotlin {
   compilerOptions {
     freeCompilerArgs.add("-Xexpect-actual-classes")
   }
-}
-
-dependencies {
-  add("kspAndroid", libs.kotlin.inject.compiler)
-  add("kspAndroid", libs.kotlin.inject.anvil.compiler)
-  add("kspIosArm64", libs.kotlin.inject.compiler)
-  add("kspIosArm64", libs.kotlin.inject.anvil.compiler)
-  add("kspIosSimulatorArm64", libs.kotlin.inject.compiler)
-  add("kspIosSimulatorArm64", libs.kotlin.inject.anvil.compiler)
-  add("kspIosX64", libs.kotlin.inject.compiler)
-  add("kspIosX64", libs.kotlin.inject.anvil.compiler)
-  add("kspJvm", libs.kotlin.inject.compiler)
-  add("kspJvm", libs.kotlin.inject.anvil.compiler)
 }

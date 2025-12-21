@@ -1,12 +1,12 @@
 package com.sermilion.kmpcomposestarter.common.di
 
 import me.tatarka.inject.annotations.Scope
-import software.amazon.lastmile.kotlin.inject.anvil.AppScope
 
 @Scope
-@Target(AnnotationTarget.CLASS, AnnotationTarget.FUNCTION, AnnotationTarget.PROPERTY_GETTER)
-annotation class SingleIn(val scope: kotlin.reflect.KClass<*>)
+annotation class AppScope
 
-abstract class UserScope private constructor()
+@Scope
+annotation class UserScope
 
-abstract class UserFeatureScope private constructor()
+@Scope
+annotation class ScreenScope

@@ -4,6 +4,7 @@ plugins {
   alias(libs.plugins.ksp)
   alias(libs.plugins.compose.multiplatform)
   alias(libs.plugins.compose.compiler)
+  alias(libs.plugins.kotlin.serialization)
 }
 
 kotlin {
@@ -21,6 +22,8 @@ kotlin {
       api(libs.jetbrains.lifecycle.viewmodel.compose)
       implementation(compose.runtime)
       api(libs.kermit)
+      api(libs.navigation3.ui)
+      api(libs.serialization.json)
     }
 
     androidMain.dependencies {

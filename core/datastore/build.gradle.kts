@@ -25,6 +25,7 @@ kotlin {
       implementation(libs.serialization.json)
       implementation(libs.kermit)
       implementation(libs.kotlin.inject.runtime)
+      implementation(libs.kotlin.inject.anvil.runtime)
       implementation(libs.okio)
     }
 
@@ -54,10 +55,15 @@ kotlin {
 
 dependencies {
   add("kspAndroid", libs.kotlin.inject.compiler)
+  add("kspAndroid", libs.kotlin.inject.anvil.compiler)
   add("kspIosArm64", libs.kotlin.inject.compiler)
+  add("kspIosArm64", libs.kotlin.inject.anvil.compiler)
   add("kspIosSimulatorArm64", libs.kotlin.inject.compiler)
+  add("kspIosSimulatorArm64", libs.kotlin.inject.anvil.compiler)
   add("kspIosX64", libs.kotlin.inject.compiler)
+  add("kspIosX64", libs.kotlin.inject.anvil.compiler)
   add("kspJvm", libs.kotlin.inject.compiler)
+  add("kspJvm", libs.kotlin.inject.anvil.compiler)
 }
 
 tasks.named<Test>("jvmTest") {

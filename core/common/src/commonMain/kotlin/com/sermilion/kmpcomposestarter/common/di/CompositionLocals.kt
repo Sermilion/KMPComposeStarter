@@ -10,8 +10,8 @@ val LocalViewModelProvider = staticCompositionLocalOf<ViewModelProvider> {
   error("ViewModelProvider not provided")
 }
 
-val LocalScreenComponentFactory = staticCompositionLocalOf<() -> ScreenComponentProvider> {
-  error("ScreenComponentFactory not provided")
+val LocalScreenComponentFactory = staticCompositionLocalOf<(() -> ScreenComponentProvider)?> {
+  null
 }
 
 interface ScreenComponentProvider {

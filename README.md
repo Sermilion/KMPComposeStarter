@@ -1,12 +1,25 @@
 # KMP Compose Starter
 
-A feature-rich Kotlin Multiplatform Compose starter project with Navigation 3, kotlin-inject + Anvil DI, and a clean architecture setup.
+A production-ready Kotlin Compose Multiplatform starter template for building cross-platform applications. This project provides a solid foundation with modern architecture patterns, dependency injection, type-safe navigation, and comprehensive tooling.
+
+Use this as a starting point for your next KMP project - clone, rename the package, and start building your features.
 
 ## Platforms
 
 - Android (API 26+)
 - iOS (arm64, x64, simulatorArm64)
 - Desktop (JVM)
+
+## Features
+
+- Multi-module clean architecture
+- kotlin-inject + Anvil for compile-time dependency injection
+- Navigation 3 with type-safe routes
+- SQLDelight for local persistence
+- Ktor for networking
+- Kotest + MockK for testing
+- Detekt + Spotless for code quality
+- Convention plugins for consistent module setup
 
 ## Architecture
 
@@ -26,9 +39,10 @@ KMPComposeStarter/
 │   ├── testing/             # Test utilities
 │   └── ui/                  # Shared UI components
 ├── feature/
-│   ├── auth/                # Authentication screens
+│   ├── auth/                # Login and registration screens
 │   ├── home/                # Home screen
-│   └── profile/             # Profile screen
+│   ├── profile/             # User profile screen
+│   └── settings/            # Settings screen
 └── build-logic/             # Convention plugins
 ```
 

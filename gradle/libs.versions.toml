@@ -1,5 +1,6 @@
 [versions]
 androidGradlePlugin = "8.13.1"
+kotlinpoet = "2.2.0"
 composeMultiplatform = "1.10.0-beta02"
 androidxActivity = "1.11.0"
 androidxAppCompat = "1.7.1"
@@ -57,7 +58,7 @@ jetbrains-lifecycle-viewmodel-compose = { group = "org.jetbrains.androidx.lifecy
 jetbrains-lifecycle-runtime-compose = { group = "org.jetbrains.androidx.lifecycle", name = "lifecycle-runtime-compose", version.ref = "androidxLifecycle" }
 androidx-navigation-compose = { group = "org.jetbrains.androidx.navigation", name = "navigation-compose", version.ref = "androidxNavigation" }
 navigation3-ui = { group = "org.jetbrains.androidx.navigation3", name = "navigation3-ui", version.ref = "navigation3" }
-lifecycle-viewmodel-navigation3 = { group = "org.jetbrains.androidx.lifecycle", name = "lifecycle-viewmodel-navigation3", version.ref = "navigation3" }
+lifecycle-viewmodel-navigation3 = { group = "org.jetbrains.androidx.lifecycle", name = "lifecycle-viewmodel-navigation3", version = "2.10.0-alpha06" }
 coil-kt = { group = "io.coil-kt.coil3", name = "coil", version.ref = "coil" }
 coil-kt-compose = { group = "io.coil-kt.coil3", name = "coil-compose", version.ref = "coil" }
 coil-kt-network-ktor3 = { group = "io.coil-kt.coil3", name = "coil-network-ktor3", version.ref = "coil" }
@@ -121,6 +122,10 @@ ksp-gradlePlugin = { group = "com.google.devtools.ksp", name = "com.google.devto
 kermit = { module = "co.touchlab:kermit", version.ref = "kermit" }
 androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "junitVersion" }
 
+kotlinpoet = { module = "com.squareup:kotlinpoet", version.ref = "kotlinpoet" }
+kotlinpoet-ksp = { module = "com.squareup:kotlinpoet-ksp", version.ref = "kotlinpoet" }
+ksp-symbol-processing-api = { module = "com.google.devtools.ksp:symbol-processing-api", version.ref = "ksp" }
+
 [plugins]
 detekt = { id = "io.gitlab.arturbosch.detekt", version.ref = "detekt" }
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
@@ -142,5 +147,6 @@ kmp-application = { id = "kmp.application", version = "unspecified" }
 kmp-jacoco = { id = "kmp.jacoco", version = "unspecified" }
 kmp-lint = { id = "kmp.lint", version = "unspecified" }
 kmp-detekt = { id = "kmp.detekt", version = "unspecified" }
+kmp-kotlininject = { id = "kmp.kotlininject", version = "unspecified" }
 android-library = { id = "com.android.library", version.ref = "androidGradlePlugin" }
 android-application = { id = "com.android.application", version.ref = "androidGradlePlugin" }

@@ -368,6 +368,10 @@ TwitterCompose:
     active: true
     allowedCompositionLocals:
       - LocalKmpColors
+      - LocalViewModelFactory
+      - LocalViewModelProvider
+      - LocalScreenComponentFactory
+      - LocalUserComponentManager
 
 style:
   active: true

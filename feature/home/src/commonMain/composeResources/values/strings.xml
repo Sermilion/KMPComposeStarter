@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+  <string name="home_screen_title">Home Screen</string>
+  <string name="home_welcome_message">Welcome, %1$s!</string>
+  <string name="home_button_go_to_profile">Go to Profile</string>
+</resources>

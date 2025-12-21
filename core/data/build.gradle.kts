@@ -21,10 +21,12 @@ sqldelight {
       packageName.set("com.sermilion.kmpcomposestarter.core.data.db")
       srcDirs.setFrom("src/commonMain/sqldelight/user")
       schemaOutputDirectory.set(file("build/sqldelight/databases/user"))
-      // TODO: Enable migration verification once real schema is defined
-      // This should be true in production to catch migration issues at compile-time
-      // verifyMigrations = true ensures that all migration files correctly transform
-      // the database schema from one version to the next
+      verifyMigrations.set(false)
+    }
+    create("OnboardingDatabase") {
+      packageName.set("com.sermilion.kmpcomposestarter.core.data.db")
+      srcDirs.setFrom("src/commonMain/sqldelight/onboarding")
+      schemaOutputDirectory.set(file("build/sqldelight/databases/onboarding"))
       verifyMigrations.set(false)
     }
   }
@@ -38,6 +40,7 @@ afterEvaluate {
         !it.name.contains("Test")
     }.configureEach {
       dependsOn("generateCommonMainUserDatabaseInterface")
+      dependsOn("generateCommonMainOnboardingDatabaseInterface")
     }
 }
 

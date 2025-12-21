@@ -59,5 +59,9 @@ gradlePlugin {
       id = "kmp.detekt"
       implementationClass = "DetektConventionPlugin"
     }
+    register("kmpKotlinInject") {
+      id = "kmp.kotlininject"
+      implementationClass = "KmpKotlinInjectConventionPlugin"
+    }
   }
 }

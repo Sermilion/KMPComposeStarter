@@ -8,74 +8,92 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.sermilion.kmpcomposestarter.core.data.repository.AuthRepository
-import com.sermilion.kmpcomposestarter.core.domain.di.UserDependencies
-import kotlinx.coroutines.launch
+import com.sermilion.kmpcomposestarter.feature.profile.viewmodel.ProfileContract
+import kmpcomposestarter.feature.profile.generated.resources.Res
+import kmpcomposestarter.feature.profile.generated.resources.profile_button_back_to_home
+import kmpcomposestarter.feature.profile.generated.resources.profile_button_logout
+import kmpcomposestarter.feature.profile.generated.resources.profile_email_label
+import kmpcomposestarter.feature.profile.generated.resources.profile_id_label
+import kmpcomposestarter.feature.profile.generated.resources.profile_name_label
+import kmpcomposestarter.feature.profile.generated.resources.profile_screen_title
+import org.jetbrains.compose.resources.stringResource
 
 @Composable
 fun ProfileScreen(
-  authRepository: AuthRepository,
-  userComponent: UserDependencies?,
+  uiState: ProfileContract.UiState,
   onNavigateBack: () -> Unit,
   onLogout: () -> Unit,
 ) {
-  val scope = rememberCoroutineScope()
-  val userData = userComponent?.userData
+  ProfileScreenContent(
+    uiState = uiState,
+    onNavigateBack = onNavigateBack,
+    onLogout = onLogout,
+  )
+}
 
+@Composable
+private fun ProfileScreenContent(
+  uiState: ProfileContract.UiState,
+  onNavigateBack: () -> Unit,
+  onLogout: () -> Unit,
+) {
   Column(
     modifier = Modifier
       .fillMaxSize()
       .padding(24.dp),
     horizontalAlignment = Alignment.CenterHorizontally,
-    verticalArrangement = Arrangement.Center
+    verticalArrangement = Arrangement.Center,
   ) {
     Text(
-      text = "Profile Screen",
-      style = MaterialTheme.typography.headlineLarge
+      text = stringResource(Res.string.profile_screen_title),
+      style = MaterialTheme.typography.headlineLarge,
     )
 
     Spacer(modifier = Modifier.height(16.dp))
 
-    userData?.let { user ->
-      Text(
-        text = "Name: ${user.name}",
-        style = MaterialTheme.typography.bodyLarge
-      )
-      Text(
-        text = "Email: ${user.email}",
-        style = MaterialTheme.typography.bodyMedium
-      )
-    }
+    Text(
+      text = stringResource(Res.string.profile_name_label, uiState.userName),
+      style = MaterialTheme.typography.bodyLarge,
+    )
+    Text(
+      text = stringResource(Res.string.profile_email_label, uiState.userEmail),
+      style = MaterialTheme.typography.bodyMedium,
+    )
+    Text(
+      text = stringResource(Res.string.profile_id_label, uiState.userId),
+      style = MaterialTheme.typography.bodySmall,
+      color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
 
     Spacer(modifier = Modifier.height(32.dp))
 
     OutlinedButton(
       onClick = onNavigateBack,
-      modifier = Modifier.fillMaxWidth()
+      modifier = Modifier.fillMaxWidth(),
+      enabled = !uiState.isLoggingOut,
     ) {
-      Text("Back to Home")
+      Text(stringResource(Res.string.profile_button_back_to_home))
     }
 
     Spacer(modifier = Modifier.height(16.dp))
 
-    Button(
-      onClick = {
-        scope.launch {
-          authRepository.logout()
-          onLogout()
-        }
-      },
-      modifier = Modifier.fillMaxWidth()
-    ) {
-      Text("Logout")
+    if (uiState.isLoggingOut) {
+      CircularProgressIndicator()
+    } else {
+      Button(
+        onClick = onLogout,
+        modifier = Modifier.fillMaxWidth(),
+      ) {
+        Text(stringResource(Res.string.profile_button_logout))
+      }
     }
   }
 }

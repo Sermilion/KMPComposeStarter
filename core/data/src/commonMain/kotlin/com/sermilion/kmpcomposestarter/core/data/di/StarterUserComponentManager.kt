@@ -1,6 +1,5 @@
 package com.sermilion.kmpcomposestarter.core.data.di
 
-import com.sermilion.kmpcomposestarter.common.di.SingleIn
 import com.sermilion.kmpcomposestarter.core.domain.di.UserComponentManager
 import com.sermilion.kmpcomposestarter.core.domain.di.UserDependencies
 import com.sermilion.kmpcomposestarter.core.domain.model.UserData
@@ -11,13 +10,13 @@ import kotlinx.coroutines.flow.asStateFlow
 import me.tatarka.inject.annotations.Inject
 import software.amazon.lastmile.kotlin.inject.anvil.AppScope
 import software.amazon.lastmile.kotlin.inject.anvil.ContributesBinding
+import software.amazon.lastmile.kotlin.inject.anvil.SingleIn
 
 @Inject
 @SingleIn(AppScope::class)
 @ContributesBinding(AppScope::class)
-class StarterUserComponentManager(
-  private val userComponentFactory: UserComponent.Factory
-) : UserComponentManager {
+class StarterUserComponentManager(private val userComponentFactory: UserComponent.Factory) :
+  UserComponentManager {
 
   private val _userComponent = atomic<UserComponent?>(null)
   private val _userComponentFlow = MutableStateFlow<UserDependencies?>(null)

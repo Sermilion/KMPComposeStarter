@@ -46,7 +46,7 @@ subprojects {
           "ij_kotlin_allow_trailing_comma" to true,
           "ij_kotlin_allow_trailing_comma_on_call_site" to true,
           "ktlint_function_naming_ignore_when_annotated_with" to "Composable",
-          "max_line_length" to 120,
+          "max_line_length" to 100,
           "ktlint_standard_no-wildcard-imports" to "disabled",
         ),
       )

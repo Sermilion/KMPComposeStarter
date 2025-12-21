@@ -1,0 +1,21 @@
+CREATE TABLE OnboardingTagEntity (
+  id TEXT NOT NULL PRIMARY KEY,
+  name TEXT NOT NULL,
+  isSelected INTEGER NOT NULL DEFAULT 0
+);
+
+selectAllTags:
+SELECT * FROM OnboardingTagEntity;
+
+selectSelectedTags:
+SELECT * FROM OnboardingTagEntity WHERE isSelected = 1;
+
+insertTag:
+INSERT OR REPLACE INTO OnboardingTagEntity(id, name, isSelected)
+VALUES (?, ?, ?);
+
+updateTagSelection:
+UPDATE OnboardingTagEntity SET isSelected = ? WHERE id = ?;
+
+deleteAllTags:
+DELETE FROM OnboardingTagEntity;

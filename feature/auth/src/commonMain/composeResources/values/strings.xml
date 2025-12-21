@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+  <string name="login_screen_title">Login Screen</string>
+  <string name="login_email_label">Email</string>
+  <string name="login_password_label">Password</string>
+  <string name="login_error_invalid_credentials">Invalid credentials</string>
+  <string name="login_button_sign_in">Sign In</string>
+  <string name="login_button_sign_in_demo">Sign In (Demo)</string>
+  <string name="login_button_create_account">Create Account</string>
+  <string name="register_screen_title">Register Screen</string>
+  <string name="register_button_register_demo">Register (Demo)</string>
+  <string name="register_button_back_to_login">Back to Login</string>
+</resources>

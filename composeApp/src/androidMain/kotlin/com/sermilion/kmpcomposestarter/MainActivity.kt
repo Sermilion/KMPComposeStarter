@@ -5,9 +5,12 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.CompositionLocalProvider
-import com.sermilion.kmpcomposestarter.common.di.LocalViewModelFactory
+import com.sermilion.kmpcomposestarter.common.di.LocalScreenComponentFactory
 import com.sermilion.kmpcomposestarter.common.di.LocalViewModelProvider
 import com.sermilion.kmpcomposestarter.core.designsystem.theme.StarterTheme
+import com.sermilion.kmpcomposestarter.core.ui.di.LocalUserComponentManager
+import com.sermilion.kmpcomposestarter.core.ui.di.ProvideScreenComponentFactory
+import com.sermilion.kmpcomposestarter.ui.rememberStarterAppState
 
 class MainActivity : ComponentActivity() {
 
@@ -21,14 +24,22 @@ class MainActivity : ComponentActivity() {
 
     setContent {
       CompositionLocalProvider(
-        LocalViewModelFactory provides component.viewModelFactory,
         LocalViewModelProvider provides component,
+        LocalUserComponentManager provides component.userComponentManager,
       ) {
-        StarterTheme {
-          App(
-            userComponentManager = component.userComponentManager,
-            authRepository = component.authRepository,
-          )
+        ProvideScreenComponentFactory {
+          StarterTheme {
+            val screenComponentFactory = LocalScreenComponentFactory.current
+            val appState = rememberStarterAppState(
+              userComponentManager = component.userComponentManager,
+              screenComponentFactory = screenComponentFactory,
+            )
+            StarterApp(
+              appState = appState,
+              isLoggedIn = appState.isAuthenticated,
+              screenComponentFactory = screenComponentFactory,
+            )
+          }
         }
       }
     }

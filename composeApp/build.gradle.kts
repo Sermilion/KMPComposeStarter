@@ -1,5 +1,3 @@
-import org.jetbrains.kotlin.gradle.dsl.JvmTarget
-
 plugins {
   alias(libs.plugins.kmp.application)
   alias(libs.plugins.kotlin.serialization)
@@ -7,26 +5,6 @@ plugins {
 }
 
 kotlin {
-  androidTarget {
-    compilerOptions {
-      jvmTarget.set(JvmTarget.JVM_11)
-    }
-  }
-
-  listOf(
-    iosX64(),
-    iosArm64(),
-    iosSimulatorArm64(),
-  ).forEach { iosTarget ->
-    iosTarget.binaries.framework {
-      baseName = "ComposeApp"
-      isStatic = true
-      freeCompilerArgs += "-Xbinary=bundleId=com.sermilion.kmpcomposestarter.ComposeApp"
-    }
-  }
-
-  jvm()
-
   sourceSets {
     all {
       languageSettings.optIn("kotlinx.coroutines.ExperimentalCoroutinesApi")
@@ -60,6 +38,7 @@ kotlin {
       implementation(projects.feature.auth)
       implementation(projects.feature.home)
       implementation(projects.feature.profile)
+      implementation(projects.feature.settings)
 
       implementation(libs.kotlinx.collections.immutable)
       implementation(libs.serialization.json)
@@ -75,7 +54,18 @@ kotlin {
       implementation(libs.kotlinx.coroutines.core)
       implementation(libs.androidx.datastore)
     }
+
+    jvmTest.dependencies {
+      implementation(libs.kotest.framework.engine)
+      implementation(libs.kotest.assertions.core)
+      implementation(libs.kotest.runner.junit5.jvm)
+      implementation(libs.kotlinx.coroutines.test)
+    }
   }
+}
+
+tasks.named<Test>("jvmTest") {
+  useJUnitPlatform()
 }
 
 dependencies {
@@ -95,12 +85,21 @@ dependencies {
 
 android {
   namespace = "com.sermilion.kmpcomposestarter"
-  compileSdk = libs.versions.compileSdk.get().toInt()
+  compileSdk =
+    libs.versions.compileSdk
+      .get()
+      .toInt()
 
   defaultConfig {
     applicationId = "com.sermilion.kmpcomposestarter"
-    minSdk = libs.versions.minSdk.get().toInt()
-    targetSdk = libs.versions.compileSdk.get().toInt()
+    minSdk =
+      libs.versions.minSdk
+        .get()
+        .toInt()
+    targetSdk =
+      libs.versions.compileSdk
+        .get()
+        .toInt()
     versionCode = 1
     versionName = "1.0.0"
 
@@ -167,10 +166,6 @@ kotlin.sourceSets.named("iosX64Main") {
 }
 kotlin.sourceSets.named("jvmMain") {
   kotlin.srcDir("build/generated/ksp/jvm/jvmMain/kotlin")
-}
-
-kotlin.sourceSets.findByName("iosMain")?.apply {
-  kotlin.srcDir("build/generated/ksp/iosSimulatorArm64/iosSimulatorArm64Main/kotlin")
 }
 
 compose.desktop {

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+  <string name="settings_screen_title">Settings</string>
+  <string name="settings_user_label">User: %1$s</string>
+  <string name="settings_email_label">Email: %1$s</string>
+  <string name="settings_placeholder">Settings options will appear here</string>
+</resources>

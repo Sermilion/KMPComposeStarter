@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+  <string name="profile_screen_title">Profile Screen</string>
+  <string name="profile_name_label">Name: %1$s</string>
+  <string name="profile_email_label">Email: %1$s</string>
+  <string name="profile_id_label">ID: %1$s</string>
+  <string name="profile_button_back_to_home">Back to Home</string>
+  <string name="profile_button_logout">Logout</string>
+</resources>

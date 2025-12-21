@@ -5,6 +5,12 @@ CREATE TABLE UserEntity (
   createdAt INTEGER NOT NULL
 );
 
+observeAll:
+SELECT * FROM UserEntity ORDER BY createdAt DESC;
+
+observeById:
+SELECT * FROM UserEntity WHERE id = ?;
+
 selectAll:
 SELECT * FROM UserEntity;
 
