@@ -15,6 +15,8 @@ kotlin {
     commonMain.dependencies {
       implementation(libs.kotlinx.coroutines.core)
       implementation(libs.kotlin.inject.runtime)
+      api(libs.kotlin.inject.anvil.runtime)
+      api(libs.kotlin.inject.anvil.runtime.optional)
       api(libs.jetbrains.lifecycle.viewmodel)
       api(libs.jetbrains.lifecycle.viewmodel.compose)
       implementation(compose.runtime)
@@ -47,14 +49,19 @@ kotlin {
 
 dependencies {
   add("kspAndroid", libs.kotlin.inject.compiler)
+  add("kspAndroid", libs.kotlin.inject.anvil.compiler)
   add("kspIosArm64", libs.kotlin.inject.compiler)
+  add("kspIosArm64", libs.kotlin.inject.anvil.compiler)
   add("kspIosSimulatorArm64", libs.kotlin.inject.compiler)
+  add("kspIosSimulatorArm64", libs.kotlin.inject.anvil.compiler)
   add("kspIosX64", libs.kotlin.inject.compiler)
+  add("kspIosX64", libs.kotlin.inject.anvil.compiler)
   add("kspJvm", libs.kotlin.inject.compiler)
+  add("kspJvm", libs.kotlin.inject.anvil.compiler)
 }
 
 android {
-  namespace = "com.sermilion.kmpstarter.core.common"
+  namespace = "com.sermilion.kmpcomposestarter.core.common"
 
   testOptions {
     unitTests.all {

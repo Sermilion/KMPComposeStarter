@@ -6,7 +6,7 @@ plugins {
 }
 
 android {
-  namespace = "com.sermilion.kmpstarter.core.datastore"
+  namespace = "com.sermilion.kmpcomposestarter.core.datastore"
 
   testOptions {
     unitTests.all {

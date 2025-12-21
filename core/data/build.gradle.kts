@@ -6,7 +6,7 @@ plugins {
 }
 
 android {
-  namespace = "com.sermilion.kmpstarter.core.data"
+  namespace = "com.sermilion.kmpcomposestarter.core.data"
 
   testOptions {
     unitTests.all {
@@ -18,7 +18,7 @@ android {
 sqldelight {
   databases {
     create("UserDatabase") {
-      packageName.set("com.sermilion.kmpstarter.core.data.db")
+      packageName.set("com.sermilion.kmpcomposestarter.core.data.db")
       srcDirs.setFrom("src/commonMain/sqldelight/user")
       schemaOutputDirectory.set(file("build/sqldelight/databases/user"))
       // TODO: Enable migration verification once real schema is defined
@@ -129,10 +129,15 @@ kotlin {
 
 dependencies {
   add("kspAndroid", libs.kotlin.inject.compiler)
+  add("kspAndroid", libs.kotlin.inject.anvil.compiler)
   add("kspIosArm64", libs.kotlin.inject.compiler)
+  add("kspIosArm64", libs.kotlin.inject.anvil.compiler)
   add("kspIosSimulatorArm64", libs.kotlin.inject.compiler)
+  add("kspIosSimulatorArm64", libs.kotlin.inject.anvil.compiler)
   add("kspIosX64", libs.kotlin.inject.compiler)
+  add("kspIosX64", libs.kotlin.inject.anvil.compiler)
   add("kspJvm", libs.kotlin.inject.compiler)
+  add("kspJvm", libs.kotlin.inject.anvil.compiler)
 }
 
 tasks.named<Test>("jvmTest") {

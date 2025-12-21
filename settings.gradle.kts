@@ -33,13 +33,15 @@ dependencyResolutionManagement {
   }
 }
 
-rootProject.name = "KMPLibraryStarter"
+rootProject.name = "KMPComposeStarter"
 
 enableFeaturePreview("TYPESAFE_PROJECT_ACCESSORS")
 
 plugins {
   id("org.gradle.toolchains.foojay-resolver-convention") version "1.0.0"
 }
+
+include(":composeApp")
 include(":core:common")
 include(":core:data")
 include(":core:datastore")
@@ -47,3 +49,6 @@ include(":core:designsystem")
 include(":core:domain")
 include(":core:ui")
 include(":core:testing")
+include(":feature:auth")
+include(":feature:home")
+include(":feature:profile")

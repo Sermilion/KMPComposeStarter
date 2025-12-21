@@ -5,7 +5,7 @@ plugins {
   `kotlin-dsl`
 }
 
-group = "com.sermilion.kmpstarter.buildlogic"
+group = "com.sermilion.kmpcomposestarter.buildlogic"
 
 java {
   sourceCompatibility = JavaVersion.VERSION_17
@@ -42,6 +42,10 @@ gradlePlugin {
     register("kmpCompose") {
       id = "kmp.compose"
       implementationClass = "KmpComposeConventionPlugin"
+    }
+    register("kmpApplication") {
+      id = "kmp.application"
+      implementationClass = "KmpApplicationConventionPlugin"
     }
     register("kmpJacoco") {
       id = "kmp.jacoco"

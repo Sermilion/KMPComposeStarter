@@ -6,7 +6,7 @@ plugins {
 }
 
 android {
-  namespace = "com.sermilion.kmpstarter.core.domain"
+  namespace = "com.sermilion.kmpcomposestarter.core.domain"
 }
 
 kotlin {
@@ -32,10 +32,15 @@ kotlin {
 
 dependencies {
   add("kspAndroid", libs.kotlin.inject.compiler)
+  add("kspAndroid", libs.kotlin.inject.anvil.compiler)
   add("kspIosArm64", libs.kotlin.inject.compiler)
+  add("kspIosArm64", libs.kotlin.inject.anvil.compiler)
   add("kspIosSimulatorArm64", libs.kotlin.inject.compiler)
+  add("kspIosSimulatorArm64", libs.kotlin.inject.anvil.compiler)
   add("kspIosX64", libs.kotlin.inject.compiler)
+  add("kspIosX64", libs.kotlin.inject.anvil.compiler)
   add("kspJvm", libs.kotlin.inject.compiler)
+  add("kspJvm", libs.kotlin.inject.anvil.compiler)
 
   testImplementation(projects.core.testing)
 }

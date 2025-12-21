@@ -7,6 +7,7 @@ androidxCore = "1.17.0"
 androidxDataStore = "1.1.7"
 androidxLifecycle = "2.9.4"
 androidxNavigation = "2.9.1"
+navigation3 = "1.0.0-alpha06"
 coil = "3.3.0"
 compileSdk = "36"
 detekt = "1.23.8"
@@ -22,6 +23,7 @@ kotlinxAtomicfu = "0.29.0"
 kotest = "5.9.1"
 ktor = "3.3.2"
 kotlinInject = "0.8.0"
+kotlinInjectAnvil = "0.1.6"
 ksp = "2.3.2"
 okhttp = "4.12.0"
 mockk = "1.14.6"
@@ -54,6 +56,8 @@ jetbrains-lifecycle-viewmodel = { group = "org.jetbrains.androidx.lifecycle", na
 jetbrains-lifecycle-viewmodel-compose = { group = "org.jetbrains.androidx.lifecycle", name = "lifecycle-viewmodel-compose", version.ref = "androidxLifecycle" }
 jetbrains-lifecycle-runtime-compose = { group = "org.jetbrains.androidx.lifecycle", name = "lifecycle-runtime-compose", version.ref = "androidxLifecycle" }
 androidx-navigation-compose = { group = "org.jetbrains.androidx.navigation", name = "navigation-compose", version.ref = "androidxNavigation" }
+navigation3-ui = { group = "org.jetbrains.androidx.navigation3", name = "navigation3-ui", version.ref = "navigation3" }
+lifecycle-viewmodel-navigation3 = { group = "org.jetbrains.androidx.lifecycle", name = "lifecycle-viewmodel-navigation3", version.ref = "navigation3" }
 coil-kt = { group = "io.coil-kt.coil3", name = "coil", version.ref = "coil" }
 coil-kt-compose = { group = "io.coil-kt.coil3", name = "coil-compose", version.ref = "coil" }
 coil-kt-network-ktor3 = { group = "io.coil-kt.coil3", name = "coil-network-ktor3", version.ref = "coil" }
@@ -61,6 +65,9 @@ core-ktx = { group = "androidx.test", name = "core-ktx", version.ref = "coreKtx"
 
 kotlin-inject-compiler = { module = "me.tatarka.inject:kotlin-inject-compiler-ksp", version.ref = "kotlinInject" }
 kotlin-inject-runtime = { module = "me.tatarka.inject:kotlin-inject-runtime", version.ref = "kotlinInject" }
+kotlin-inject-anvil-compiler = { module = "software.amazon.lastmile.kotlin.inject.anvil:compiler", version.ref = "kotlinInjectAnvil" }
+kotlin-inject-anvil-runtime = { module = "software.amazon.lastmile.kotlin.inject.anvil:runtime", version.ref = "kotlinInjectAnvil" }
+kotlin-inject-anvil-runtime-optional = { module = "software.amazon.lastmile.kotlin.inject.anvil:runtime-optional", version.ref = "kotlinInjectAnvil" }
 
 ksoup = { module = "com.fleeksoft.ksoup:ksoup", version.ref = "ksoup" }
 kotlinx-coroutines-core = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-core", version.ref = "kotlinxCoroutines" }
@@ -131,7 +138,9 @@ mokkery = { id = "dev.mokkery", version.ref = "mokkery" }
 # Plugins defined by this project
 kmp-library = { id = "kmp.library", version = "unspecified" }
 kmp-compose = { id = "kmp.compose", version = "unspecified" }
+kmp-application = { id = "kmp.application", version = "unspecified" }
 kmp-jacoco = { id = "kmp.jacoco", version = "unspecified" }
 kmp-lint = { id = "kmp.lint", version = "unspecified" }
 kmp-detekt = { id = "kmp.detekt", version = "unspecified" }
 android-library = { id = "com.android.library", version.ref = "androidGradlePlugin" }
+android-application = { id = "com.android.application", version.ref = "androidGradlePlugin" }

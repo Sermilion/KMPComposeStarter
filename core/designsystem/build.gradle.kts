@@ -6,7 +6,7 @@ plugins {
 }
 
 android {
-  namespace = "com.sermilion.kmpstarter.core.designsystem"
+  namespace = "com.sermilion.kmpcomposestarter.core.designsystem"
 }
 
 kotlin {

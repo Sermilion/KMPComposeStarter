@@ -8,7 +8,7 @@ plugins {
 }
 
 android {
-  namespace = "com.sermilion.kmpstarter.core.ui"
+  namespace = "com.sermilion.kmpcomposestarter.core.ui"
 }
 
 compose.resources {

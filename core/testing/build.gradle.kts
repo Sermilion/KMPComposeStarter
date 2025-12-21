@@ -3,7 +3,7 @@ plugins {
 }
 
 android {
-  namespace = "com.sermilion.kmpstarter.core.testing"
+  namespace = "com.sermilion.kmpcomposestarter.core.testing"
 }
 
 kotlin {

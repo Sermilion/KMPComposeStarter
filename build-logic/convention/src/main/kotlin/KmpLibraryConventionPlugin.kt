@@ -1,5 +1,5 @@
-import com.sermilion.kmpstarter.configureKotlinMultiplatform
-import com.sermilion.kmpstarter.libs
+import com.sermilion.kmpcomposestarter.configureKotlinMultiplatform
+import com.sermilion.kmpcomposestarter.libs
 import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.kotlin.dsl.configure
