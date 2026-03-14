@@ -13,7 +13,7 @@ This starter is meant to stay reusable and production-ready. Treat build logic, 
 
 ### Platform-Specific Tasks
 
-- Build the Android debug app: `./gradlew :composeApp:assembleDebug`
+- Build the Android debug app: `./gradlew :androidApp:assembleDebug`
 - Build the iOS framework for device: `./gradlew :composeApp:linkDebugFrameworkIosArm64`
 - Build the iOS framework for Apple Silicon simulator: `./gradlew :composeApp:linkDebugFrameworkIosSimulatorArm64`
 - Run the desktop app: `./gradlew :composeApp:run`
@@ -24,7 +24,8 @@ This starter is meant to stay reusable and production-ready. Treat build logic, 
 
 The repository is organized as a Kotlin Multiplatform application starter:
 
-- `composeApp`: shared app shell and platform entry points
+- `androidApp`: Android-only application module, manifest, launcher resources, and app bootstrap
+- `composeApp`: shared app shell plus iOS/JVM entry points
 - `core:common`: shared utilities, DI scopes, dispatchers, navigation contracts
 - `core:data`: Room 3, repositories, local/remote data sources, user session infrastructure
 - `core:datastore`: preference and settings persistence
@@ -47,7 +48,7 @@ The repository is organized as a Kotlin Multiplatform application starter:
 - Manage plugin and library versions through `gradle/libs.versions.toml`.
 - Build the repository with JDK 17, while keeping Android and JVM bytecode targets on Java 11 unless the template intentionally raises its runtime baseline.
 - Prefer stable repositories only. Do not add `mavenLocal()`, JitPack, or preview feeds unless a dependency truly requires one and the reason is documented.
-- The repository currently uses the AGP 9 compatibility bridge via `android.builtInKotlin=false` and `android.newDsl=false`. Treat that as temporary and document changes in this area clearly.
+- Keep Android app bootstrap in `androidApp` and shared Kotlin Multiplatform code in modules that use the Android KMP library plugin.
 - If build logic changes, re-run `./gradlew check` from the repository root.
 
 ## Testing and Quality Standards
@@ -55,6 +56,7 @@ The repository is organized as a Kotlin Multiplatform application starter:
 - `./gradlew check` is the default release gate for this starter.
 - CI should also validate at least one iOS framework link task.
 - Do not add suppressions to hide real build, lint, or test failures unless the template intentionally documents them.
+- `core:data` intentionally disables `RestrictedApi` lint while Room 3 `alpha01` reports false positives on generated KSP code and `RoomDatabase` usage in KMP lint tasks. Revisit that workaround on future Room upgrades.
 - Prefer Kotest assertions and MockK annotations over ad-hoc mocking setup when practical.
 - When adding repository APIs, prefer both single-item and bulk write operations instead of forcing callers into item-by-item loops.
 - Treat DataStore file renames as migrations. Renaming a file without a migration path can strand existing user data.

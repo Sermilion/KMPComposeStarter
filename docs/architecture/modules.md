@@ -6,20 +6,30 @@ Keep dependencies flowing inward toward shared abstractions.
 
 - `feature` modules depend on shared `core` modules.
 - `core:data` implements contracts that are consumed by other shared layers.
+- `androidApp` depends on `composeApp` plus the Android-visible shared and feature modules it bootstraps.
 - `composeApp` depends on the shared modules and hosts root composition.
 - `build-logic` configures modules but should not leak app logic.
 
 ## Top-Level Areas
 
-### `composeApp`
+### `androidApp`
 
 Owns:
 
 - Android `MainActivity` and `StarterApplication`
+- Android manifest and launcher resources
+- Android-specific application component bootstrap
+
+Keep Android-only entry points here instead of mixing them into shared multiplatform modules.
+
+### `composeApp`
+
+Owns:
+
 - iOS `MainViewController`
 - JVM desktop entry point
 - Root app state and app-wide navigation wiring
-- Platform application components
+- Shared ViewModel entry registration and app-shell composition
 
 Keep feature-specific business rules out of this module unless they are truly app-shell concerns.
 
@@ -101,6 +111,6 @@ If DI scope names or ViewModel annotations change, inspect this module too.
 ## Package Placement Rules
 
 - Put reusable contracts in `core` before reaching for a new feature-to-feature dependency.
-- Put platform entry points in platform source sets under `composeApp`.
+- Put Android entry points in `androidApp` and other platform entry points in the appropriate `composeApp` source sets.
 - Put relational persistence in `core:data`, not `core:datastore`.
 - Put starter-wide build behavior in `build-logic` rather than copying Gradle setup across modules.

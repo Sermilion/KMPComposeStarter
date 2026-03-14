@@ -7,26 +7,38 @@ plugins {
   id("org.jetbrains.kotlin.plugin.serialization")
 }
 
-android {
-  namespace = "com.sermilion.kmpcomposestarter.core.ui"
-}
-
 compose.resources {
   publicResClass = true
 }
 
 kotlin {
+  android {
+    namespace = "com.sermilion.kmpcomposestarter.core.ui"
+    compileSdk =
+      libs.versions.compileSdk
+        .get()
+        .toInt()
+    minSdk =
+      libs.versions.minSdk
+        .get()
+        .toInt()
+    withHostTestBuilder {}
+    androidResources {
+      enable = true
+    }
+  }
+
   sourceSets {
     commonMain.dependencies {
       implementation(projects.core.common)
       api(projects.core.designsystem)
       implementation(projects.core.domain)
 
-      implementation(compose.runtime)
-      implementation(compose.foundation)
-      implementation(compose.material3)
-      implementation(compose.ui)
-      implementation(compose.components.resources)
+      implementation(libs.compose.runtime)
+      implementation(libs.compose.foundation)
+      implementation(libs.compose.material3)
+      implementation(libs.compose.ui)
+      implementation(libs.compose.components.resources)
       implementation(libs.serialization.json)
       implementation(libs.kotlinx.collections.immutable)
       implementation(libs.kermit)

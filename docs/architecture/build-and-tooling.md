@@ -8,7 +8,7 @@ Important convention plugins include:
 
 | Plugin | Purpose |
 |--------|---------|
-| `kmp.application` | App module setup for `composeApp` |
+| `kmp.application` | Shared app-shell setup for `composeApp` |
 | `kmp.library` | Shared KMP library module setup |
 | `kmp.compose` | Shared Compose Multiplatform module setup |
 | `kmp.kotlininject` | Common KSP DI wiring |
@@ -50,16 +50,21 @@ The repository intentionally avoids:
 - Compose development repositories
 - other ad-hoc feeds without a documented need
 
-## AGP 9 Compatibility Bridge
+## AGP 9 Project Structure
 
-The project already runs on AGP 9, but shared KMP modules still rely on the compatibility bridge between `org.jetbrains.kotlin.multiplatform` and classic Android plugins.
+The project uses a dedicated Android application module and shared KMP modules on the Android KMP library plugin.
 
-That is why `gradle.properties` currently contains:
+- `androidApp` applies `com.android.application`.
+- Shared modules apply `com.android.kotlin.multiplatform.library` through the convention plugins.
+- `composeApp` stays responsible for the shared app shell plus iOS and JVM entry points.
 
-- `android.builtInKotlin=false`
-- `android.newDsl=false`
+This keeps Android app bootstrap separate from shared multiplatform code and avoids the deprecated AGP 9 compatibility bridge.
 
-These flags are temporary compatibility settings. Long term, expect the Android/KMP project structure story to change.
+## Room 3 Lint Caveat
+
+Room 3 `3.0.0-alpha01` currently triggers `RestrictedApi` lint false positives in `core:data` for both generated KSP code and `RoomDatabase` usage under KMP lint tasks.
+
+The module intentionally disables `RestrictedApi` to keep the repository gate focused on actionable issues. Revisit that workaround when upgrading Room.
 
 ## Quality Gates
 
@@ -69,6 +74,7 @@ Main commands:
 ./gradlew check
 ./gradlew detekt
 ./gradlew spotlessApply
+./gradlew :androidApp:assembleDebug
 ./gradlew :composeApp:linkDebugFrameworkIosArm64
 ```
 

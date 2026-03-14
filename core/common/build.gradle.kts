@@ -8,6 +8,22 @@ plugins {
 }
 
 kotlin {
+  android {
+    namespace = "com.sermilion.kmpcomposestarter.core.common"
+    compileSdk =
+      libs.versions.compileSdk
+        .get()
+        .toInt()
+    minSdk =
+      libs.versions.minSdk
+        .get()
+        .toInt()
+    withHostTestBuilder {}
+    androidResources {
+      enable = true
+    }
+  }
+
   compilerOptions {
     freeCompilerArgs.add("-Xexpect-actual-classes")
   }
@@ -20,7 +36,7 @@ kotlin {
       api(libs.kotlin.inject.anvil.runtime.optional)
       api(libs.jetbrains.lifecycle.viewmodel)
       api(libs.jetbrains.lifecycle.viewmodel.compose)
-      implementation(compose.runtime)
+      implementation(libs.compose.runtime)
       api(libs.kermit)
       api(libs.navigation3.ui)
       api(libs.serialization.json)
@@ -39,7 +55,7 @@ kotlin {
       implementation(kotlin("test"))
     }
 
-    androidUnitTest.dependencies {
+    getByName("androidHostTest").dependencies {
       implementation(libs.androidx.junit)
       implementation(libs.kotest.runner.junit5.jvm)
     }
@@ -59,16 +75,6 @@ dependencies {
   add("kspIosSimulatorArm64", libs.kotlin.inject.anvil.compiler)
   add("kspJvm", libs.kotlin.inject.compiler)
   add("kspJvm", libs.kotlin.inject.anvil.compiler)
-}
-
-android {
-  namespace = "com.sermilion.kmpcomposestarter.core.common"
-
-  testOptions {
-    unitTests.all {
-      it.useJUnitPlatform()
-    }
-  }
 }
 
 tasks.named<Test>("jvmTest") {

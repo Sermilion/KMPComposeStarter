@@ -1,10 +1,7 @@
 package com.sermilion.kmpcomposestarter
 
-import com.android.build.api.dsl.ApplicationExtension
-import com.android.build.gradle.LibraryExtension
 import org.gradle.api.JavaVersion
 import org.gradle.api.Project
-import org.gradle.kotlin.dsl.configure
 import org.gradle.kotlin.dsl.provideDelegate
 import org.gradle.kotlin.dsl.withType
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
@@ -14,18 +11,6 @@ import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 internal fun Project.configureKotlinMultiplatform(
   extension: KotlinMultiplatformExtension
 ) {
-  extensions.configure<LibraryExtension> {
-    compileSdk = findVersion("compileSdk").toInt()
-    defaultConfig {
-      minSdk = findVersion("minSdk").toInt()
-    }
-    compileOptions {
-      sourceCompatibility = JavaVersion.VERSION_11
-      targetCompatibility = JavaVersion.VERSION_11
-    }
-    configurePackaging()
-  }
-
   extension.apply {
     jvmToolchain(17)
 
@@ -39,16 +24,6 @@ internal fun Project.configureKotlinMultiplatform(
           "-Xexpect-actual-classes",
         )
       )
-    }
-
-    androidTarget {
-      compilations.all {
-        compileTaskProvider.configure {
-          compilerOptions {
-            jvmTarget.set(JvmTarget.JVM_11)
-          }
-        }
-      }
     }
 
     jvm()
@@ -77,18 +52,6 @@ internal fun Project.configureKotlinMultiplatform(
 internal fun Project.configureKotlinMultiplatformCompose(
   extension: KotlinMultiplatformExtension
 ) {
-  extensions.configure<LibraryExtension> {
-    compileSdk = findVersion("compileSdk").toInt()
-    defaultConfig {
-      minSdk = findVersion("minSdk").toInt()
-    }
-    compileOptions {
-      sourceCompatibility = JavaVersion.VERSION_11
-      targetCompatibility = JavaVersion.VERSION_11
-    }
-    configurePackaging()
-  }
-
   extension.apply {
     jvmToolchain(17)
 
@@ -102,16 +65,6 @@ internal fun Project.configureKotlinMultiplatformCompose(
           "-Xexpect-actual-classes",
         )
       )
-    }
-
-    androidTarget {
-      compilations.all {
-        compileTaskProvider.configure {
-          compilerOptions {
-            jvmTarget.set(JvmTarget.JVM_11)
-          }
-        }
-      }
     }
 
     jvm()
@@ -145,19 +98,6 @@ internal fun Project.configureKotlinMultiplatformCompose(
 internal fun Project.configureKotlinMultiplatformApplication(
   extension: KotlinMultiplatformExtension
 ) {
-  extensions.configure<ApplicationExtension> {
-    compileSdk = findVersion("compileSdk").toInt()
-    defaultConfig {
-      minSdk = findVersion("minSdk").toInt()
-      targetSdk = findVersion("compileSdk").toInt()
-    }
-    compileOptions {
-      sourceCompatibility = JavaVersion.VERSION_11
-      targetCompatibility = JavaVersion.VERSION_11
-    }
-    configurePackaging()
-  }
-
   extension.apply {
     jvmToolchain(17)
 
@@ -171,16 +111,6 @@ internal fun Project.configureKotlinMultiplatformApplication(
           "-Xexpect-actual-classes",
         )
       )
-    }
-
-    androidTarget {
-      compilations.all {
-        compileTaskProvider.configure {
-          compilerOptions {
-            jvmTarget.set(JvmTarget.JVM_11)
-          }
-        }
-      }
     }
 
     jvm()
@@ -244,34 +174,4 @@ private fun Project.configureKotlin() {
 
 private fun Project.findVersion(alias: String): String {
   return libs.findVersion(alias).get().requiredVersion
-}
-
-private fun LibraryExtension.configurePackaging() {
-  packaging {
-    resources {
-      excludes.addAll(
-        listOf(
-          "/META-INF/{AL2.0,LGPL2.1}",
-          "META-INF/versions/**",
-          "META-INF/LICENSE.md",
-          "META-INF/LICENSE-notice.md",
-        )
-      )
-    }
-  }
-}
-
-private fun ApplicationExtension.configurePackaging() {
-  packaging {
-    resources {
-      excludes.addAll(
-        listOf(
-          "/META-INF/{AL2.0,LGPL2.1}",
-          "META-INF/versions/**",
-          "META-INF/LICENSE.md",
-          "META-INF/LICENSE-notice.md",
-        )
-      )
-    }
-  }
 }

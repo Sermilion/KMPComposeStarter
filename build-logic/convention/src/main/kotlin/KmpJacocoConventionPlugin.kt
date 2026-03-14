@@ -1,18 +1,20 @@
-import com.android.build.api.variant.LibraryAndroidComponentsExtension
+import com.android.build.api.variant.AndroidComponentsExtension
 import com.sermilion.kmpcomposestarter.configureJacoco
 import org.gradle.api.Plugin
 import org.gradle.api.Project
-import org.gradle.kotlin.dsl.getByType
 
 class KmpJacocoConventionPlugin : Plugin<Project> {
   override fun apply(target: Project) {
     with(target) {
       with(pluginManager) {
         apply("org.gradle.jacoco")
-        apply("com.android.library")
       }
-      val extension = extensions.getByType<LibraryAndroidComponentsExtension>()
-      configureJacoco(extension)
+
+      val androidComponentsExtension =
+        extensions.findByType(AndroidComponentsExtension::class.java)
+      if (androidComponentsExtension != null) {
+        configureJacoco(androidComponentsExtension)
+      }
     }
   }
 }

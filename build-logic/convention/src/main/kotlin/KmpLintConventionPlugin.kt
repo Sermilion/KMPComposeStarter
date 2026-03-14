@@ -10,21 +10,26 @@ class KmpLintConventionPlugin : Plugin<Project> {
     with(target) {
       when {
         pluginManager.hasPlugin("com.android.application") ->
-          configure<ApplicationExtension> { lint(Lint::configure) }
+          configure<ApplicationExtension> { lint { configure(project) } }
 
         pluginManager.hasPlugin("com.android.library") ->
-          configure<LibraryExtension> { lint(Lint::configure) }
+          configure<LibraryExtension> { lint { configure(project) } }
 
         else -> {
           pluginManager.apply("com.android.lint")
-          configure<Lint>(Lint::configure)
+          configure<Lint> { configure(project) }
         }
       }
     }
   }
 }
 
-private fun Lint.configure() {
+private fun Lint.configure(project: Project) {
   xmlReport = true
   checkDependencies = true
+  checkGeneratedSources = false
+  val lintConfigFile = project.file("lint.xml")
+  if (lintConfigFile.exists()) {
+    lintConfig = lintConfigFile
+  }
 }

@@ -12,9 +12,10 @@ class KmpApplicationConventionPlugin : Plugin<Project> {
     with(target) {
       with(pluginManager) {
         apply("org.jetbrains.kotlin.multiplatform")
-        apply("com.android.application")
+        apply("com.android.kotlin.multiplatform.library")
         apply("org.jetbrains.compose")
         apply("org.jetbrains.kotlin.plugin.compose")
+        apply("kmp.lint")
         apply("kmp.detekt")
       }
 

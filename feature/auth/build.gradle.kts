@@ -5,11 +5,23 @@ plugins {
   alias(libs.plugins.kmp.kotlininject)
 }
 
-android {
-  namespace = "com.sermilion.kmpcomposestarter.feature.auth"
-}
-
 kotlin {
+  android {
+    namespace = "com.sermilion.kmpcomposestarter.feature.auth"
+    compileSdk =
+      libs.versions.compileSdk
+        .get()
+        .toInt()
+    minSdk =
+      libs.versions.minSdk
+        .get()
+        .toInt()
+    withHostTestBuilder {}
+    androidResources {
+      enable = true
+    }
+  }
+
   sourceSets {
     commonMain.dependencies {
       implementation(projects.core.common)

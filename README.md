@@ -23,7 +23,8 @@ This repository gives you a modern baseline for app development with Compose Mul
 
 ```text
 KMPComposeStarter/
-|- composeApp/                    # Shared app shell plus Android/iOS/JVM entry points
+|- androidApp/                    # Android-only application module and manifest/resources
+|- composeApp/                    # Shared app shell plus iOS/JVM entry points
 |- core/
 |  |- common/                     # Cross-cutting utilities, DI scopes, dispatchers, navigation contracts
 |  |- data/                       # Room 3 databases, repositories, remote/local data sources
@@ -73,7 +74,7 @@ The root `ARCHITECTURE.md` remains as a lightweight entry point for tools and hu
 ./gradlew check
 
 # Android app
-./gradlew :composeApp:assembleDebug
+./gradlew :androidApp:assembleDebug
 
 # iOS framework for device
 ./gradlew :composeApp:linkDebugFrameworkIosArm64
@@ -101,14 +102,11 @@ Open `iosApp/iosApp.xcodeproj` in Xcode and run the generated framework from the
 
 ## Build Notes
 
-The project is already updated to AGP 9 and Gradle 9.1.0.
+The project is updated to AGP 9 and Gradle 9.1.0.
 
-Shared modules still rely on the current Kotlin Multiplatform plus classic Android plugin bridge, so `gradle.properties` temporarily keeps:
+Android now lives in a dedicated `androidApp` module, while shared multiplatform modules use the Android KMP library plugin.
 
-- `android.builtInKotlin=false`
-- `android.newDsl=false`
-
-That keeps the starter working today while the Android/KMP plugin migration story continues to settle. See `docs/architecture/build-and-tooling.md` for details.
+`core:data` intentionally disables the `RestrictedApi` lint check because Room 3 `alpha01` currently reports false positives for both generated KSP code and `RoomDatabase` usage in KMP lint tasks. See `docs/architecture/build-and-tooling.md` for details.
 
 ## Demo Credentials
 

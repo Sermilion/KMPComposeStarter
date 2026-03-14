@@ -4,8 +4,6 @@ import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.kotlin.dsl.configure
 import org.gradle.kotlin.dsl.dependencies
-import org.gradle.kotlin.dsl.getByType
-import org.jetbrains.compose.ComposeExtension
 import org.jetbrains.kotlin.gradle.dsl.KotlinMultiplatformExtension
 
 class KmpComposeConventionPlugin : Plugin<Project> {
@@ -13,7 +11,7 @@ class KmpComposeConventionPlugin : Plugin<Project> {
     with(target) {
       with(pluginManager) {
         apply("org.jetbrains.kotlin.multiplatform")
-        apply("com.android.library")
+        apply("com.android.kotlin.multiplatform.library")
         apply("org.jetbrains.compose")
         apply("org.jetbrains.kotlin.plugin.compose")
         apply("kmp.lint")
@@ -24,11 +22,8 @@ class KmpComposeConventionPlugin : Plugin<Project> {
         configureKotlinMultiplatformCompose(this)
       }
 
-      val composeExtension = extensions.getByType<ComposeExtension>()
-      val compose = composeExtension.dependencies
-
       dependencies {
-        add("commonMainImplementation", compose.components.resources)
+        add("commonMainImplementation", libs.findLibrary("compose.components.resources").get())
         add("commonMainImplementation", libs.findLibrary("kotlinx.collections.immutable").get())
         add("commonMainImplementation", libs.findLibrary("jetbrains.lifecycle.runtime.compose").get())
       }

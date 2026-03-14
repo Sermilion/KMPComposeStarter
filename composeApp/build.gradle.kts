@@ -5,28 +5,36 @@ plugins {
 }
 
 kotlin {
+  android {
+    namespace = "com.sermilion.kmpcomposestarter.composeapp"
+    compileSdk =
+      libs.versions.compileSdk
+        .get()
+        .toInt()
+    minSdk =
+      libs.versions.minSdk
+        .get()
+        .toInt()
+    withHostTestBuilder {}
+    androidResources {
+      enable = true
+    }
+  }
+
   sourceSets {
     all {
       languageSettings.optIn("kotlinx.coroutines.ExperimentalCoroutinesApi")
       languageSettings.optIn("androidx.compose.material3.ExperimentalMaterial3Api")
     }
 
-    androidMain.dependencies {
-      implementation(compose.preview)
-      implementation(libs.androidx.activity.compose)
-      implementation(libs.androidx.lifecycle.viewmodel)
-      implementation(libs.androidx.lifecycle.runtime)
-      implementation(libs.androidx.datastore.core)
-    }
-
     commonMain.dependencies {
-      implementation(compose.runtime)
-      implementation(compose.foundation)
-      implementation(compose.material3)
-      implementation(compose.ui)
-      implementation(compose.animation)
-      implementation(compose.components.resources)
-      implementation(compose.components.uiToolingPreview)
+      implementation(libs.compose.runtime)
+      implementation(libs.compose.foundation)
+      implementation(libs.compose.material3)
+      implementation(libs.compose.ui)
+      implementation(libs.compose.animation)
+      implementation(libs.compose.components.resources)
+      implementation(libs.compose.components.uiToolingPreview)
 
       implementation(projects.core.common)
       implementation(projects.core.ui)
@@ -79,63 +87,6 @@ dependencies {
   add("kspIosSimulatorArm64", libs.kotlin.inject.anvil.compiler)
   add("kspJvm", libs.kotlin.inject.compiler)
   add("kspJvm", libs.kotlin.inject.anvil.compiler)
-}
-
-android {
-  namespace = "com.sermilion.kmpcomposestarter"
-  compileSdk =
-    libs.versions.compileSdk
-      .get()
-      .toInt()
-
-  defaultConfig {
-    applicationId = "com.sermilion.kmpcomposestarter"
-    minSdk =
-      libs.versions.minSdk
-        .get()
-        .toInt()
-    targetSdk =
-      libs.versions.compileSdk
-        .get()
-        .toInt()
-    versionCode = 1
-    versionName = "1.0.0"
-
-    testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-  }
-
-  buildFeatures {
-    buildConfig = true
-  }
-
-  packaging {
-    resources {
-      excludes += "/META-INF/{AL2.0,LGPL2.1}"
-    }
-  }
-
-  buildTypes {
-    getByName("debug") {
-      applicationIdSuffix = ".debug"
-    }
-
-    getByName("release") {
-      isMinifyEnabled = true
-      proguardFiles(
-        getDefaultProguardFile("proguard-android-optimize.txt"),
-        "proguard-rules.pro",
-      )
-    }
-  }
-
-  compileOptions {
-    sourceCompatibility = JavaVersion.VERSION_11
-    targetCompatibility = JavaVersion.VERSION_11
-  }
-}
-
-dependencies {
-  debugImplementation(compose.uiTooling)
 }
 
 tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {

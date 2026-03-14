@@ -16,12 +16,12 @@ class KmpKotlinInjectConventionPlugin : Plugin<Project> {
   }
 
   override fun apply(target: Project) {
-    with(target) {
-      dependencies {
-        "implementation"(libs.findLibrary("kotlin.inject.runtime").get())
-        "implementation"(libs.findLibrary("kotlin.inject.anvil.runtime").get())
-        "implementation"(libs.findLibrary("kotlin.inject.anvil.runtime.optional").get())
-      }
+      with(target) {
+        dependencies {
+        add("commonMainImplementation", libs.findLibrary("kotlin.inject.runtime").get())
+        add("commonMainImplementation", libs.findLibrary("kotlin.inject.anvil.runtime").get())
+        add("commonMainImplementation", libs.findLibrary("kotlin.inject.anvil.runtime.optional").get())
+        }
 
       pluginManager.withPlugin("com.google.devtools.ksp") {
         dependencies {

@@ -5,11 +5,23 @@ plugins {
   alias(libs.plugins.kotlin.serialization)
 }
 
-android {
-  namespace = "com.sermilion.kmpcomposestarter.core.domain"
-}
-
 kotlin {
+  android {
+    namespace = "com.sermilion.kmpcomposestarter.core.domain"
+    compileSdk =
+      libs.versions.compileSdk
+        .get()
+        .toInt()
+    minSdk =
+      libs.versions.minSdk
+        .get()
+        .toInt()
+    withHostTestBuilder {}
+    androidResources {
+      enable = true
+    }
+  }
+
   sourceSets {
     commonMain.dependencies {
       api(projects.core.common)
@@ -30,14 +42,6 @@ kotlin {
   }
 }
 
-android {
-  testOptions {
-    unitTests.all {
-      it.useJUnitPlatform()
-    }
-  }
-}
-
 tasks.named<Test>("jvmTest") {
   useJUnitPlatform()
 }
@@ -45,6 +49,7 @@ tasks.named<Test>("jvmTest") {
 kotlin {
   sourceSets {
     jvmTest.dependencies {
+      implementation(projects.core.testing)
       implementation(libs.kotest.framework.engine)
       implementation(libs.kotest.assertions.core)
       implementation(libs.kotest.runner.junit5.jvm)
@@ -63,6 +68,4 @@ dependencies {
   add("kspIosSimulatorArm64", libs.kotlin.inject.anvil.compiler)
   add("kspJvm", libs.kotlin.inject.compiler)
   add("kspJvm", libs.kotlin.inject.anvil.compiler)
-
-  testImplementation(projects.core.testing)
 }

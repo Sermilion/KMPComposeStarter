@@ -2,11 +2,23 @@ plugins {
   alias(libs.plugins.kmp.library)
 }
 
-android {
-  namespace = "com.sermilion.kmpcomposestarter.core.testing"
-}
-
 kotlin {
+  android {
+    namespace = "com.sermilion.kmpcomposestarter.core.testing"
+    compileSdk =
+      libs.versions.compileSdk
+        .get()
+        .toInt()
+    minSdk =
+      libs.versions.minSdk
+        .get()
+        .toInt()
+    withHostTestBuilder {}
+    androidResources {
+      enable = true
+    }
+  }
+
   sourceSets {
     commonMain.dependencies {
       api(projects.core.common)

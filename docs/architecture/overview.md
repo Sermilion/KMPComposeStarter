@@ -17,7 +17,8 @@ It aims to provide a clean, production-ready baseline without hard-coding produc
 ## High-Level Shape
 
 ```text
-composeApp -> shared application shell, platform entry points, root UI wiring
+androidApp -> Android application module, manifest/resources, Android bootstrap
+composeApp -> shared application shell, iOS/JVM entry points, root UI wiring
 core:*     -> reusable infrastructure, data, domain, UI, and testing support
 feature:*  -> app-facing features and screens
 codegen:*  -> KSP support for generated ViewModel wiring
@@ -32,7 +33,8 @@ The starter separates cross-cutting infrastructure from feature code.
 
 - `core` modules hold reusable platform-agnostic building blocks.
 - `feature` modules own feature UI and screen logic.
-- `composeApp` owns app-shell concerns and platform entry points.
+- `androidApp` owns Android-specific bootstrap and launcher concerns.
+- `composeApp` owns shared app-shell concerns and non-Android platform entry points.
 
 ### Compile-time dependency injection
 
@@ -50,13 +52,10 @@ Room 3 is the shared persistence layer.
 
 The starter keeps one onboarding database plus one user-specific database per active user, with platform-specific builders handling file locations and driver details.
 
-## Current Tooling Constraint
+## Current Build Shape
 
-The repository already targets AGP 9 and Gradle 9.1.0, but Kotlin Multiplatform shared modules still use the temporary Android compatibility bridge.
+The repository targets AGP 9 and Gradle 9.1.0 with the Android app split into its own module.
 
-That is why `gradle.properties` currently keeps:
-
-- `android.builtInKotlin=false`
-- `android.newDsl=false`
-
-Treat that as a temporary compatibility measure, not a long-term architectural destination.
+- `androidApp` uses the Android application plugin.
+- Shared modules use the Android KMP library plugin.
+- `composeApp` remains the shared app shell for iOS and JVM plus root composition.

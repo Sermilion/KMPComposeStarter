@@ -1,3 +1,6 @@
+import com.android.build.api.dsl.Lint
+import org.gradle.kotlin.dsl.configure
+
 plugins {
   alias(libs.plugins.kmp.library)
   alias(libs.plugins.kmp.jacoco)
@@ -10,17 +13,26 @@ room3 {
   schemaDirectory("$projectDir/schemas")
 }
 
-android {
-  namespace = "com.sermilion.kmpcomposestarter.core.data"
-
-  testOptions {
-    unitTests.all {
-      it.useJUnitPlatform()
+kotlin {
+  android {
+    namespace = "com.sermilion.kmpcomposestarter.core.data"
+    compileSdk =
+      libs.versions.compileSdk
+        .get()
+        .toInt()
+    minSdk =
+      libs.versions.minSdk
+        .get()
+        .toInt()
+    withHostTestBuilder {}
+    lint {
+      disable += "RestrictedApi"
+    }
+    androidResources {
+      enable = true
     }
   }
-}
 
-kotlin {
   compilerOptions {
     freeCompilerArgs.add("-Xsuppress-version-warnings")
     freeCompilerArgs.add("-Xexpect-actual-classes")
@@ -87,7 +99,7 @@ kotlin {
       implementation(kotlin("test"))
     }
 
-    androidUnitTest.dependencies {
+    getByName("androidHostTest").dependencies {
       implementation(projects.core.testing)
       implementation(libs.androidx.junit)
       implementation(libs.kotest.runner.junit5.jvm)
@@ -115,6 +127,10 @@ dependencies {
   add("kspIosSimulatorArm64", libs.kotlin.inject.anvil.compiler)
   add("kspJvm", libs.kotlin.inject.compiler)
   add("kspJvm", libs.kotlin.inject.anvil.compiler)
+}
+
+configure<Lint> {
+  disable += "RestrictedApi"
 }
 
 tasks.withType<Test>().configureEach {
