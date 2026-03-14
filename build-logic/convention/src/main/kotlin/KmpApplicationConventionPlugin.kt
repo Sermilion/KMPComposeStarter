@@ -11,8 +11,8 @@ class KmpApplicationConventionPlugin : Plugin<Project> {
   override fun apply(target: Project) {
     with(target) {
       with(pluginManager) {
-        apply("com.android.application")
         apply("org.jetbrains.kotlin.multiplatform")
+        apply("com.android.application")
         apply("org.jetbrains.compose")
         apply("org.jetbrains.kotlin.plugin.compose")
         apply("kmp.detekt")

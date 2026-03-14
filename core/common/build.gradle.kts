@@ -57,8 +57,6 @@ dependencies {
   add("kspIosArm64", libs.kotlin.inject.anvil.compiler)
   add("kspIosSimulatorArm64", libs.kotlin.inject.compiler)
   add("kspIosSimulatorArm64", libs.kotlin.inject.anvil.compiler)
-  add("kspIosX64", libs.kotlin.inject.compiler)
-  add("kspIosX64", libs.kotlin.inject.anvil.compiler)
   add("kspJvm", libs.kotlin.inject.compiler)
   add("kspJvm", libs.kotlin.inject.anvil.compiler)
 }

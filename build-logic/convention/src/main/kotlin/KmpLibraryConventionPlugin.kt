@@ -10,8 +10,8 @@ class KmpLibraryConventionPlugin : Plugin<Project> {
   override fun apply(target: Project) {
     with(target) {
       with(pluginManager) {
-        apply("com.android.library")
         apply("org.jetbrains.kotlin.multiplatform")
+        apply("com.android.library")
         apply("kmp.lint")
         apply("kmp.detekt")
         apply("kmp.kotlininject")

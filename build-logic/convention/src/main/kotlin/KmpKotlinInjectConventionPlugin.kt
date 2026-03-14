@@ -11,7 +11,6 @@ class KmpKotlinInjectConventionPlugin : Plugin<Project> {
       "kspAndroid",
       "kspIosArm64",
       "kspIosSimulatorArm64",
-      "kspIosX64",
       "kspJvm",
     )
   }

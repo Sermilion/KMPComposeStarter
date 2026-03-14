@@ -77,8 +77,6 @@ dependencies {
   add("kspIosArm64", libs.kotlin.inject.anvil.compiler)
   add("kspIosSimulatorArm64", libs.kotlin.inject.compiler)
   add("kspIosSimulatorArm64", libs.kotlin.inject.anvil.compiler)
-  add("kspIosX64", libs.kotlin.inject.compiler)
-  add("kspIosX64", libs.kotlin.inject.anvil.compiler)
   add("kspJvm", libs.kotlin.inject.compiler)
   add("kspJvm", libs.kotlin.inject.anvil.compiler)
 }
@@ -147,9 +145,6 @@ tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach 
   if (name.contains("IosArm64") && !name.contains("Simulator")) {
     dependsOn("kspKotlinIosArm64")
   }
-  if (name.contains("IosX64")) {
-    dependsOn("kspKotlinIosX64")
-  }
   if (name.contains("Jvm")) {
     dependsOn("kspKotlinJvm")
   }
@@ -160,9 +155,6 @@ kotlin.sourceSets.named("iosSimulatorArm64Main") {
 }
 kotlin.sourceSets.named("iosArm64Main") {
   kotlin.srcDir("build/generated/ksp/iosArm64/iosArm64Main/kotlin")
-}
-kotlin.sourceSets.named("iosX64Main") {
-  kotlin.srcDir("build/generated/ksp/iosX64/iosX64Main/kotlin")
 }
 kotlin.sourceSets.named("jvmMain") {
   kotlin.srcDir("build/generated/ksp/jvm/jvmMain/kotlin")

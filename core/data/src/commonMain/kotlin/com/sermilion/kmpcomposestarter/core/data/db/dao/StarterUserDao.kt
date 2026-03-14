@@ -1,10 +1,7 @@
 package com.sermilion.kmpcomposestarter.core.data.db.dao
 
-import app.cash.sqldelight.coroutines.asFlow
-import app.cash.sqldelight.coroutines.mapToList
-import app.cash.sqldelight.coroutines.mapToOneOrNull
-import com.sermilion.kmpcomposestarter.common.coroutines.DispatcherProvider
 import com.sermilion.kmpcomposestarter.common.di.UserScope
+import com.sermilion.kmpcomposestarter.core.data.db.UserDataModel
 import com.sermilion.kmpcomposestarter.core.data.db.UserDatabase
 import com.sermilion.kmpcomposestarter.core.data.model.UserLocalDataModel
 import kotlinx.coroutines.flow.Flow
@@ -18,62 +15,48 @@ import kotlin.uuid.Uuid
 @OptIn(ExperimentalUuidApi::class)
 @Inject
 @SingleIn(UserScope::class)
-class StarterUserDao(
-  private val database: UserDatabase,
-  private val dispatcherProvider: DispatcherProvider,
-) : UserDao {
+class StarterUserDao(private val database: UserDatabase) : UserDao {
 
-  private val userQueries = database.userQueries
+  private val userDao = database.userEntityDao()
 
-  override fun observeUsers(): Flow<List<UserLocalDataModel>> = userQueries.observeAll()
-    .asFlow()
-    .mapToList(dispatcherProvider.io)
-    .map { list -> list.map { it.toLocalDataModel() } }
+  override fun observeUsers(): Flow<List<UserLocalDataModel>> = userDao.observeUsers()
+    .map { list -> list.map(UserDataModel::toLocalDataModel) }
 
   override fun observeUser(userId: Uuid): Flow<UserLocalDataModel?> =
-    userQueries.observeById(userId.toString())
-      .asFlow()
-      .mapToOneOrNull(dispatcherProvider.io)
-      .map { it?.toLocalDataModel() }
+    userDao.observeById(userId.toString()).map { it?.toLocalDataModel() }
 
   override suspend fun findUser(userId: Uuid): UserLocalDataModel? =
-    userQueries.selectById(userId.toString()).executeAsOneOrNull()?.toLocalDataModel()
+    userDao.getById(userId.toString())?.toLocalDataModel()
 
   override suspend fun insertUser(user: UserLocalDataModel) {
-    userQueries.insert(
-      id = user.id.toString(),
-      name = user.name,
-      email = user.email,
-      createdAt = user.createdAt.toEpochMilliseconds(),
-    )
+    userDao.upsert(user.toDataModel())
   }
 
   override suspend fun insertUsers(users: List<UserLocalDataModel>) {
-    database.transaction {
-      users.forEach { user ->
-        userQueries.insert(
-          id = user.id.toString(),
-          name = user.name,
-          email = user.email,
-          createdAt = user.createdAt.toEpochMilliseconds(),
-        )
-      }
-    }
+    userDao.upsertAll(users.map(UserLocalDataModel::toDataModel))
   }
 
   override suspend fun deleteUser(userId: Uuid) {
-    userQueries.deleteById(userId.toString())
+    userDao.deleteById(userId.toString())
   }
 
   override suspend fun deleteAllUsers() {
-    userQueries.deleteAll()
+    userDao.deleteAll()
   }
-
-  private fun com.sermilion.kmpcomposestarter.core.data.db.UserEntity.toLocalDataModel() =
-    UserLocalDataModel(
-      id = Uuid.parse(id),
-      name = name,
-      email = email,
-      createdAt = Instant.fromEpochMilliseconds(createdAt),
-    )
 }
+
+@OptIn(ExperimentalUuidApi::class)
+private fun UserDataModel.toLocalDataModel() = UserLocalDataModel(
+  id = Uuid.parse(id),
+  name = name,
+  email = email,
+  createdAt = Instant.fromEpochMilliseconds(createdAt),
+)
+
+@OptIn(ExperimentalUuidApi::class)
+private fun UserLocalDataModel.toDataModel() = UserDataModel(
+  id = id.toString(),
+  name = name,
+  email = email,
+  createdAt = createdAt.toEpochMilliseconds(),
+)

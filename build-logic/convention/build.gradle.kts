@@ -14,7 +14,7 @@ java {
 
 tasks.withType<KotlinCompile>().configureEach {
   compilerOptions {
-    jvmTarget.set(JvmTarget.JVM_11)
+    jvmTarget.set(JvmTarget.JVM_17)
   }
 }
 
@@ -23,7 +23,7 @@ dependencies {
   compileOnly(libs.kotlin.gradlePlugin)
   compileOnly(libs.ksp.gradlePlugin)
   compileOnly(libs.detekt.gradlePlugin)
-  implementation("org.jetbrains.compose:compose-gradle-plugin:1.9.3")
+  implementation(libs.compose.gradle.plugin)
 }
 
 tasks {

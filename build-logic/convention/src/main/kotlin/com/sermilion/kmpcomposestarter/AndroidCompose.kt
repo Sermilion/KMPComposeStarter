@@ -1,41 +1,80 @@
 package com.sermilion.kmpcomposestarter
 
-import com.android.build.api.dsl.CommonExtension
+import com.android.build.api.dsl.ApplicationExtension
+import com.android.build.gradle.LibraryExtension
 import org.gradle.api.Project
 import org.gradle.kotlin.dsl.dependencies
 import org.gradle.kotlin.dsl.withType
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 internal fun Project.configureAndroidCompose(
-  commonExtension: CommonExtension<*, *, *, *, *, *>,
+  commonExtension: ApplicationExtension,
 ) {
-  commonExtension.apply {
-    buildFeatures {
-      compose = true
-    }
+  commonExtension.configureComposeOptions(this)
 
-    composeOptions {
-      kotlinCompilerExtensionVersion = libs.findVersion("androidxComposeCompiler").get().toString()
-    }
-
-    dependencies {
-      val bom = libs.findLibrary("androidx-compose-bom").get()
-      add("implementation", platform(bom))
-      add("androidTestImplementation", platform(bom))
-      add("debugImplementation", libs.findLibrary("androidx.compose.ui.testManifest").get())
-      add("testImplementation", libs.findLibrary("robolectric").get())
-    }
-
-    testOptions {
-      unitTests {
-        isIncludeAndroidResources = true
-      }
-    }
+  dependencies {
+    val bom = libs.findLibrary("androidx-compose-bom").get()
+    add("implementation", platform(bom))
+    add("androidTestImplementation", platform(bom))
+    add("debugImplementation", libs.findLibrary("androidx.compose.ui.testManifest").get())
+    add("testImplementation", libs.findLibrary("robolectric").get())
   }
 
   tasks.withType<KotlinCompile>().configureEach {
     compilerOptions {
       freeCompilerArgs.addAll(buildComposeMetricsParameters())
+    }
+  }
+}
+
+internal fun Project.configureAndroidCompose(
+  commonExtension: LibraryExtension,
+) {
+  commonExtension.configureComposeOptions(this)
+
+  dependencies {
+    val bom = libs.findLibrary("androidx-compose-bom").get()
+    add("implementation", platform(bom))
+    add("androidTestImplementation", platform(bom))
+    add("debugImplementation", libs.findLibrary("androidx.compose.ui.testManifest").get())
+    add("testImplementation", libs.findLibrary("robolectric").get())
+  }
+
+  tasks.withType<KotlinCompile>().configureEach {
+    compilerOptions {
+      freeCompilerArgs.addAll(buildComposeMetricsParameters())
+    }
+  }
+}
+
+private fun ApplicationExtension.configureComposeOptions(project: Project) {
+  buildFeatures {
+    compose = true
+  }
+
+  composeOptions {
+    kotlinCompilerExtensionVersion = project.libs.findVersion("androidxComposeCompiler").get().toString()
+  }
+
+  testOptions {
+    unitTests {
+      isIncludeAndroidResources = true
+    }
+  }
+}
+
+private fun LibraryExtension.configureComposeOptions(project: Project) {
+  buildFeatures {
+    compose = true
+  }
+
+  composeOptions {
+    kotlinCompilerExtensionVersion = project.libs.findVersion("androidxComposeCompiler").get().toString()
+  }
+
+  testOptions {
+    unitTests {
+      isIncludeAndroidResources = true
     }
   }
 }

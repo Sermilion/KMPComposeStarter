@@ -1,8 +1,13 @@
 plugins {
   alias(libs.plugins.kmp.library)
+  alias(libs.plugins.kmp.jacoco)
   alias(libs.plugins.kotlin.serialization)
   alias(libs.plugins.ksp)
-  alias(libs.plugins.sqldelight)
+  alias(libs.plugins.room3)
+}
+
+room3 {
+  schemaDirectory("$projectDir/schemas")
 }
 
 android {
@@ -13,35 +18,6 @@ android {
       it.useJUnitPlatform()
     }
   }
-}
-
-sqldelight {
-  databases {
-    create("UserDatabase") {
-      packageName.set("com.sermilion.kmpcomposestarter.core.data.db")
-      srcDirs.setFrom("src/commonMain/sqldelight/user")
-      schemaOutputDirectory.set(file("build/sqldelight/databases/user"))
-      verifyMigrations.set(false)
-    }
-    create("OnboardingDatabase") {
-      packageName.set("com.sermilion.kmpcomposestarter.core.data.db")
-      srcDirs.setFrom("src/commonMain/sqldelight/onboarding")
-      schemaOutputDirectory.set(file("build/sqldelight/databases/onboarding"))
-      verifyMigrations.set(false)
-    }
-  }
-}
-
-afterEvaluate {
-  tasks
-    .matching {
-      it.name.startsWith("ksp") &&
-        (it.name.contains("Android") || it.name.contains("Ios") || it.name.contains("Jvm")) &&
-        !it.name.contains("Test")
-    }.configureEach {
-      dependsOn("generateCommonMainUserDatabaseInterface")
-      dependsOn("generateCommonMainOnboardingDatabaseInterface")
-    }
 }
 
 kotlin {
@@ -67,8 +43,8 @@ kotlin {
       implementation(libs.ktor.client.auth)
       implementation(libs.ktor.client.logging)
 
-      implementation(libs.sqldelight.coroutines.extensions)
-      implementation(libs.sqldelight.primitive.adapters)
+      implementation(libs.room3.runtime)
+      implementation(libs.sqlite.bundled)
 
       implementation(libs.paging.common)
 
@@ -89,20 +65,15 @@ kotlin {
 
       implementation(libs.ktor.client.okhttp)
 
-      implementation(libs.sqldelight.android.driver)
-      implementation(libs.sqldelight.paging3.extensions)
-
       implementation(libs.paging.runtime)
       implementation(libs.paging.compose)
     }
 
     iosMain.dependencies {
-      implementation(libs.sqldelight.native.driver)
       implementation(libs.ktor.client.darwin)
     }
 
     jvmMain.dependencies {
-      implementation(libs.sqldelight.jdbc.driver)
       implementation(libs.sqlite.jdbc)
       implementation(libs.ktor.client.okhttp)
     }
@@ -131,18 +102,21 @@ kotlin {
 }
 
 dependencies {
+  add("kspAndroid", libs.room3.compiler)
+  add("kspIosArm64", libs.room3.compiler)
+  add("kspIosSimulatorArm64", libs.room3.compiler)
+  add("kspJvm", libs.room3.compiler)
+
   add("kspAndroid", libs.kotlin.inject.compiler)
   add("kspAndroid", libs.kotlin.inject.anvil.compiler)
   add("kspIosArm64", libs.kotlin.inject.compiler)
   add("kspIosArm64", libs.kotlin.inject.anvil.compiler)
   add("kspIosSimulatorArm64", libs.kotlin.inject.compiler)
   add("kspIosSimulatorArm64", libs.kotlin.inject.anvil.compiler)
-  add("kspIosX64", libs.kotlin.inject.compiler)
-  add("kspIosX64", libs.kotlin.inject.anvil.compiler)
   add("kspJvm", libs.kotlin.inject.compiler)
   add("kspJvm", libs.kotlin.inject.anvil.compiler)
 }
 
-tasks.named<Test>("jvmTest") {
+tasks.withType<Test>().configureEach {
   useJUnitPlatform()
 }

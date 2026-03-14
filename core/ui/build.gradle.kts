@@ -48,7 +48,6 @@ dependencies {
   add("kspAndroid", libs.kotlin.inject.compiler)
   add("kspIosArm64", libs.kotlin.inject.compiler)
   add("kspIosSimulatorArm64", libs.kotlin.inject.compiler)
-  add("kspIosX64", libs.kotlin.inject.compiler)
   add("kspJvm", libs.kotlin.inject.compiler)
 }
 

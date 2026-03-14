@@ -10,7 +10,6 @@ pluginManagement {
     }
     mavenCentral()
     gradlePluginPortal()
-    maven("https://jitpack.io")
   }
 }
 
@@ -26,10 +25,6 @@ dependencyResolutionManagement {
       }
     }
     mavenCentral()
-    mavenLocal()
-    maven("https://maven.pkg.jetbrains.space/public/p/compose/dev")
-    maven("https://jitpack.io")
-    maven("https://jogamp.org/deployment/maven")
   }
 }
 

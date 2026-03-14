@@ -9,7 +9,7 @@ plugins {
   alias(libs.plugins.detekt) apply false
   alias(libs.plugins.compose.compiler) apply false
   alias(libs.plugins.compose.multiplatform) apply false
-  alias(libs.plugins.sqldelight) apply false
+  alias(libs.plugins.room3) apply false
   alias(libs.plugins.kover) apply false
 }
 
@@ -19,6 +19,10 @@ buildscript {
   repositories {
     google()
     mavenCentral()
+  }
+  dependencies {
+    classpath(libs.kotlin.gradlePlugin)
+    classpath(libs.ksp.gradlePlugin)
   }
 }
 
@@ -54,21 +58,6 @@ subprojects {
     kotlinGradle {
       target("*.gradle.kts")
       ktlint()
-    }
-  }
-
-  afterEvaluate {
-    extensions.findByType<com.android.build.gradle.BaseExtension>()?.apply {
-      packagingOptions {
-        resources.excludes.addAll(
-          listOf(
-            "/META-INF/{AL2.0,LGPL2.1}",
-            "META-INF/versions/**",
-            "META-INF/LICENSE.md",
-            "META-INF/LICENSE-notice.md"
-          )
-        )
-      }
     }
   }
 }

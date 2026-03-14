@@ -23,9 +23,12 @@ internal fun Project.configureKotlinMultiplatform(
       sourceCompatibility = JavaVersion.VERSION_11
       targetCompatibility = JavaVersion.VERSION_11
     }
+    configurePackaging()
   }
 
   extension.apply {
+    jvmToolchain(17)
+
     compilerOptions {
       freeCompilerArgs.addAll(
         listOf(
@@ -50,7 +53,6 @@ internal fun Project.configureKotlinMultiplatform(
 
     jvm()
 
-    iosX64()
     iosArm64()
     iosSimulatorArm64()
 
@@ -84,9 +86,12 @@ internal fun Project.configureKotlinMultiplatformCompose(
       sourceCompatibility = JavaVersion.VERSION_11
       targetCompatibility = JavaVersion.VERSION_11
     }
+    configurePackaging()
   }
 
   extension.apply {
+    jvmToolchain(17)
+
     compilerOptions {
       freeCompilerArgs.addAll(
         listOf(
@@ -111,7 +116,6 @@ internal fun Project.configureKotlinMultiplatformCompose(
 
     jvm()
 
-    iosX64()
     iosArm64()
     iosSimulatorArm64()
 
@@ -151,9 +155,12 @@ internal fun Project.configureKotlinMultiplatformApplication(
       sourceCompatibility = JavaVersion.VERSION_11
       targetCompatibility = JavaVersion.VERSION_11
     }
+    configurePackaging()
   }
 
   extension.apply {
+    jvmToolchain(17)
+
     compilerOptions {
       freeCompilerArgs.addAll(
         listOf(
@@ -179,7 +186,6 @@ internal fun Project.configureKotlinMultiplatformApplication(
     jvm()
 
     listOf(
-      iosX64(),
       iosArm64(),
       iosSimulatorArm64(),
     ).forEach { iosTarget ->
@@ -238,4 +244,34 @@ private fun Project.configureKotlin() {
 
 private fun Project.findVersion(alias: String): String {
   return libs.findVersion(alias).get().requiredVersion
+}
+
+private fun LibraryExtension.configurePackaging() {
+  packaging {
+    resources {
+      excludes.addAll(
+        listOf(
+          "/META-INF/{AL2.0,LGPL2.1}",
+          "META-INF/versions/**",
+          "META-INF/LICENSE.md",
+          "META-INF/LICENSE-notice.md",
+        )
+      )
+    }
+  }
+}
+
+private fun ApplicationExtension.configurePackaging() {
+  packaging {
+    resources {
+      excludes.addAll(
+        listOf(
+          "/META-INF/{AL2.0,LGPL2.1}",
+          "META-INF/versions/**",
+          "META-INF/LICENSE.md",
+          "META-INF/LICENSE-notice.md",
+        )
+      )
+    }
+  }
 }
