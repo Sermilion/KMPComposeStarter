@@ -143,10 +143,13 @@ class ViewModelInjectProcessor(
         "software.amazon.lastmile.kotlin.inject.anvil.AppScope",
         ->
           ClassName("software.amazon.lastmile.kotlin.inject.anvil", "AppScope")
+
         "com.sermilion.kmpcomposestarter.common.di.UserScope" ->
           ClassName("com.sermilion.kmpcomposestarter.common.di", "UserScope")
+
         "com.sermilion.kmpcomposestarter.common.di.ScreenScope" ->
           ClassName("com.sermilion.kmpcomposestarter.common.di", "ScreenScope")
+
         else -> {
           logger.warn("Unknown scope $scopeValue, defaulting to ScreenScope", classDeclaration)
           ClassName("com.sermilion.kmpcomposestarter.common.di", "ScreenScope")

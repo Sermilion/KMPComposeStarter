@@ -48,6 +48,7 @@ class RegisterViewModel(private val authRepository: AuthRepository) : ViewModel(
           _uiState.update { it.copy(isLoading = false) }
           _events.emit(RegisterContract.Event.RegisterSuccess)
         }
+
         is LoginResult.Error -> {
           _uiState.update {
             it.copy(

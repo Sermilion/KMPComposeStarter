@@ -51,6 +51,7 @@ fun StarterNavDisplay(
     transitionSpec = {
       when {
         isTabSwitching -> fadeIn(fadeAnimationSpec) togetherWith fadeOut(fadeAnimationSpec)
+
         else -> slideInHorizontally(
           initialOffsetX = { it },
           animationSpec = slideAnimationSpec,

@@ -54,6 +54,7 @@ class StarterAuthRepository(
         userComponentManager.createComponent(response.userData)
         LoginResult.Success(response.userData)
       }
+
       is AuthResponse.Error -> LoginResult.Error(response.message)
     }
 
@@ -63,6 +64,7 @@ class StarterAuthRepository(
         userComponentManager.createComponent(response.userData)
         LoginResult.Success(response.userData)
       }
+
       is AuthResponse.Error -> LoginResult.Error(response.message)
     }
 

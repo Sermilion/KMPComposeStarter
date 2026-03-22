@@ -16,6 +16,7 @@ class StarterNavigator(private val state: MutableState<StarterNavigationState>) 
         updatedStack.add(route)
         state.value = currentState.copy(authBackStack = updatedStack.toSnapshotStateList())
       }
+
       currentState.isAuthenticated && route is TopLevelRoute -> {
         val currentTab = currentState.currentTab
         val currentStack =

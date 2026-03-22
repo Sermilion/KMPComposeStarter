@@ -87,8 +87,11 @@ private class JdbcSqliteStatement(private val preparedStatement: PreparedStateme
     }
 
     Types.DECIMAL, Types.DOUBLE, Types.FLOAT, Types.NUMERIC, Types.REAL -> SQLITE_DATA_FLOAT
+
     Types.BINARY, Types.LONGVARBINARY, Types.VARBINARY -> SQLITE_DATA_BLOB
+
     Types.NULL -> SQLITE_DATA_NULL
+
     else -> SQLITE_DATA_TEXT
   }
 
