@@ -1,10 +1,11 @@
+
 package news.readian.notoesapp.navigation
 
 import androidx.compose.runtime.MutableState
 import news.readian.notoesapp.common.navigation.AuthFlowRoute
 import news.readian.notoesapp.common.navigation.Route
 import news.readian.notoesapp.common.navigation.TopLevelRoute
-import news.readian.notoesapp.feature.onboarding.navigation.WelcomeRoute
+import news.readian.notoesapp.feature.onboarding.navigation.TutorialRoute
 
 class StarterNavigator(private val state: MutableState<StarterNavigationState>) {
 
@@ -68,9 +69,7 @@ class StarterNavigator(private val state: MutableState<StarterNavigationState>) 
   }
 
   private fun goBackInAuth(currentState: StarterNavigationState): Boolean =
-    if (currentState.authBackStack.size >
-      1
-    ) {
+    if (currentState.authBackStack.size > 1) {
       val updatedStack = currentState.authBackStack.toMutableList()
       updatedStack.removeLastOrNull()
       state.value = currentState.copy(authBackStack = updatedStack.toSnapshotStateList())
@@ -93,7 +92,7 @@ class StarterNavigator(private val state: MutableState<StarterNavigationState>) 
     } else {
       state.value = currentState.copy(
         isAuthenticated = false,
-        authBackStack = listOf<AuthFlowRoute>(WelcomeRoute).toSnapshotStateList(),
+        authBackStack = listOf<AuthFlowRoute>(TutorialRoute).toSnapshotStateList(),
       )
     }
   }

@@ -1,75 +1,112 @@
+
 package news.readian.notoesapp.feature.auth.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharedFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asSharedFlow
-import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import me.tatarka.inject.annotations.Inject
-import news.readian.notoesapp.core.data.config.MockConfig
 import news.readian.notoesapp.core.data.repository.AuthRepository
 import news.readian.notoesapp.core.data.repository.LoginResult
 
 @Inject
 class RegisterViewModel(private val authRepository: AuthRepository) : ViewModel() {
 
-  private val _uiState = MutableStateFlow(RegisterContract.UiState())
-  val uiState: StateFlow<RegisterContract.UiState> = _uiState.asStateFlow()
+  private val loadingState = MutableStateFlow(false)
+  private val errorState = MutableStateFlow(listOf<RegisterContract.RegistrationProblem>())
+  private val mutableNavigationState = MutableStateFlow<RegisterContract.NavigationState>(
+    RegisterContract.NavigationState.Registration,
+  )
 
-  private val _events = MutableSharedFlow<RegisterContract.Event>()
-  val events: SharedFlow<RegisterContract.Event> = _events.asSharedFlow()
+  val navigationState = mutableNavigationState.stateIn(
+    scope = viewModelScope,
+    started = SharingStarted.WhileSubscribed(STOP_TIMEOUT_MILLIS),
+    initialValue = RegisterContract.NavigationState.Registration,
+  )
 
-  fun onNameChange(name: String) {
-    _uiState.update { it.copy(name = name, error = null) }
-  }
+  val uiState = combine(loadingState, errorState) { loading, errors ->
+    RegisterContract.UiState.Content(loading = loading, errors = errors)
+  }.stateIn(
+    scope = viewModelScope,
+    started = SharingStarted.WhileSubscribed(STOP_TIMEOUT_MILLIS),
+    initialValue = RegisterContract.UiState.Initial,
+  )
 
-  fun onEmailChange(email: String) {
-    _uiState.update { it.copy(email = email, error = null) }
-  }
-
-  fun onPasswordChange(password: String) {
-    _uiState.update { it.copy(password = password, error = null) }
-  }
-
-  fun register() {
-    val state = _uiState.value
-    if (state.isLoading) return
-
+  fun onSignUpClick(username: String, email: String, password: String, confirmPassword: String) {
     viewModelScope.launch {
-      _uiState.update { it.copy(isLoading = true, error = null) }
+      handleRegistration(
+        username = username,
+        email = email,
+        password = password,
+        confirmPassword = confirmPassword,
+      )
+    }
+  }
 
-      when (val result = authRepository.register(state.email, state.password, state.name)) {
-        is LoginResult.Success -> {
-          _uiState.update { it.copy(isLoading = false) }
-          _events.emit(RegisterContract.Event.RegisterSuccess)
-        }
-        is LoginResult.Error -> {
-          _uiState.update {
-            it.copy(
-              isLoading = false,
-              error = RegisterContract.Error.Unknown(result.message),
-            )
-          }
-        }
+  private suspend fun handleRegistration(
+    username: String,
+    email: String,
+    password: String,
+    confirmPassword: String,
+  ) {
+    loadingState.update { true }
+    errorState.update { emptyList() }
+
+    if (password != confirmPassword) {
+      errorState.update {
+        listOf(
+          RegisterContract.RegistrationProblem.FieldValidation(
+            listOf(RegisterContract.Field.Password),
+          ),
+        )
+      }
+      loadingState.update { false }
+      return
+    }
+
+    when (val result = authRepository.register(email, password, username)) {
+      is LoginResult.Success -> {
+        errorState.update { emptyList() }
+        mutableNavigationState.update { RegisterContract.NavigationState.Close }
+      }
+      is LoginResult.Error -> errorState.update { result.toUiProblems() }
+    }
+    loadingState.update { false }
+  }
+
+  private fun LoginResult.Error.toUiProblems(): List<RegisterContract.RegistrationProblem> {
+    val normalizedMessage = message.lowercase()
+    val fields = buildList {
+      when {
+        normalizedMessage.contains(
+          "email",
+        ) &&
+          normalizedMessage.contains("exist") -> add(RegisterContract.Field.Email)
+        normalizedMessage.contains("username") &&
+          (
+            normalizedMessage.contains(
+              "taken",
+            ) ||
+              normalizedMessage.contains("exist")
+            ) -> add(RegisterContract.Field.Username)
+        normalizedMessage.contains("email") -> add(RegisterContract.Field.EmailFormat)
+        normalizedMessage.contains("username") -> add(RegisterContract.Field.UsernameFormat)
+        normalizedMessage.contains("password") -> add(RegisterContract.Field.Password)
+        statusCode == 422 -> add(RegisterContract.Field.Unknown)
       }
     }
+    return if (fields.isNotEmpty()) {
+      listOf(RegisterContract.RegistrationProblem.FieldValidation(fields))
+    } else {
+      listOf(RegisterContract.RegistrationProblem.GenericError)
+    }
   }
 
-  fun registerDemo() {
-    _uiState.update {
-      it.copy(name = "New User", email = "new@test.com", password = MockConfig.DEMO_PASSWORD)
-    }
-    register()
-  }
-
-  fun navigateBack() {
-    viewModelScope.launch {
-      _events.emit(RegisterContract.Event.NavigateBack)
-    }
+  private companion object {
+    const val STOP_TIMEOUT_MILLIS = 5_000L
   }
 }

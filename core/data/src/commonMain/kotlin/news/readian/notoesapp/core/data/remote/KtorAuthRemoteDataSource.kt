@@ -1,12 +1,32 @@
+
 package news.readian.notoesapp.core.data.remote
 
 import io.ktor.client.HttpClient
-import kotlinx.coroutines.delay
-import kotlinx.datetime.Clock
+import io.ktor.client.call.body
+import io.ktor.client.plugins.ClientRequestException
+import io.ktor.client.plugins.HttpRequestTimeoutException
+import io.ktor.client.plugins.ServerResponseException
+import io.ktor.client.request.post
+import io.ktor.client.request.setBody
+import io.ktor.client.statement.bodyAsText
+import io.ktor.http.ContentType
+import io.ktor.http.HttpStatusCode
+import io.ktor.http.contentType
+import kotlinx.serialization.SerializationException
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import me.tatarka.inject.annotations.Inject
-import news.readian.notoesapp.core.data.config.MockConfig
+import news.readian.notoesapp.core.data.model.ApiErrorResponseDataModel
 import news.readian.notoesapp.core.data.model.AuthResultDataModel
 import news.readian.notoesapp.core.data.model.AuthTokenDataModel
+import news.readian.notoesapp.core.data.model.AuthUserDataModel
+import news.readian.notoesapp.core.data.model.GuestRegistrationPayloadDataModel
+import news.readian.notoesapp.core.data.model.GuestRegistrationResponseDataModel
+import news.readian.notoesapp.core.data.model.LoginPayloadDataModel
+import news.readian.notoesapp.core.data.model.LoginResponseDataModel
+import news.readian.notoesapp.core.data.model.RegisterPayloadDataModel
+import news.readian.notoesapp.core.data.model.RegistrationResponseDataModel
 import news.readian.notoesapp.core.data.model.UserDataModel
 import news.readian.notoesapp.core.data.util.withRestErrorHandling
 import software.amazon.lastmile.kotlin.inject.anvil.AppScope
@@ -16,37 +36,29 @@ import software.amazon.lastmile.kotlin.inject.anvil.SingleIn
 @Inject
 @SingleIn(AppScope::class)
 @ContributesBinding(AppScope::class)
-class KtorAuthRemoteDataSource(@Suppress("unused") private val httpClient: HttpClient) :
+class KtorAuthRemoteDataSource(private val httpClient: HttpClient, private val json: Json) :
   AuthRemoteDataSource {
 
   override suspend fun login(email: String, password: String): AuthResultDataModel =
     withRestErrorHandling(
       tag = TAG,
       block = {
-        delay(MOCK_DELAY_MS)
-        if (email == MockConfig.DEMO_EMAIL && password == MockConfig.DEMO_PASSWORD) {
-          AuthResultDataModel.Success(
-            user = UserDataModel(
-              id = MockConfig.DEMO_USER_ID,
-              email = email,
-              name = MockConfig.DEMO_USER_NAME,
-            ),
-            token = AuthTokenDataModel(
-              accessToken = "mock-token-${Clock.System.now().toEpochMilliseconds()}",
-            ),
-          )
-        } else {
-          AuthResultDataModel.Error(
-            message = "Invalid credentials",
-            code = "INVALID_CREDENTIALS",
-          )
-        }
-      },
-      errorBlock = { e ->
-        AuthResultDataModel.Error(
-          message = e.message.orEmpty(),
-          code = "NETWORK_ERROR",
+        val response = httpClient.post("api/auth/token") {
+          contentType(ContentType.Application.Json)
+          setBody(LoginPayloadDataModel(identifier = email, password = password))
+        }.body<LoginResponseDataModel>()
+
+        AuthResultDataModel.Success(
+          user = response.data.user.toUserDataModel(defaultEmail = email),
+          token = AuthTokenDataModel(
+            accessToken = response.data.token.accessToken,
+            refreshToken = response.data.token.refreshToken,
+            expiresIn = response.data.token.expiresIn,
+          ),
         )
+      },
+      errorBlock = { exception ->
+        exception.toAuthError(defaultMessage = "Unable to sign in")
       },
     )
 
@@ -57,58 +69,123 @@ class KtorAuthRemoteDataSource(@Suppress("unused") private val httpClient: HttpC
   ): AuthResultDataModel = withRestErrorHandling(
     tag = TAG,
     block = {
-      delay(MOCK_DELAY_MS)
-      AuthResultDataModel.Success(
-        user = UserDataModel(
-          id = "user-${Clock.System.now().toEpochMilliseconds()}",
-          email = email,
-          name = name,
-        ),
-        token = AuthTokenDataModel(
-          accessToken = "mock-token-${Clock.System.now().toEpochMilliseconds()}",
-        ),
+      val response = httpClient.post("api/users") {
+        contentType(ContentType.Application.Json)
+        setBody(
+          RegisterPayloadDataModel(
+            username = name,
+            password = password,
+            email = email,
+            confirmPassword = password,
+          ),
+        )
+      }.body<RegistrationResponseDataModel>()
+
+      AuthResultDataModel.Registered(
+        user = response.data.toUserDataModel(defaultEmail = email),
       )
     },
-    errorBlock = { e ->
-      AuthResultDataModel.Error(
-        message = e.message.orEmpty(),
-        code = "NETWORK_ERROR",
-      )
+    errorBlock = { exception ->
+      exception.toAuthError(defaultMessage = "Unable to create account")
     },
   )
 
-  override suspend fun logout() {
-    delay(MOCK_LOGOUT_DELAY_MS)
-  }
-
-  override suspend fun refreshToken(token: String): AuthResultDataModel = withRestErrorHandling(
+  override suspend fun registerGuest(password: String): AuthResultDataModel = withRestErrorHandling(
     tag = TAG,
     block = {
-      delay(MOCK_LOGOUT_DELAY_MS)
-      AuthResultDataModel.Success(
-        user = UserDataModel(
-          id = MockConfig.DEMO_USER_ID,
-          email = MockConfig.DEMO_EMAIL,
-          name = MockConfig.DEMO_USER_NAME,
-        ),
-        token = AuthTokenDataModel(
-          accessToken = "refreshed-token-${Clock.System.now().toEpochMilliseconds()}",
-        ),
+      val response = httpClient.post("api/users/guest") {
+        contentType(ContentType.Application.Json)
+        setBody(
+          GuestRegistrationPayloadDataModel(
+            password = password,
+            confirmPassword = password,
+          ),
+        )
+      }.body<GuestRegistrationResponseDataModel>()
+
+      AuthResultDataModel.GuestRegistered(
+        username = response.data.username,
+        password = password,
       )
     },
-    errorBlock = { e ->
-      AuthResultDataModel.Error(
-        message = e.message.orEmpty(),
-        code = "REFRESH_FAILED",
-      )
+    errorBlock = { exception ->
+      exception.toAuthError(defaultMessage = "Unable to continue as guest")
     },
   )
+
+  override suspend fun logout() = Unit
+
+  override suspend fun refreshToken(token: String): AuthResultDataModel =
+    AuthResultDataModel.Error(message = "Refresh token is not implemented", code = "UNSUPPORTED")
 
   override suspend fun getCurrentUser(token: String): UserDataModel? = null
 
+  private suspend fun Exception.toAuthError(defaultMessage: String): AuthResultDataModel.Error =
+    when (this) {
+      is HttpRequestTimeoutException -> AuthResultDataModel.Error(
+        message = defaultMessage,
+        code = "TIMEOUT",
+      )
+      is ClientRequestException -> {
+        val bodyText = readResponseBody()
+        val payload = parseErrorPayload(bodyText)
+        AuthResultDataModel.Error(
+          message = payload.message ?: response.status.toDefaultMessage(defaultMessage),
+          code = payload.code,
+          statusCode = response.status.value,
+        )
+      }
+      is ServerResponseException -> {
+        val bodyText = readResponseBody()
+        val payload = parseErrorPayload(bodyText)
+        AuthResultDataModel.Error(
+          message = payload.message ?: defaultMessage,
+          code = payload.code,
+          statusCode = response.status.value,
+        )
+      }
+      else -> AuthResultDataModel.Error(message = message.orEmpty().ifBlank { defaultMessage })
+    }
+
+  private suspend fun ClientRequestException.readResponseBody(): String = try {
+    response.bodyAsText()
+  } catch (_: Exception) {
+    ""
+  }
+
+  private suspend fun ServerResponseException.readResponseBody(): String = try {
+    response.bodyAsText()
+  } catch (_: Exception) {
+    ""
+  }
+
+  private fun parseErrorPayload(bodyText: String): ApiErrorResponseDataModel = try {
+    json.decodeFromString<ApiErrorResponseDataModel>(bodyText)
+  } catch (_: SerializationException) {
+    val jsonElement = json.parseToJsonElement(bodyText).jsonObject
+    ApiErrorResponseDataModel(
+      code = jsonElement["code"]?.jsonPrimitive?.content,
+      message = jsonElement["message"]?.jsonPrimitive?.content,
+    )
+  } catch (_: Exception) {
+    ApiErrorResponseDataModel()
+  }
+
+  private fun HttpStatusCode.toDefaultMessage(defaultMessage: String): String = when (this) {
+    HttpStatusCode.Unauthorized -> "Invalid credentials"
+    HttpStatusCode.Conflict -> "An account with these details already exists"
+    HttpStatusCode.UnprocessableEntity -> "Please check your account details and try again"
+    else -> defaultMessage
+  }
+
+  private fun AuthUserDataModel.toUserDataModel(defaultEmail: String): UserDataModel =
+    UserDataModel(
+      id = id,
+      email = email.orEmpty().ifBlank { defaultEmail },
+      name = name.orEmpty().ifBlank { username },
+    )
+
   private companion object {
     const val TAG = "KtorAuthRemoteDataSource"
-    const val MOCK_DELAY_MS = 1000L
-    const val MOCK_LOGOUT_DELAY_MS = 500L
   }
 }

@@ -1,69 +1,75 @@
+
 package news.readian.notoesapp.feature.auth.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharedFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asSharedFlow
-import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import me.tatarka.inject.annotations.Inject
-import news.readian.notoesapp.core.data.config.MockConfig
 import news.readian.notoesapp.core.data.repository.AuthRepository
 import news.readian.notoesapp.core.data.repository.LoginResult
 
 @Inject
 class LoginViewModel(private val authRepository: AuthRepository) : ViewModel() {
 
-  private val _uiState = MutableStateFlow(LoginContract.UiState())
-  val uiState: StateFlow<LoginContract.UiState> = _uiState.asStateFlow()
+  private val loadingState = MutableStateFlow(false)
+  private val errorState = MutableStateFlow(listOf<LoginContract.LoginProblem>())
 
-  private val _events = MutableSharedFlow<LoginContract.Event>()
-  val events: SharedFlow<LoginContract.Event> = _events.asSharedFlow()
+  val uiState = combine(loadingState, errorState) { loading, errors ->
+    LoginContract.UiState(loading = loading, errors = errors)
+  }.stateIn(
+    scope = viewModelScope,
+    started = SharingStarted.WhileSubscribed(STOP_TIMEOUT_MILLIS),
+    initialValue = LoginContract.UiState(),
+  )
 
-  fun onEmailChange(email: String) {
-    _uiState.update { it.copy(email = email, error = null) }
-  }
-
-  fun onPasswordChange(password: String) {
-    _uiState.update { it.copy(password = password, error = null) }
-  }
-
-  fun login() {
-    val state = _uiState.value
-    if (state.isLoading) return
-
+  fun onLogin(identifier: String, password: String) {
     viewModelScope.launch {
-      _uiState.update { it.copy(isLoading = true, error = null) }
-
-      when (val result = authRepository.login(state.email, state.password)) {
-        is LoginResult.Success -> {
-          _uiState.update { it.copy(isLoading = false) }
-          _events.emit(LoginContract.Event.LoginSuccess)
-        }
-        is LoginResult.Error -> {
-          _uiState.update {
-            it.copy(
-              isLoading = false,
-              error = LoginContract.Error.Unknown(result.message),
-            )
-          }
-        }
+      loadingState.update { true }
+      errorState.update { emptyList() }
+      when (val result = authRepository.login(identifier, password)) {
+        is LoginResult.Success -> errorState.update { emptyList() }
+        is LoginResult.Error -> errorState.update { listOf(result.toUiProblem()) }
       }
+      loadingState.update { false }
     }
   }
 
-  fun loginDemo() {
-    _uiState.update { it.copy(email = MockConfig.DEMO_EMAIL, password = MockConfig.DEMO_PASSWORD) }
-    login()
+  private fun LoginResult.Error.toUiProblem(): LoginContract.LoginProblem {
+    val normalizedMessage = message.lowercase()
+    val responseStatusCode = statusCode
+    return when {
+      responseStatusCode == UNAUTHORIZED_STATUS_CODE ||
+        normalizedMessage.contains(
+          "credential",
+        ) -> {
+        LoginContract.LoginProblem.InvalidCredentials
+      }
+      responseStatusCode == TOO_MANY_REQUESTS_STATUS_CODE -> LoginContract.LoginProblem.RateLimited
+      responseStatusCode != null && responseStatusCode >= SERVER_ERROR_THRESHOLD -> {
+        LoginContract.LoginProblem.ServerError
+      }
+      normalizedMessage.contains("timeout") || normalizedMessage.contains("timed out") -> {
+        LoginContract.LoginProblem.NetworkTimeout
+      }
+      responseStatusCode == UNPROCESSABLE_ENTITY_STATUS_CODE -> {
+        LoginContract.LoginProblem.Validation(
+          listOf(LoginContract.Field.Unknown),
+        )
+      }
+      else -> LoginContract.LoginProblem.GenericError
+    }
   }
 
-  fun navigateToRegister() {
-    viewModelScope.launch {
-      _events.emit(LoginContract.Event.NavigateToRegister)
-    }
+  private companion object {
+    const val UNAUTHORIZED_STATUS_CODE = 401
+    const val UNPROCESSABLE_ENTITY_STATUS_CODE = 422
+    const val TOO_MANY_REQUESTS_STATUS_CODE = 429
+    const val SERVER_ERROR_THRESHOLD = 500
+    const val STOP_TIMEOUT_MILLIS = 5_000L
   }
 }

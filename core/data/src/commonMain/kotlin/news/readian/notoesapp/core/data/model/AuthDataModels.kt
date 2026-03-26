@@ -1,3 +1,4 @@
+
 package news.readian.notoesapp.core.data.model
 
 import kotlinx.serialization.Serializable
@@ -15,5 +16,10 @@ data class AuthTokenDataModel(
 sealed interface AuthResultDataModel {
   data class Success(val user: UserDataModel, val token: AuthTokenDataModel) : AuthResultDataModel
 
-  data class Error(val message: String, val code: String? = null) : AuthResultDataModel
+  data class Registered(val user: UserDataModel) : AuthResultDataModel
+
+  data class GuestRegistered(val username: String, val password: String) : AuthResultDataModel
+
+  data class Error(val message: String, val code: String? = null, val statusCode: Int? = null) :
+    AuthResultDataModel
 }

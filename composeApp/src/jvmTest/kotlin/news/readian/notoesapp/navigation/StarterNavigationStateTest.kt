@@ -8,6 +8,7 @@ import news.readian.notoesapp.common.navigation.AuthFlowRoute
 import news.readian.notoesapp.common.navigation.TopLevelRoute
 import news.readian.notoesapp.feature.auth.navigation.RegisterRoute
 import news.readian.notoesapp.feature.home.navigation.HomeRoute
+import news.readian.notoesapp.feature.onboarding.navigation.TutorialRoute
 import news.readian.notoesapp.feature.onboarding.navigation.WelcomeRoute
 import news.readian.notoesapp.feature.profile.navigation.ProfileRoute
 import news.readian.notoesapp.feature.settings.navigation.SettingsRoute
@@ -15,11 +16,11 @@ import news.readian.notoesapp.feature.settings.navigation.SettingsRoute
 class StarterNavigationStateTest :
   FunSpec({
 
-    test("default state is unauthenticated with WelcomeRoute") {
+    test("default state is unauthenticated with TutorialRoute") {
       val state = StarterNavigationState()
 
       state.isAuthenticated shouldBe false
-      state.currentRoute.shouldBeInstanceOf<WelcomeRoute>()
+      state.currentRoute.shouldBeInstanceOf<TutorialRoute>()
     }
 
     test("currentBackStack returns authBackStack when unauthenticated") {

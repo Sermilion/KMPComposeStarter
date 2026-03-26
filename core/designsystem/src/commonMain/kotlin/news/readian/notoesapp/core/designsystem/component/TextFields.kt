@@ -1,6 +1,5 @@
 package news.readian.notoesapp.core.designsystem.component
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
@@ -9,8 +8,10 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -72,6 +73,7 @@ fun ReadianPasswordField(
   ),
   enabled: Boolean = true,
   isError: Boolean = false,
+  passwordVisibilityTestTag: String? = null,
 ) {
   val toggleLabel = stringResource(
     if (passwordVisible) Res.string.action_hide else Res.string.action_show,
@@ -98,12 +100,20 @@ fun ReadianPasswordField(
       PasswordVisualTransformation()
     },
     trailingIcon = {
-      Text(
-        text = toggleLabel,
-        style = MaterialTheme.typography.labelMedium,
-        color = MaterialTheme.colorScheme.primary,
-        modifier = Modifier.clickable(onClick = onPasswordVisibilityClick),
-      )
+      TextButton(
+        onClick = onPasswordVisibilityClick,
+        modifier = if (passwordVisibilityTestTag != null) {
+          Modifier.testTag(passwordVisibilityTestTag)
+        } else {
+          Modifier
+        },
+      ) {
+        Text(
+          text = toggleLabel,
+          style = MaterialTheme.typography.labelMedium,
+          color = MaterialTheme.colorScheme.primary,
+        )
+      }
     },
     colors = KmpTheme.outlinedTextFieldColors,
   )

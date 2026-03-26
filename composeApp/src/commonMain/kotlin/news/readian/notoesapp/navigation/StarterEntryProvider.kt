@@ -1,3 +1,4 @@
+
 package news.readian.notoesapp.navigation
 
 import androidx.compose.runtime.Composable
@@ -12,17 +13,18 @@ import news.readian.notoesapp.feature.auth.navigation.LoginRoute
 import news.readian.notoesapp.feature.auth.navigation.RegisterRoute
 import news.readian.notoesapp.feature.auth.ui.LoginScreen
 import news.readian.notoesapp.feature.auth.ui.RegisterScreen
-import news.readian.notoesapp.feature.auth.viewmodel.LoginContract
 import news.readian.notoesapp.feature.auth.viewmodel.LoginViewModel
-import news.readian.notoesapp.feature.auth.viewmodel.RegisterContract
 import news.readian.notoesapp.feature.auth.viewmodel.RegisterViewModel
 import news.readian.notoesapp.feature.home.navigation.HomeRoute
 import news.readian.notoesapp.feature.home.ui.HomeScreen
 import news.readian.notoesapp.feature.home.viewmodel.HomeContract
 import news.readian.notoesapp.feature.home.viewmodel.HomeViewModel
+import news.readian.notoesapp.feature.onboarding.navigation.TutorialRoute
 import news.readian.notoesapp.feature.onboarding.navigation.WelcomeRoute
+import news.readian.notoesapp.feature.onboarding.tutorial.TutorialViewModel
+import news.readian.notoesapp.feature.onboarding.tutorial.ui.TutorialScreen
 import news.readian.notoesapp.feature.onboarding.ui.WelcomeScreen
-import news.readian.notoesapp.feature.onboarding.viewmodel.WelcomeViewModel
+import news.readian.notoesapp.feature.onboarding.welcome.WelcomeViewModel
 import news.readian.notoesapp.feature.profile.navigation.ProfileRoute
 import news.readian.notoesapp.feature.profile.ui.ProfileScreen
 import news.readian.notoesapp.feature.profile.viewmodel.ProfileContract
@@ -36,56 +38,37 @@ import news.readian.notoesapp.feature.settings.viewmodel.SettingsViewModel
 @Composable
 fun createStarterEntryProvider(navigator: StarterNavigator, isLoggedIn: Boolean) =
   entryProvider<Route> {
+    entry<TutorialRoute> {
+      val viewModel = injectViewModel<TutorialViewModel>(scope = ViewModelScope.Onboarding)
+      TutorialScreen(
+        viewModel = viewModel,
+        onLoginOrRegisterClick = { navigator.navigate(WelcomeRoute) },
+      )
+    }
+
     entry<WelcomeRoute> {
       val viewModel = injectViewModel<WelcomeViewModel>(scope = ViewModelScope.Onboarding)
-      val uiState by viewModel.uiState.collectAsState()
       WelcomeScreen(
-        uiState = uiState,
         onLoginClick = { navigator.navigate(LoginRoute) },
         onSignUpClick = { navigator.navigate(RegisterRoute) },
-        onSkipClick = viewModel::onSkipClick,
+        viewModel = viewModel,
       )
     }
 
     entry<LoginRoute> {
       val viewModel = injectViewModel<LoginViewModel>(scope = ViewModelScope.Onboarding)
-      val uiState by viewModel.uiState.collectAsState()
-      LaunchedEffect(Unit) {
-        viewModel.events.collect { event ->
-          when (event) {
-            LoginContract.Event.LoginSuccess -> { }
-            LoginContract.Event.NavigateToRegister -> navigator.navigate(RegisterRoute)
-          }
-        }
-      }
       LoginScreen(
-        uiState = uiState,
-        onEmailChange = viewModel::onEmailChange,
-        onPasswordChange = viewModel::onPasswordChange,
-        onLoginClick = viewModel::login,
-        onNavigateToRegister = viewModel::navigateToRegister,
+        viewModel = viewModel,
+        onForgotPasswordClick = { },
         onBackClick = { navigator.goBack() },
       )
     }
 
     entry<RegisterRoute> {
       val viewModel = injectViewModel<RegisterViewModel>(scope = ViewModelScope.Onboarding)
-      val uiState by viewModel.uiState.collectAsState()
-      LaunchedEffect(Unit) {
-        viewModel.events.collect { event ->
-          when (event) {
-            RegisterContract.Event.RegisterSuccess -> { }
-            RegisterContract.Event.NavigateBack -> navigator.goBack()
-          }
-        }
-      }
       RegisterScreen(
-        uiState = uiState,
-        onNameChange = viewModel::onNameChange,
-        onEmailChange = viewModel::onEmailChange,
-        onPasswordChange = viewModel::onPasswordChange,
-        onRegisterClick = viewModel::register,
-        onNavigateBack = viewModel::navigateBack,
+        viewModel = viewModel,
+        onBackClick = { navigator.goBack() },
       )
     }
 
@@ -136,9 +119,7 @@ fun createStarterEntryProvider(navigator: StarterNavigator, isLoggedIn: Boolean)
             }
           }
         }
-        SettingsScreen(
-          uiState = uiState,
-        )
+        SettingsScreen(uiState = uiState)
       }
     }
   }

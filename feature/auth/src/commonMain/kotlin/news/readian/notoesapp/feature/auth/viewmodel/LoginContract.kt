@@ -1,21 +1,21 @@
+
 package news.readian.notoesapp.feature.auth.viewmodel
 
 object LoginContract {
+  data class UiState(val loading: Boolean = false, val errors: List<LoginProblem> = listOf())
 
-  data class UiState(
-    val email: String = "",
-    val password: String = "",
-    val isLoading: Boolean = false,
-    val error: Error? = null,
-  )
-
-  sealed interface Error {
-    data object InvalidCredentials : Error
-    data class Unknown(val message: String) : Error
+  sealed interface LoginProblem {
+    data object InvalidCredentials : LoginProblem
+    data class Validation(val fields: List<Field>) : LoginProblem
+    data object NetworkTimeout : LoginProblem
+    data object RateLimited : LoginProblem
+    data object ServerError : LoginProblem
+    data object GenericError : LoginProblem
   }
 
-  sealed interface Event {
-    data object LoginSuccess : Event
-    data object NavigateToRegister : Event
+  enum class Field {
+    Identifier,
+    Password,
+    Unknown,
   }
 }

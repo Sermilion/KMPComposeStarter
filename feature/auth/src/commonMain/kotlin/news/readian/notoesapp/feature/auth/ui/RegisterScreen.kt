@@ -20,7 +20,8 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -29,7 +30,10 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
+import kotlinx.collections.immutable.ImmutableList
+import kotlinx.collections.immutable.toImmutableList
 import news.readian.notoesapp.common.isValidEmail
 import news.readian.notoesapp.common.isValidPassword
 import news.readian.notoesapp.core.designsystem.component.ButtonStyle
@@ -39,136 +43,230 @@ import news.readian.notoesapp.core.designsystem.component.ReadianTextField
 import news.readian.notoesapp.core.ui.composables.ErrorContainer
 import news.readian.notoesapp.core.ui.composables.ErrorContent
 import news.readian.notoesapp.core.ui.composables.LoadingContent
+import news.readian.notoesapp.feature.auth.testing.RegistrationTestIds
 import news.readian.notoesapp.feature.auth.viewmodel.RegisterContract
-import notesapp.feature.auth.generated.resources.Res
-import notesapp.feature.auth.generated.resources.error_confirm_password_validation
-import notesapp.feature.auth.generated.resources.error_email_validation
-import notesapp.feature.auth.generated.resources.error_generic
-import notesapp.feature.auth.generated.resources.error_password_validation
-import notesapp.feature.auth.generated.resources.error_username_validation
-import notesapp.feature.auth.generated.resources.label_confirm_password
-import notesapp.feature.auth.generated.resources.label_email
-import notesapp.feature.auth.generated.resources.label_password
-import notesapp.feature.auth.generated.resources.label_sign_up
-import notesapp.feature.auth.generated.resources.label_username
+import news.readian.notoesapp.feature.auth.viewmodel.RegisterContract.NavigationState
+import news.readian.notoesapp.feature.auth.viewmodel.RegisterContract.RegistrationProblem
+import news.readian.notoesapp.feature.auth.viewmodel.RegisterContract.RegistrationProblem.FieldValidation
+import news.readian.notoesapp.feature.auth.viewmodel.RegisterContract.UiState
+import news.readian.notoesapp.feature.auth.viewmodel.RegisterViewModel
+import notesapp.feature.auth.generated.resources.*
 import org.jetbrains.compose.resources.stringResource
 
 @Composable
-fun RegisterScreen(
-  uiState: RegisterContract.UiState,
-  onNameChange: (String) -> Unit,
-  onEmailChange: (String) -> Unit,
-  onPasswordChange: (String) -> Unit,
-  onRegisterClick: () -> Unit,
-  onNavigateBack: () -> Unit,
-  modifier: Modifier = Modifier,
-) {
-  var confirmPassword by rememberSaveable { mutableStateOf("") }
-  var passwordVisible by rememberSaveable { mutableStateOf(false) }
-  var confirmPasswordVisible by rememberSaveable { mutableStateOf(false) }
-  val validationState = rememberRegisterValidationState(
-    name = uiState.name,
-    email = uiState.email,
-    password = uiState.password,
-    confirmPassword = confirmPassword,
-    isLoading = uiState.isLoading,
-  )
+fun RegisterScreen(viewModel: RegisterViewModel, onBackClick: () -> Unit) {
+  val uiState by viewModel.uiState.collectAsState()
+  val navigationState by viewModel.navigationState.collectAsState()
 
+  LaunchedEffect(navigationState, onBackClick) {
+    when (navigationState) {
+      NavigationState.Close -> onBackClick()
+      NavigationState.Registration -> Unit
+    }
+  }
+
+  RegisterScreen(
+    navigation = object : Navigation {
+      override fun onSignUpClick(
+        username: String,
+        email: String,
+        password: String,
+        confirmPassword: String,
+      ) {
+        viewModel.onSignUpClick(
+          username = username,
+          email = email,
+          password = password,
+          confirmPassword = confirmPassword,
+        )
+      }
+
+      override fun onBackClicked() = onBackClick()
+    },
+    uiState = uiState,
+  )
+}
+
+@Composable
+internal fun RegisterScreen(navigation: Navigation, uiState: UiState) {
   Scaffold(
-    topBar = { RegisterTopBar(onBackClick = onNavigateBack) },
+    topBar = { TopBar(onBackClick = navigation::onBackClicked) },
     contentWindowInsets = WindowInsets.statusBars,
-  ) { innerPadding ->
+  ) { innerPaddings ->
     Box(
-      modifier = modifier
+      modifier = Modifier
         .imePadding()
         .fillMaxSize()
-        .padding(innerPadding),
+        .padding(innerPaddings),
     ) {
-      RegisterForm(
-        uiState = uiState,
-        confirmPassword = confirmPassword,
-        passwordVisible = passwordVisible,
-        confirmPasswordVisible = confirmPasswordVisible,
-        validationState = validationState,
-        onNameChange = onNameChange,
-        onEmailChange = onEmailChange,
-        onPasswordChange = onPasswordChange,
-        onConfirmPasswordChange = { confirmPassword = it },
-        onPasswordVisibilityClick = { passwordVisible = !passwordVisible },
-        onConfirmPasswordVisibilityClick = {
-          confirmPasswordVisible = !confirmPasswordVisible
-        },
-        onRegisterClick = onRegisterClick,
-      )
+      when (uiState) {
+        is UiState.Initial -> LoadingContent()
 
-      if (uiState.isLoading) {
-        LoadingContent()
+        is UiState.Content -> RegisterContent(
+          uiState = uiState,
+          navigation = navigation,
+        )
       }
     }
   }
 }
 
+@Suppress("LongMethod", "CyclomaticComplexMethod")
 @Composable
-private fun RegisterForm(
-  uiState: RegisterContract.UiState,
-  confirmPassword: String,
-  passwordVisible: Boolean,
-  confirmPasswordVisible: Boolean,
-  validationState: RegisterValidationState,
-  onNameChange: (String) -> Unit,
-  onEmailChange: (String) -> Unit,
-  onPasswordChange: (String) -> Unit,
-  onConfirmPasswordChange: (String) -> Unit,
-  onPasswordVisibilityClick: () -> Unit,
-  onConfirmPasswordVisibilityClick: () -> Unit,
-  onRegisterClick: () -> Unit,
+private fun RegisterContent(
+  uiState: UiState.Content,
+  navigation: Navigation,
   modifier: Modifier = Modifier,
 ) {
+  var username by remember { mutableStateOf("") }
+  var email by remember { mutableStateOf("") }
+  var password by remember { mutableStateOf("") }
+  var confirmPassword by remember { mutableStateOf("") }
+  var passwordVisible by rememberSaveable { mutableStateOf(false) }
+  var confirmPasswordVisible by rememberSaveable { mutableStateOf(false) }
+
+  val hasUsernameValidationError by remember(username) {
+    derivedStateOf { username.length < 2 && username.isNotBlank() }
+  }
+  val hasEmailError by remember(email) {
+    derivedStateOf { email.isValidEmail().not() && email.isNotBlank() }
+  }
+  val hasPasswordValidationError by remember(password) {
+    derivedStateOf { password.isValidPassword().not() && password.isNotBlank() }
+  }
+  val hasPasswordMatchError by remember(password) {
+    derivedStateOf { password != confirmPassword }
+  }
+
+  val serverErrorFields = remember(uiState.errors) {
+    uiState.errors
+      .filterIsInstance<FieldValidation>()
+      .flatMap { it.fields }
+      .toSet()
+  }
+  val hasServerUsernameError = RegisterContract.Field.Username in serverErrorFields
+  val hasServerEmailError = RegisterContract.Field.Email in serverErrorFields
+  val hasServerPasswordError = RegisterContract.Field.Password in serverErrorFields
+
+  val registrationButtonEnabled by remember(username, email, password, confirmPassword) {
+    derivedStateOf {
+      username.isNotBlank() &&
+        email.isNotBlank() &&
+        password.isNotBlank() &&
+        confirmPassword.isNotBlank()
+    }
+  }
+
+  val hasError by remember(
+    hasEmailError,
+    password,
+    confirmPassword,
+    hasUsernameValidationError,
+    hasPasswordValidationError,
+    hasPasswordMatchError,
+  ) {
+    derivedStateOf {
+      hasUsernameValidationError ||
+        hasEmailError ||
+        hasPasswordValidationError ||
+        password.isValidPassword().not() ||
+        confirmPassword.isValidPassword().not() ||
+        hasPasswordMatchError
+    }
+  }
+
   LazyColumn(
-    modifier = modifier.fillMaxSize(),
+    modifier = Modifier
+      .fillMaxSize()
+      .testTag(RegistrationTestIds.REGISTRATION_FORM)
+      .then(modifier),
     horizontalAlignment = Alignment.CenterHorizontally,
   ) {
+    item { ScreenLabel() }
+
     item {
-      Text(
-        text = stringResource(Res.string.label_sign_up),
-        style = MaterialTheme.typography.headlineMedium,
+      ErrorsContent(
+        hasPasswordValidationError = hasPasswordValidationError,
+        uiState = uiState,
+        hasEmailError = hasEmailError,
+        hasUsernameValidationError = hasUsernameValidationError,
       )
     }
 
     item {
-      ErrorContainer(modifier = Modifier.height(96.dp)) {
-        registerErrorMessage(uiState = uiState, validationState = validationState)?.let { message ->
-          ErrorContent(message)
-        }
-      }
+      ReadianTextField(
+        value = username,
+        isError = hasUsernameValidationError || hasServerUsernameError,
+        label = stringResource(Res.string.label_username),
+        onValueChange = { username = it },
+        modifier = Modifier
+          .padding(top = 8.dp)
+          .testTag(RegistrationTestIds.USERNAME_FIELD),
+      )
     }
 
     item {
-      RegisterFields(
-        uiState = uiState,
-        confirmPassword = confirmPassword,
+      ReadianTextField(
+        value = email,
+        label = stringResource(Res.string.label_email),
+        isError = hasEmailError || hasServerEmailError,
+        onValueChange = { email = it },
+        modifier = Modifier
+          .padding(top = 8.dp)
+          .testTag(RegistrationTestIds.EMAIL_FIELD),
+      )
+    }
+
+    item {
+      ReadianPasswordField(
+        value = password,
+        isError = hasPasswordValidationError || hasServerPasswordError,
+        label = stringResource(Res.string.label_password),
+        onValueChange = { password = it },
+        modifier = Modifier
+          .padding(top = 8.dp)
+          .testTag(RegistrationTestIds.PASSWORD_FIELD),
         passwordVisible = passwordVisible,
-        confirmPasswordVisible = confirmPasswordVisible,
-        validationState = validationState,
-        onNameChange = onNameChange,
-        onEmailChange = onEmailChange,
-        onPasswordChange = onPasswordChange,
-        onConfirmPasswordChange = onConfirmPasswordChange,
-        onPasswordVisibilityClick = onPasswordVisibilityClick,
-        onConfirmPasswordVisibilityClick = onConfirmPasswordVisibilityClick,
+        onPasswordVisibilityClick = { passwordVisible = !passwordVisible },
+        passwordVisibilityTestTag = RegistrationTestIds.PASSWORD_VISIBILITY_TOGGLE,
+      )
+    }
+
+    item {
+      ReadianPasswordField(
+        value = confirmPassword,
+        isError = hasPasswordValidationError || hasPasswordMatchError,
+        label = stringResource(Res.string.label_confirm_password),
+        onValueChange = { confirmPassword = it },
+        modifier = Modifier
+          .padding(top = 8.dp)
+          .testTag(RegistrationTestIds.CONFIRM_PASSWORD_FIELD),
+        passwordVisible = confirmPasswordVisible,
+        onPasswordVisibilityClick = {
+          confirmPasswordVisible = !confirmPasswordVisible
+        },
+        passwordVisibilityTestTag = RegistrationTestIds.CONFIRM_PASSWORD_VISIBILITY_TOGGLE,
       )
     }
 
     item {
       ReadianButton(
-        text = stringResource(Res.string.label_sign_up),
+        text = stringResource(Res.string.label_register),
+        enabled = registrationButtonEnabled && !hasError,
         style = ButtonStyle.Primary,
-        onClick = onRegisterClick,
-        enabled = validationState.registrationEnabled,
+        onClick = {
+          navigation.onSignUpClick(
+            username,
+            email,
+            password,
+            confirmPassword,
+          )
+        },
         modifier = Modifier
           .fillMaxWidth()
           .padding(horizontal = 32.dp)
-          .padding(top = 16.dp),
+          .padding(top = 16.dp)
+          .testTag(RegistrationTestIds.REGISTER_BUTTON),
       )
     }
 
@@ -176,162 +274,125 @@ private fun RegisterForm(
       AuthTermsView(
         modifier = Modifier
           .padding(horizontal = 80.dp)
-          .padding(top = 48.dp, bottom = 16.dp),
+          .padding(top = 92.dp),
       )
     }
   }
+
+  if (uiState.loading) {
+    LoadingContent(modifier = Modifier.testTag(RegistrationTestIds.LOADING_INDICATOR))
+  }
 }
 
 @Composable
-private fun RegisterFields(
-  uiState: RegisterContract.UiState,
-  confirmPassword: String,
-  passwordVisible: Boolean,
-  confirmPasswordVisible: Boolean,
-  validationState: RegisterValidationState,
-  onNameChange: (String) -> Unit,
-  onEmailChange: (String) -> Unit,
-  onPasswordChange: (String) -> Unit,
-  onConfirmPasswordChange: (String) -> Unit,
-  onPasswordVisibilityClick: () -> Unit,
-  onConfirmPasswordVisibilityClick: () -> Unit,
-  modifier: Modifier = Modifier,
+private fun ErrorsContent(
+  hasPasswordValidationError: Boolean,
+  uiState: UiState.Content,
+  hasEmailError: Boolean,
+  hasUsernameValidationError: Boolean,
 ) {
-  Box(modifier = modifier) {
-    ReadianTextField(
-      value = uiState.name,
-      label = stringResource(Res.string.label_username),
-      onValueChange = onNameChange,
-      enabled = !uiState.isLoading,
-      isError = validationState.hasUsernameValidationError,
-      modifier = Modifier.padding(top = 8.dp),
-    )
-
-    ReadianTextField(
-      value = uiState.email,
-      label = stringResource(Res.string.label_email),
-      onValueChange = onEmailChange,
-      enabled = !uiState.isLoading,
-      isError = validationState.hasEmailValidationError,
-      modifier = Modifier.padding(top = 80.dp),
-    )
-
-    ReadianPasswordField(
-      value = uiState.password,
-      label = stringResource(Res.string.label_password),
-      passwordVisible = passwordVisible,
-      onValueChange = onPasswordChange,
-      onPasswordVisibilityClick = onPasswordVisibilityClick,
-      enabled = !uiState.isLoading,
-      isError = validationState.hasPasswordValidationError,
-      modifier = Modifier.padding(top = 152.dp),
-    )
-
-    ReadianPasswordField(
-      value = confirmPassword,
-      label = stringResource(Res.string.label_confirm_password),
-      passwordVisible = confirmPasswordVisible,
-      onValueChange = onConfirmPasswordChange,
-      onPasswordVisibilityClick = onConfirmPasswordVisibilityClick,
-      enabled = !uiState.isLoading,
-      isError = validationState.hasPasswordMatchError,
-      modifier = Modifier.padding(top = 224.dp),
-    )
-  }
-}
-
-@Composable
-private fun registerErrorMessage(
-  uiState: RegisterContract.UiState,
-  validationState: RegisterValidationState,
-): String? = when {
-  validationState.hasUsernameValidationError -> stringResource(Res.string.error_username_validation)
-  validationState.hasEmailValidationError -> stringResource(Res.string.error_email_validation)
-  validationState.hasPasswordValidationError -> stringResource(Res.string.error_password_validation)
-  validationState.hasPasswordMatchError -> stringResource(
-    Res.string.error_confirm_password_validation,
-  )
-  uiState.error is RegisterContract.Error.Unknown -> uiState.error.message.ifBlank {
-    stringResource(Res.string.error_generic)
-  }
-  uiState.error is RegisterContract.Error.RegistrationFailed -> stringResource(
-    Res.string.error_generic,
-  )
-  else -> null
-}
-
-@Composable
-private fun rememberRegisterValidationState(
-  name: String,
-  email: String,
-  password: String,
-  confirmPassword: String,
-  isLoading: Boolean,
-): RegisterValidationState {
-  val hasUsernameValidationError by remember(name) {
-    derivedStateOf { name.length < 2 && name.isNotBlank() }
-  }
-  val hasEmailValidationError by remember(email) {
-    derivedStateOf { email.isNotBlank() && !email.isValidEmail() }
-  }
-  val hasPasswordValidationError by remember(password) {
-    derivedStateOf { password.isNotBlank() && !password.isValidPassword() }
-  }
-  val hasPasswordMatchError by remember(password, confirmPassword) {
-    derivedStateOf { confirmPassword.isNotBlank() && password != confirmPassword }
-  }
-  val registrationEnabled by remember(
-    name,
-    email,
-    password,
-    confirmPassword,
-    isLoading,
-    hasUsernameValidationError,
-    hasEmailValidationError,
-    hasPasswordValidationError,
-    hasPasswordMatchError,
+  ErrorContainer(
+    modifier = Modifier
+      .height(96.dp)
+      .testTag(RegistrationTestIds.ERROR_CONTAINER),
   ) {
-    derivedStateOf {
-      name.isNotBlank() &&
-        email.isNotBlank() &&
-        password.isNotBlank() &&
-        confirmPassword.isNotBlank() &&
-        !isLoading &&
-        !hasUsernameValidationError &&
-        !hasEmailValidationError &&
-        !hasPasswordValidationError &&
-        !hasPasswordMatchError
+    val errors = when {
+      hasPasswordValidationError -> {
+        uiState.errors + FieldValidation(listOf(RegisterContract.Field.Password))
+      }
+
+      hasEmailError -> {
+        uiState.errors + FieldValidation(listOf(RegisterContract.Field.EmailFormat))
+      }
+
+      hasUsernameValidationError -> {
+        uiState.errors + FieldValidation(listOf(RegisterContract.Field.UsernameFormat))
+      }
+
+      else -> uiState.errors
+    }
+    RemoteValidationErrorContent(errors.toImmutableList())
+  }
+}
+
+@Composable
+private fun RemoteValidationErrorContent(errors: ImmutableList<RegistrationProblem>) {
+  val builder = StringBuilder()
+  errors.forEach {
+    when (it) {
+      RegistrationProblem.GenericError -> {
+        builder.append(stringResource(Res.string.error_generic))
+        builder.append("\n")
+      }
+
+      is FieldValidation -> it.mapToBuilder(builder)
     }
   }
+  ErrorContent(builder.toString())
+}
 
-  return RegisterValidationState(
-    hasUsernameValidationError = hasUsernameValidationError,
-    hasEmailValidationError = hasEmailValidationError,
-    hasPasswordValidationError = hasPasswordValidationError,
-    hasPasswordMatchError = hasPasswordMatchError,
-    registrationEnabled = registrationEnabled,
+@Composable
+private fun FieldValidation.mapToBuilder(builder: StringBuilder): StringBuilder {
+  this.fields.forEach { field ->
+    when (field) {
+      RegisterContract.Field.Email -> {
+        builder.append(stringResource(Res.string.error_email_exists))
+        builder.append("\n")
+      }
+
+      RegisterContract.Field.UsernameFormat -> {
+        builder.append(stringResource(Res.string.error_username_validation))
+        builder.append("")
+      }
+
+      RegisterContract.Field.EmailFormat -> {
+        builder.append(stringResource(Res.string.error_email_validation))
+        builder.append("")
+      }
+
+      RegisterContract.Field.Username -> {
+        builder.append(stringResource(Res.string.error_unique_username))
+        builder.append("\n")
+      }
+
+      RegisterContract.Field.Password -> {
+        builder.append(stringResource(Res.string.error_password_validation))
+        builder.append("\n")
+      }
+
+      RegisterContract.Field.Unknown -> {
+        builder.append(stringResource(Res.string.error_generic))
+        builder.append("\n")
+      }
+    }
+  }
+  return builder
+}
+
+@Composable
+private fun ScreenLabel() {
+  Text(
+    text = stringResource(Res.string.label_sign_up),
+    style = MaterialTheme.typography.headlineMedium,
+    modifier = Modifier.testTag(RegistrationTestIds.REGISTRATION_TITLE),
   )
 }
 
-@Immutable
-private data class RegisterValidationState(
-  val hasUsernameValidationError: Boolean,
-  val hasEmailValidationError: Boolean,
-  val hasPasswordValidationError: Boolean,
-  val hasPasswordMatchError: Boolean,
-  val registrationEnabled: Boolean,
-)
-
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun RegisterTopBar(onBackClick: () -> Unit) {
+@OptIn(ExperimentalMaterial3Api::class)
+private fun TopBar(onBackClick: () -> Unit) {
   TopAppBar(
-    title = {},
+    title = {
+      // intentionally left empty
+    },
     navigationIcon = {
-      IconButton(onClick = onBackClick) {
+      IconButton(
+        onClick = onBackClick,
+        modifier = Modifier.testTag(RegistrationTestIds.BACK_BUTTON),
+      ) {
         Icon(
           imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
-          contentDescription = null,
+          contentDescription = stringResource(Res.string.action_navigate_back),
         )
       }
     },
@@ -339,4 +400,10 @@ private fun RegisterTopBar(onBackClick: () -> Unit) {
       containerColor = MaterialTheme.colorScheme.background,
     ),
   )
+}
+
+internal interface Navigation {
+  fun onSignUpClick(username: String, email: String, password: String, confirmPassword: String)
+
+  fun onBackClicked()
 }

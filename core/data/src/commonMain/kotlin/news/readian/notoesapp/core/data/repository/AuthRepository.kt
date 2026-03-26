@@ -1,3 +1,4 @@
+
 package news.readian.notoesapp.core.data.repository
 
 import kotlinx.coroutines.CoroutineScope
@@ -20,12 +21,14 @@ interface AuthRepository {
 
   suspend fun login(email: String, password: String): LoginResult
   suspend fun register(email: String, password: String, name: String): LoginResult
+  suspend fun loginGuest(): LoginResult
   suspend fun logout()
 }
 
 sealed interface LoginResult {
   data class Success(val userData: UserData) : LoginResult
-  data class Error(val message: String) : LoginResult
+  data class Error(val message: String, val code: String? = null, val statusCode: Int? = null) :
+    LoginResult
 }
 
 @Inject
@@ -54,7 +57,11 @@ class StarterAuthRepository(
         userComponentManager.createComponent(response.userData)
         LoginResult.Success(response.userData)
       }
-      is AuthResponse.Error -> LoginResult.Error(response.message)
+      is AuthResponse.Error -> LoginResult.Error(
+        message = response.message,
+        code = response.code,
+        statusCode = response.statusCode,
+      )
     }
 
   override suspend fun register(email: String, password: String, name: String): LoginResult =
@@ -63,7 +70,24 @@ class StarterAuthRepository(
         userComponentManager.createComponent(response.userData)
         LoginResult.Success(response.userData)
       }
-      is AuthResponse.Error -> LoginResult.Error(response.message)
+      is AuthResponse.Error -> LoginResult.Error(
+        message = response.message,
+        code = response.code,
+        statusCode = response.statusCode,
+      )
+    }
+
+  override suspend fun loginGuest(): LoginResult =
+    when (val response = authApiService.loginGuest()) {
+      is AuthResponse.Success -> {
+        userComponentManager.createComponent(response.userData)
+        LoginResult.Success(response.userData)
+      }
+      is AuthResponse.Error -> LoginResult.Error(
+        message = response.message,
+        code = response.code,
+        statusCode = response.statusCode,
+      )
     }
 
   override suspend fun logout() {

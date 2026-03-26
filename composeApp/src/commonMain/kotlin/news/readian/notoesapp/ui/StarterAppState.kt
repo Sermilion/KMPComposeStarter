@@ -27,13 +27,12 @@ fun rememberStarterAppState(
   val navigationState = remember { mutableStateOf(StarterNavigationState()) }
   val navigator = remember { StarterNavigator(navigationState) }
 
-  val currentIsAuthenticated = navigationState.value.isAuthenticated
-  LaunchedEffect(canShowAuthenticated, currentIsAuthenticated) {
-    if (canShowAuthenticated && !currentIsAuthenticated) {
-      navigator.onLoginStateChanged(true)
-    } else if (!canShowAuthenticated && currentIsAuthenticated) {
-      navigator.onLoginStateChanged(false)
-    }
+  LaunchedEffect(canShowAuthenticated, navigationState.value.isAuthenticated) {
+    syncAuthenticationState(
+      navigator = navigator,
+      canShowAuthenticated = canShowAuthenticated,
+      currentIsAuthenticated = navigationState.value.isAuthenticated,
+    )
   }
 
   return remember(navigationState, navigator) {
@@ -41,6 +40,18 @@ fun rememberStarterAppState(
       mutableNavigationState = navigationState,
       navigator = navigator,
     )
+  }
+}
+
+internal fun syncAuthenticationState(
+  navigator: StarterNavigator,
+  canShowAuthenticated: Boolean,
+  currentIsAuthenticated: Boolean,
+) {
+  if (canShowAuthenticated && !currentIsAuthenticated) {
+    navigator.onLoginStateChanged(true)
+  } else if (!canShowAuthenticated && currentIsAuthenticated) {
+    navigator.onLoginStateChanged(false)
   }
 }
 

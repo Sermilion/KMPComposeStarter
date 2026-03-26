@@ -1,22 +1,32 @@
+
 package news.readian.notoesapp.feature.auth.viewmodel
 
 object RegisterContract {
+  sealed interface UiState {
+    data class Content(
+      val loading: Boolean = false,
+      val errors: List<RegistrationProblem> = listOf(),
+    ) : UiState
 
-  data class UiState(
-    val name: String = "",
-    val email: String = "",
-    val password: String = "",
-    val isLoading: Boolean = false,
-    val error: Error? = null,
-  )
-
-  sealed interface Error {
-    data object RegistrationFailed : Error
-    data class Unknown(val message: String) : Error
+    data object Initial : UiState
   }
 
-  sealed interface Event {
-    data object RegisterSuccess : Event
-    data object NavigateBack : Event
+  sealed interface RegistrationProblem {
+    data class FieldValidation(val fields: List<Field>) : RegistrationProblem
+    data object GenericError : RegistrationProblem
+  }
+
+  sealed interface NavigationState {
+    data object Registration : NavigationState
+    data object Close : NavigationState
+  }
+
+  enum class Field {
+    Email,
+    EmailFormat,
+    Username,
+    UsernameFormat,
+    Password,
+    Unknown,
   }
 }

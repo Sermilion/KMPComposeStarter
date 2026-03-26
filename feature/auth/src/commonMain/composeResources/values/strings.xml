@@ -1,20 +1,31 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+  <string name="action_navigate_back">Navigate back</string>
   <string name="error_confirm_password_validation">Passwords do not match.</string>
+  <string name="error_email_exists">Email already exists.</string>
+  <string name="error_email_or_username_validation">Invalid email or username format.</string>
   <string name="error_email_validation">Invalid email format.</string>
+  <string name="error_field_format">Field %s is not in valid format.</string>
   <string name="error_generic">Something went wrong. Please try again.</string>
-  <string name="error_invalid_credentials">Wrong email or password.</string>
+  <string name="error_invalid_credentials">Wrong identifier or password.</string>
+  <string name="error_network_timeout">Connection timed out. Please check your internet and try again.</string>
   <string name="error_password_validation">Invalid password format. Password must be at least 8 characters, have a number and a special character.</string>
-  <string name="error_username_validation">Username must be at least 2 characters.</string>
+  <string name="error_rate_limited">Too many attempts. Please wait a moment and try again.</string>
+  <string name="error_server">Server error. Please try again later.</string>
+  <string name="error_unique_username">Username is already taken.</string>
+  <string name="error_username_validation">Invalid username format.</string>
   <string name="label_and">and</string>
   <string name="label_by_joining">By signing up you accept the</string>
   <string name="label_confirm_password">Confirm password</string>
   <string name="label_email">Email</string>
   <string name="label_forgot_password">Forgot Password?</string>
+  <string name="label_identifier">Identifier</string>
   <string name="label_login">Login</string>
   <string name="label_password">Password</string>
   <string name="label_privacy_policy">Privacy Policy</string>
+  <string name="label_register">Register</string>
   <string name="label_sign_up">Sign Up</string>
   <string name="label_terms_of_service">Terms of Service</string>
+  <string name="label_unknown">Unknown</string>
   <string name="label_username">Username</string>
 </resources>

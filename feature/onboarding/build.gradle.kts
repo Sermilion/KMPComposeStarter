@@ -30,9 +30,7 @@ kotlin {
       implementation(projects.core.ui)
 
       implementation(libs.kotlinx.collections.immutable)
-      implementation(libs.jetbrains.lifecycle.viewmodel)
       implementation(libs.jetbrains.lifecycle.viewmodel.compose)
-      implementation(libs.kermit)
     }
   }
 

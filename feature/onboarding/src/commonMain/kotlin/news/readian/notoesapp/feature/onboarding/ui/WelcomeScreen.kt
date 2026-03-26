@@ -16,9 +16,12 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import kotlinx.collections.immutable.toImmutableList
 import news.readian.notoesapp.core.designsystem.component.ButtonStyle
 import news.readian.notoesapp.core.designsystem.component.ReadianButton
 import news.readian.notoesapp.core.designsystem.icon.ReadianIcons
@@ -26,43 +29,93 @@ import news.readian.notoesapp.core.designsystem.icon.icons.ReadianLetter
 import news.readian.notoesapp.core.designsystem.icon.icons.ReadianText
 import news.readian.notoesapp.core.designsystem.icon.icons.ReadianWelcome
 import news.readian.notoesapp.core.ui.composables.ErrorContainer
-import news.readian.notoesapp.core.ui.composables.ErrorContent
 import news.readian.notoesapp.core.ui.composables.LoadingContent
-import news.readian.notoesapp.feature.onboarding.viewmodel.WelcomeContract
-import notesapp.feature.onboarding.generated.resources.Res
-import notesapp.feature.onboarding.generated.resources.error_generic
-import notesapp.feature.onboarding.generated.resources.label_login
-import notesapp.feature.onboarding.generated.resources.label_register
-import notesapp.feature.onboarding.generated.resources.label_skip
-import notesapp.feature.onboarding.generated.resources.readian_icon
-import notesapp.feature.onboarding.generated.resources.welcome_image
+import news.readian.notoesapp.feature.onboarding.common.ui.RemoteValidationErrorContent
+import news.readian.notoesapp.feature.onboarding.welcome.WelcomeContract
+import news.readian.notoesapp.feature.onboarding.welcome.WelcomeViewModel
+import notesapp.feature.onboarding.generated.resources.*
 import org.jetbrains.compose.resources.stringResource
 
 @Composable
 fun WelcomeScreen(
-  uiState: WelcomeContract.UiState,
   onLoginClick: () -> Unit,
   onSignUpClick: () -> Unit,
+  viewModel: WelcomeViewModel,
+) {
+  val uiState by viewModel.uiState.collectAsState()
+
+  WelcomeScreen(
+    onLoginClick = onLoginClick,
+    onSignUpClick = onSignUpClick,
+    uiState = uiState,
+    onSkipClick = viewModel::onSkipClick,
+  )
+}
+
+@Composable
+private fun WelcomeScreen(
+  onLoginClick: () -> Unit,
+  onSignUpClick: () -> Unit,
+  uiState: WelcomeContract.UiState,
   onSkipClick: () -> Unit,
   modifier: Modifier = Modifier,
 ) {
   Scaffold(
-    modifier = modifier.fillMaxSize(),
+    modifier = Modifier
+      .fillMaxSize()
+      .then(modifier),
     contentWindowInsets = WindowInsets.statusBars,
-  ) { innerPadding ->
-    Box(
-      modifier = Modifier
-        .fillMaxSize()
-        .padding(innerPadding),
-    ) {
-      WelcomeContent(
-        uiState = uiState,
-        onLoginClick = onLoginClick,
-        onSignUpClick = onSignUpClick,
-        onSkipClick = onSkipClick,
-      )
+  ) {
+    Box(modifier = Modifier.fillMaxSize().padding(it)) {
+      Column(
+        modifier = Modifier
+          .fillMaxSize(),
+        horizontalAlignment = Alignment.CenterHorizontally,
+      ) {
+        LogoContent()
 
-      if (uiState.isLoading) {
+        Spacer(modifier = Modifier.height(90.dp))
+
+        Image(
+          imageVector = ReadianIcons.ReadianWelcome,
+          contentDescription = stringResource(Res.string.welcome_image),
+          modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 12.dp),
+        )
+
+        ErrorContainer(modifier = Modifier.height(108.dp)) {
+          if (uiState.errors.isNotEmpty()) {
+            RemoteValidationErrorContent(uiState.errors.toImmutableList())
+          }
+        }
+
+        ReadianButton(
+          text = stringResource(Res.string.label_login),
+          style = ButtonStyle.Primary,
+          onClick = onLoginClick,
+          modifier = Modifier.fillMaxWidth().padding(horizontal = 32.dp),
+        )
+
+        ReadianButton(
+          text = stringResource(Res.string.label_register),
+          style = ButtonStyle.Secondary,
+          onClick = onSignUpClick,
+          modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 32.dp)
+            .padding(top = 2.dp),
+        )
+
+        ReadianButton(
+          text = stringResource(Res.string.label_skip),
+          enabled = !uiState.loading,
+          style = ButtonStyle.Tertiary,
+          onClick = onSkipClick,
+          modifier = Modifier.padding(top = 2.dp),
+        )
+      }
+      if (uiState.loading) {
         LoadingContent()
       }
     }
@@ -70,104 +123,23 @@ fun WelcomeScreen(
 }
 
 @Composable
-private fun WelcomeContent(
-  uiState: WelcomeContract.UiState,
-  onLoginClick: () -> Unit,
-  onSignUpClick: () -> Unit,
-  onSkipClick: () -> Unit,
-  modifier: Modifier = Modifier,
-) {
-  Column(
-    modifier = modifier.fillMaxSize(),
-    horizontalAlignment = Alignment.CenterHorizontally,
-  ) {
-    LogoContent(modifier = Modifier.fillMaxWidth().padding(top = 24.dp))
-    Spacer(modifier = Modifier.height(90.dp))
-    WelcomeIllustration()
-
-    ErrorContainer(modifier = Modifier.height(108.dp)) {
-      if (uiState.hasError) {
-        ErrorContent(stringResource(Res.string.error_generic))
-      }
-    }
-
-    WelcomeActions(
-      uiState = uiState,
-      onLoginClick = onLoginClick,
-      onSignUpClick = onSignUpClick,
-      onSkipClick = onSkipClick,
-    )
-  }
-}
-
-@Composable
-private fun WelcomeIllustration(modifier: Modifier = Modifier) {
-  Image(
-    imageVector = ReadianIcons.ReadianWelcome,
-    contentDescription = stringResource(Res.string.welcome_image),
-    modifier = modifier
-      .fillMaxWidth()
-      .padding(horizontal = 12.dp),
-  )
-}
-
-@Composable
-private fun WelcomeActions(
-  uiState: WelcomeContract.UiState,
-  onLoginClick: () -> Unit,
-  onSignUpClick: () -> Unit,
-  onSkipClick: () -> Unit,
-  modifier: Modifier = Modifier,
-) {
-  Column(
-    modifier = modifier,
-    horizontalAlignment = Alignment.CenterHorizontally,
-  ) {
-    ReadianButton(
-      text = stringResource(Res.string.label_login),
-      style = ButtonStyle.Primary,
-      onClick = onLoginClick,
-      modifier = Modifier
-        .fillMaxWidth()
-        .padding(horizontal = 32.dp),
-    )
-
-    ReadianButton(
-      text = stringResource(Res.string.label_register),
-      style = ButtonStyle.Secondary,
-      onClick = onSignUpClick,
-      modifier = Modifier
-        .fillMaxWidth()
-        .padding(horizontal = 32.dp)
-        .padding(top = 2.dp),
-    )
-
-    ReadianButton(
-      text = stringResource(Res.string.label_skip),
-      enabled = !uiState.isLoading,
-      style = ButtonStyle.Tertiary,
-      onClick = onSkipClick,
-      modifier = Modifier.padding(top = 2.dp),
-    )
-  }
-}
-
-@Composable
-private fun LogoContent(modifier: Modifier = Modifier) {
+private fun LogoContent() {
   Row(
-    modifier = modifier,
+    modifier = Modifier
+      .fillMaxWidth()
+      .padding(top = 24.dp),
     horizontalArrangement = Arrangement.Center,
     verticalAlignment = Alignment.CenterVertically,
   ) {
     Icon(
       imageVector = ReadianIcons.ReadianLetter,
-      contentDescription = stringResource(Res.string.readian_icon),
+      contentDescription = stringResource(Res.string.readina_icon),
       tint = MaterialTheme.colorScheme.primary,
     )
 
     Icon(
       imageVector = ReadianIcons.ReadianText,
-      contentDescription = stringResource(Res.string.readian_icon),
+      contentDescription = stringResource(Res.string.readina_icon),
       modifier = Modifier.padding(start = 8.dp),
       tint = MaterialTheme.colorScheme.tertiary,
     )
