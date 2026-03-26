@@ -1,4 +1,4 @@
-# KMP Compose Starter Architecture
+# NotesApp Architecture
 
 Use `docs/ARCHITECTURE.md` as the canonical entry point for repository architecture and contributor guidance.
 

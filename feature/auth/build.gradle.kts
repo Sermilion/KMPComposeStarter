@@ -7,7 +7,7 @@ plugins {
 
 kotlin {
   android {
-    namespace = "com.sermilion.kmpcomposestarter.feature.auth"
+    namespace = "news.readian.notoesapp.feature.auth"
     compileSdk =
       libs.versions.compileSdk
         .get()

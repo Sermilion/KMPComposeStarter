@@ -5,7 +5,7 @@ plugins {
   `kotlin-dsl`
 }
 
-group = "com.sermilion.kmpcomposestarter.buildlogic"
+group = "news.readian.notoesapp.buildlogic"
 
 java {
   sourceCompatibility = JavaVersion.VERSION_17

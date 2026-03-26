@@ -1,5 +1,5 @@
 import com.android.build.api.variant.AndroidComponentsExtension
-import com.sermilion.kmpcomposestarter.configureJacoco
+import news.readian.notoesapp.configureJacoco
 import org.gradle.api.Plugin
 import org.gradle.api.Project
 

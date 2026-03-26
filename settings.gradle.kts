@@ -28,7 +28,7 @@ dependencyResolutionManagement {
   }
 }
 
-rootProject.name = "KMPComposeStarter"
+rootProject.name = "NotesApp"
 
 enableFeaturePreview("TYPESAFE_PROJECT_ACCESSORS")
 
@@ -46,6 +46,7 @@ include(":core:domain")
 include(":core:ui")
 include(":core:testing")
 include(":feature:auth")
+include(":feature:onboarding")
 include(":feature:home")
 include(":feature:profile")
 include(":feature:settings")

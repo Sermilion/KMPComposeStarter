@@ -1,4 +1,4 @@
-# KMP Compose Starter Architecture Docs
+# NotesApp Architecture Docs
 
 Start here for repository architecture, contributor workflow, and starter-specific conventions.
 

@@ -6,7 +6,7 @@ plugins {
 
 kotlin {
   android {
-    namespace = "com.sermilion.kmpcomposestarter.composeapp"
+    namespace = "news.readian.notoesapp.composeapp"
     compileSdk =
       libs.versions.compileSdk
         .get()
@@ -44,6 +44,7 @@ kotlin {
       implementation(projects.core.data)
 
       implementation(projects.feature.auth)
+      implementation(projects.feature.onboarding)
       implementation(projects.feature.home)
       implementation(projects.feature.profile)
       implementation(projects.feature.settings)
@@ -113,7 +114,7 @@ kotlin.sourceSets.named("jvmMain") {
 
 compose.desktop {
   application {
-    mainClass = "com.sermilion.kmpcomposestarter.MainKt"
+    mainClass = "news.readian.notoesapp.MainKt"
 
     nativeDistributions {
       targetFormats(
@@ -121,7 +122,7 @@ compose.desktop {
         org.jetbrains.compose.desktop.application.dsl.TargetFormat.Msi,
         org.jetbrains.compose.desktop.application.dsl.TargetFormat.Deb,
       )
-      packageName = "KMPComposeStarter"
+      packageName = "NotesApp"
       packageVersion = "1.0.0"
 
       modules(

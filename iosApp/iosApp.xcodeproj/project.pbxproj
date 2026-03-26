@@ -7,7 +7,7 @@
 	objects = {
 
 /* Begin PBXFileReference section */
-		F8ABBE134EF55AB972D6E9AF /* CapmoMeasure.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = CapmoMeasure.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		F8ABBE134EF55AB972D6E9AF /* NotesApp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = NotesApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -59,7 +59,7 @@
 		4E1F62270C4693A83EEBCC61 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				F8ABBE134EF55AB972D6E9AF /* CapmoMeasure.app */,
+				F8ABBE134EF55AB972D6E9AF /* NotesApp.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -87,7 +87,7 @@
 			packageProductDependencies = (
 			);
 			productName = iosApp;
-			productReference = F8ABBE134EF55AB972D6E9AF /* CapmoMeasure.app */;
+			productReference = F8ABBE134EF55AB972D6E9AF /* NotesApp.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */

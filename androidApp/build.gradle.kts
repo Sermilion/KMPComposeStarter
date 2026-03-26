@@ -6,14 +6,14 @@ plugins {
 }
 
 android {
-  namespace = "com.sermilion.kmpcomposestarter"
+  namespace = "news.readian.notoesapp"
   compileSdk =
     libs.versions.compileSdk
       .get()
       .toInt()
 
   defaultConfig {
-    applicationId = "com.sermilion.kmpcomposestarter"
+    applicationId = "news.readian.notoesapp"
     minSdk =
       libs.versions.minSdk
         .get()
@@ -65,6 +65,7 @@ dependencies {
   implementation(projects.core.designsystem)
   implementation(projects.core.ui)
   implementation(projects.feature.auth)
+  implementation(projects.feature.onboarding)
   implementation(projects.feature.home)
   implementation(projects.feature.profile)
   implementation(projects.feature.settings)

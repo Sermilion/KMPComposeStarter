@@ -13,7 +13,7 @@ compose.resources {
 
 kotlin {
   android {
-    namespace = "com.sermilion.kmpcomposestarter.core.ui"
+    namespace = "news.readian.notoesapp.core.ui"
     compileSdk =
       libs.versions.compileSdk
         .get()

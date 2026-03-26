@@ -15,7 +15,7 @@ room3 {
 
 kotlin {
   android {
-    namespace = "com.sermilion.kmpcomposestarter.core.data"
+    namespace = "news.readian.notoesapp.core.data"
     compileSdk =
       libs.versions.compileSdk
         .get()

@@ -1,4 +1,4 @@
-# KMP Compose Starter
+# NotesApp
 
 A production-ready Kotlin Multiplatform starter for Compose applications across Android, iOS, and desktop JVM.
 
@@ -22,7 +22,7 @@ This repository gives you a modern baseline for app development with Compose Mul
 ## Repository Layout
 
 ```text
-KMPComposeStarter/
+NotesApp/
 |- androidApp/                    # Android-only application module and manifest/resources
 |- composeApp/                    # Shared app shell plus iOS/JVM entry points
 |- core/

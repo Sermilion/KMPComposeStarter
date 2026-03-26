@@ -2,7 +2,7 @@
 
 ## Purpose
 
-`KMPComposeStarter` is a reusable Kotlin Multiplatform application starter for Android, iOS, and desktop JVM.
+`NotesApp` is a reusable Kotlin Multiplatform application starter for Android, iOS, and desktop JVM.
 
 It aims to provide a clean, production-ready baseline without hard-coding product-specific workflows, services, or company conventions into the template.
 

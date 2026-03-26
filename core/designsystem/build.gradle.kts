@@ -7,7 +7,7 @@ plugins {
 
 kotlin {
   android {
-    namespace = "com.sermilion.kmpcomposestarter.core.designsystem"
+    namespace = "news.readian.notoesapp.core.designsystem"
     compileSdk =
       libs.versions.compileSdk
         .get()

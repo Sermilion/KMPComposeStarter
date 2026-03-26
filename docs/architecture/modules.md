@@ -16,7 +16,7 @@ Keep dependencies flowing inward toward shared abstractions.
 
 Owns:
 
-- Android `MainActivity` and `StarterApplication`
+- Android `MainActivity` and `NotesApplication`
 - Android manifest and launcher resources
 - Android-specific application component bootstrap
 
