@@ -133,13 +133,13 @@ private fun LogoContent() {
   ) {
     Icon(
       imageVector = ReadianIcons.ReadianLetter,
-      contentDescription = stringResource(Res.string.readina_icon),
+      contentDescription = stringResource(Res.string.readian_icon),
       tint = MaterialTheme.colorScheme.primary,
     )
 
     Icon(
       imageVector = ReadianIcons.ReadianText,
-      contentDescription = stringResource(Res.string.readina_icon),
+      contentDescription = stringResource(Res.string.readian_icon),
       modifier = Modifier.padding(start = 8.dp),
       tint = MaterialTheme.colorScheme.tertiary,
     )

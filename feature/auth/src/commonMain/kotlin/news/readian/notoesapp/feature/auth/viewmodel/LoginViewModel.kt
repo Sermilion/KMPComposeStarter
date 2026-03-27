@@ -28,14 +28,19 @@ class LoginViewModel(private val authRepository: AuthRepository) : ViewModel() {
   )
 
   fun onLogin(identifier: String, password: String) {
+    if (loadingState.value) return
+
     viewModelScope.launch {
       loadingState.update { true }
       errorState.update { emptyList() }
-      when (val result = authRepository.login(identifier, password)) {
-        is LoginResult.Success -> errorState.update { emptyList() }
-        is LoginResult.Error -> errorState.update { listOf(result.toUiProblem()) }
+      try {
+        when (val result = authRepository.login(identifier, password)) {
+          is LoginResult.Success -> errorState.update { emptyList() }
+          is LoginResult.Error -> errorState.update { listOf(result.toUiProblem()) }
+        }
+      } finally {
+        loadingState.update { false }
       }
-      loadingState.update { false }
     }
   }
 

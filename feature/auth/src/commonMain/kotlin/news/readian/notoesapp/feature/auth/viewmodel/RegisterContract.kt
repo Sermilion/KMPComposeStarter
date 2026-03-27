@@ -16,11 +16,6 @@ object RegisterContract {
     data object GenericError : RegistrationProblem
   }
 
-  sealed interface NavigationState {
-    data object Registration : NavigationState
-    data object Close : NavigationState
-  }
-
   enum class Field {
     Email,
     EmailFormat,

@@ -132,7 +132,7 @@ private fun MobileTutorialContent(
 @Composable
 private fun PagerContent(pagerState: PagerState, uiState: TutorialContract.UiState) {
   HorizontalPager(state = pagerState) { page ->
-    when (TutorialPageType.values()[page]) {
+    when (TutorialPageType.entries[page]) {
       TutorialPageType.Spotlight -> TutorialPage(
         image = ReadianIcons.ImageLamp,
         title = stringResource(Res.string.label_spotlight),
@@ -168,7 +168,7 @@ private fun TopContent(onLoginClick: () -> Unit) {
   ) {
     Icon(
       imageVector = ReadianIcons.ReadianLowerCased,
-      contentDescription = stringResource(Res.string.readina_icon),
+      contentDescription = stringResource(Res.string.readian_icon),
     )
 
     ReadianButton(

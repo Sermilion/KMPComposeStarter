@@ -91,7 +91,9 @@ class StarterAuthRepository(
     }
 
   override suspend fun logout() {
-    authApiService.logout()
+    currentUser?.token?.takeIf { it.isNotBlank() }?.let { token ->
+      authApiService.logout(token)
+    }
     userComponentManager.destroyComponent()
   }
 }

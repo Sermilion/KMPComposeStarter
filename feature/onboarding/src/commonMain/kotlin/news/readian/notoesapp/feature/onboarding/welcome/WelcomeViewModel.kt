@@ -29,14 +29,19 @@ class WelcomeViewModel(private val authRepository: AuthRepository) : ViewModel()
   )
 
   fun onSkipClick() {
+    if (loadingState.value) return
+
     viewModelScope.launch {
       loadingState.update { true }
       errorState.update { emptyList() }
-      when (authRepository.loginGuest()) {
-        is LoginResult.Success -> errorState.update { emptyList() }
-        is LoginResult.Error -> errorState.update { listOf(AnonRegProblem.GenericError) }
+      try {
+        when (authRepository.loginGuest()) {
+          is LoginResult.Success -> errorState.update { emptyList() }
+          is LoginResult.Error -> errorState.update { listOf(AnonRegProblem.GenericError) }
+        }
+      } finally {
+        loadingState.update { false }
       }
-      loadingState.update { false }
     }
   }
 

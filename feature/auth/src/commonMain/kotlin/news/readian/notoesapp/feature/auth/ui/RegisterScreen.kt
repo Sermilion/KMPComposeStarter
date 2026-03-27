@@ -20,7 +20,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
@@ -45,7 +44,6 @@ import news.readian.notoesapp.core.ui.composables.ErrorContent
 import news.readian.notoesapp.core.ui.composables.LoadingContent
 import news.readian.notoesapp.feature.auth.testing.RegistrationTestIds
 import news.readian.notoesapp.feature.auth.viewmodel.RegisterContract
-import news.readian.notoesapp.feature.auth.viewmodel.RegisterContract.NavigationState
 import news.readian.notoesapp.feature.auth.viewmodel.RegisterContract.RegistrationProblem
 import news.readian.notoesapp.feature.auth.viewmodel.RegisterContract.RegistrationProblem.FieldValidation
 import news.readian.notoesapp.feature.auth.viewmodel.RegisterContract.UiState
@@ -56,14 +54,6 @@ import org.jetbrains.compose.resources.stringResource
 @Composable
 fun RegisterScreen(viewModel: RegisterViewModel, onBackClick: () -> Unit) {
   val uiState by viewModel.uiState.collectAsState()
-  val navigationState by viewModel.navigationState.collectAsState()
-
-  LaunchedEffect(navigationState, onBackClick) {
-    when (navigationState) {
-      NavigationState.Close -> onBackClick()
-      NavigationState.Registration -> Unit
-    }
-  }
 
   RegisterScreen(
     navigation = object : Navigation {
@@ -118,10 +108,10 @@ private fun RegisterContent(
   navigation: Navigation,
   modifier: Modifier = Modifier,
 ) {
-  var username by remember { mutableStateOf("") }
-  var email by remember { mutableStateOf("") }
-  var password by remember { mutableStateOf("") }
-  var confirmPassword by remember { mutableStateOf("") }
+  var username by rememberSaveable { mutableStateOf("") }
+  var email by rememberSaveable { mutableStateOf("") }
+  var password by rememberSaveable { mutableStateOf("") }
+  var confirmPassword by rememberSaveable { mutableStateOf("") }
   var passwordVisible by rememberSaveable { mutableStateOf(false) }
   var confirmPasswordVisible by rememberSaveable { mutableStateOf(false) }
 
@@ -134,7 +124,7 @@ private fun RegisterContent(
   val hasPasswordValidationError by remember(password) {
     derivedStateOf { password.isValidPassword().not() && password.isNotBlank() }
   }
-  val hasPasswordMatchError by remember(password) {
+  val hasPasswordMatchError by remember(password, confirmPassword) {
     derivedStateOf { password != confirmPassword }
   }
 

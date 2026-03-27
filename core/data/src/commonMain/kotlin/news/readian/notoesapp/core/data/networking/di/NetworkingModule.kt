@@ -21,7 +21,6 @@ interface NetworkingModule {
   @SingleIn(AppScope::class)
   fun provideJson(): Json = Json {
     ignoreUnknownKeys = true
-    isLenient = true
     coerceInputValues = true
   }
 

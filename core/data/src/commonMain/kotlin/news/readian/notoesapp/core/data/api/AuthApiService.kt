@@ -7,7 +7,7 @@ interface AuthApiService {
   suspend fun login(email: String, password: String): AuthResponse
   suspend fun register(email: String, password: String, name: String): AuthResponse
   suspend fun loginGuest(): AuthResponse
-  suspend fun logout()
+  suspend fun logout(token: String)
 }
 
 sealed interface AuthResponse {

@@ -81,13 +81,13 @@ internal fun LoginScreen(uiState: LoginContract.UiState, navigation: LoginNaviga
     topBar = { TopBar(onBackClick = navigation::onBackClicked) },
     contentWindowInsets = WindowInsets.statusBars,
   ) { innerPaddings ->
-    var identifier by remember { mutableStateOf("") }
-    var password by remember { mutableStateOf("") }
+    var identifier by rememberSaveable { mutableStateOf("") }
+    var password by rememberSaveable { mutableStateOf("") }
     var passwordVisible by rememberSaveable { mutableStateOf(false) }
 
-    val loginButtonEnabled by remember(identifier, password) {
+    val loginButtonEnabled by remember(identifier, password, uiState.loading) {
       derivedStateOf {
-        identifier.isNotBlank() && password.isNotBlank()
+        identifier.isNotBlank() && password.isNotBlank() && !uiState.loading
       }
     }
 
@@ -124,7 +124,7 @@ internal fun LoginScreen(uiState: LoginContract.UiState, navigation: LoginNaviga
         item {
           ReadianTextField(
             value = identifier,
-            label = stringResource(Res.string.label_email),
+            label = stringResource(Res.string.label_identifier),
             onValueChange = { identifier = it },
             modifier = Modifier
               .fillMaxWidth()
@@ -151,6 +151,7 @@ internal fun LoginScreen(uiState: LoginContract.UiState, navigation: LoginNaviga
             ),
             keyboardActions = KeyboardActions(
               onDone = {
+                if (!loginButtonEnabled) return@KeyboardActions
                 focusManager.clearFocus()
                 navigation.onLoginClick(identifier, password)
               },

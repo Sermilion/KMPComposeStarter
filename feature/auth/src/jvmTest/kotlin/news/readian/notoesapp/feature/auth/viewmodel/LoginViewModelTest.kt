@@ -79,4 +79,124 @@ class LoginViewModelTest :
 
       viewModel.uiState.value.errors shouldBe listOf(LoginContract.LoginProblem.InvalidCredentials)
     }
+
+    test("credential message fallback maps to invalid-credentials problem") {
+      val authRepository = mockk<AuthRepository>()
+      coEvery { authRepository.login(any(), any()) } returns LoginResult.Error(
+        message = "Credential check failed",
+      )
+      val viewModel = LoginViewModel(authRepository)
+
+      runTest(testDispatcher) {
+        val uiStateCollector = backgroundScope.launch {
+          viewModel.uiState.collect {}
+        }
+        viewModel.onLogin("wrong", "wrong")
+        advanceUntilIdle()
+        uiStateCollector.cancel()
+      }
+
+      viewModel.uiState.value.errors shouldBe listOf(LoginContract.LoginProblem.InvalidCredentials)
+    }
+
+    test("rate limited response maps to rate-limited problem") {
+      val authRepository = mockk<AuthRepository>()
+      coEvery { authRepository.login(any(), any()) } returns LoginResult.Error(
+        message = "Too many attempts",
+        statusCode = 429,
+      )
+      val viewModel = LoginViewModel(authRepository)
+
+      runTest(testDispatcher) {
+        val uiStateCollector = backgroundScope.launch {
+          viewModel.uiState.collect {}
+        }
+        viewModel.onLogin("test@email.com", "password123")
+        advanceUntilIdle()
+        uiStateCollector.cancel()
+      }
+
+      viewModel.uiState.value.errors shouldBe listOf(LoginContract.LoginProblem.RateLimited)
+    }
+
+    test("server error response maps to server-error problem") {
+      val authRepository = mockk<AuthRepository>()
+      coEvery { authRepository.login(any(), any()) } returns LoginResult.Error(
+        message = "Internal server error",
+        statusCode = 500,
+      )
+      val viewModel = LoginViewModel(authRepository)
+
+      runTest(testDispatcher) {
+        val uiStateCollector = backgroundScope.launch {
+          viewModel.uiState.collect {}
+        }
+        viewModel.onLogin("test@email.com", "password123")
+        advanceUntilIdle()
+        uiStateCollector.cancel()
+      }
+
+      viewModel.uiState.value.errors shouldBe listOf(LoginContract.LoginProblem.ServerError)
+    }
+
+    test("timeout response maps to network-timeout problem") {
+      val authRepository = mockk<AuthRepository>()
+      coEvery { authRepository.login(any(), any()) } returns LoginResult.Error(
+        message = "Request timed out",
+      )
+      val viewModel = LoginViewModel(authRepository)
+
+      runTest(testDispatcher) {
+        val uiStateCollector = backgroundScope.launch {
+          viewModel.uiState.collect {}
+        }
+        viewModel.onLogin("test@email.com", "password123")
+        advanceUntilIdle()
+        uiStateCollector.cancel()
+      }
+
+      viewModel.uiState.value.errors shouldBe listOf(LoginContract.LoginProblem.NetworkTimeout)
+    }
+
+    test("validation response maps to unknown-field validation problem") {
+      val authRepository = mockk<AuthRepository>()
+      coEvery { authRepository.login(any(), any()) } returns LoginResult.Error(
+        message = "Validation failed",
+        statusCode = 422,
+      )
+      val viewModel = LoginViewModel(authRepository)
+
+      runTest(testDispatcher) {
+        val uiStateCollector = backgroundScope.launch {
+          viewModel.uiState.collect {}
+        }
+        viewModel.onLogin("test@email.com", "password123")
+        advanceUntilIdle()
+        uiStateCollector.cancel()
+      }
+
+      viewModel.uiState.value.errors shouldBe listOf(
+        LoginContract.LoginProblem.Validation(listOf(LoginContract.Field.Unknown)),
+      )
+    }
+
+    test("unexpected error maps to generic problem") {
+      val authRepository = mockk<AuthRepository>()
+      coEvery { authRepository.login(any(), any()) } returns LoginResult.Error(
+        message = "Something odd happened",
+        statusCode = 400,
+      )
+      val viewModel = LoginViewModel(authRepository)
+
+      runTest(testDispatcher) {
+        val uiStateCollector = backgroundScope.launch {
+          viewModel.uiState.collect {}
+        }
+        viewModel.onLogin("test@email.com", "password123")
+        advanceUntilIdle()
+        uiStateCollector.cancel()
+      }
+
+      viewModel.uiState.value.errors shouldBe listOf(LoginContract.LoginProblem.GenericError)
+    }
   })

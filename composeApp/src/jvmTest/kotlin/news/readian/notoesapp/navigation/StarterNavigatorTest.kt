@@ -43,6 +43,14 @@ class StarterNavigatorTest :
       state.value.currentRoute.shouldBeInstanceOf<TutorialRoute>()
     }
 
+    test("goBack returns false when auth flow has a single route") {
+      val state = mutableStateOf(StarterNavigationState())
+      val navigator = StarterNavigator(state)
+
+      navigator.goBack() shouldBe false
+      state.value.currentRoute.shouldBeInstanceOf<TutorialRoute>()
+    }
+
     test("onLoginStateChanged to true switches to authenticated state") {
       val state = mutableStateOf(StarterNavigationState())
       val navigator = StarterNavigator(state)
@@ -74,5 +82,64 @@ class StarterNavigatorTest :
 
       state.value.currentTab shouldBe TopLevelTab.SETTINGS
       state.value.currentRoute.shouldBeInstanceOf<SettingsRoute>()
+    }
+
+    test("onLoginStateChanged to false resets auth flow to tutorial") {
+      val state = mutableStateOf(StarterNavigationState(isAuthenticated = true))
+      val navigator = StarterNavigator(state)
+
+      navigator.onLoginStateChanged(false)
+
+      state.value.isAuthenticated shouldBe false
+      state.value.authBackStack.size shouldBe 1
+      state.value.currentRoute.shouldBeInstanceOf<TutorialRoute>()
+    }
+
+    test("goBack in tab flow removes last route") {
+      val state = mutableStateOf(StarterNavigationState())
+      val navigator = StarterNavigator(state)
+      navigator.onLoginStateChanged(true)
+      navigator.navigate(HomeRoute)
+
+      navigator.goBack() shouldBe true
+
+      state.value.tabBackStacks[TopLevelTab.HOME]?.size shouldBe 1
+      state.value.currentRoute.shouldBeInstanceOf<HomeRoute>()
+    }
+
+    test("goBack returns false when current tab has a single route") {
+      val state = mutableStateOf(StarterNavigationState())
+      val navigator = StarterNavigator(state)
+      navigator.onLoginStateChanged(true)
+
+      navigator.goBack() shouldBe false
+
+      state.value.tabBackStacks[TopLevelTab.HOME]?.size shouldBe 1
+      state.value.currentRoute.shouldBeInstanceOf<HomeRoute>()
+    }
+
+    test("switching tabs preserves each tab back stack") {
+      val state = mutableStateOf(StarterNavigationState())
+      val navigator = StarterNavigator(state)
+      navigator.onLoginStateChanged(true)
+      navigator.navigate(HomeRoute)
+
+      navigator.navigateToTopLevel(TopLevelTab.PROFILE)
+      navigator.navigateToTopLevel(TopLevelTab.HOME)
+
+      state.value.tabBackStacks[TopLevelTab.HOME]?.size shouldBe 2
+      state.value.currentRoute.shouldBeInstanceOf<HomeRoute>()
+    }
+
+    test("reselecting current tab resets it to the start route") {
+      val state = mutableStateOf(StarterNavigationState())
+      val navigator = StarterNavigator(state)
+      navigator.onLoginStateChanged(true)
+      navigator.navigate(HomeRoute)
+
+      navigator.navigateToTopLevel(TopLevelTab.HOME)
+
+      state.value.tabBackStacks[TopLevelTab.HOME]?.size shouldBe 1
+      state.value.currentRoute.shouldBeInstanceOf<HomeRoute>()
     }
   })

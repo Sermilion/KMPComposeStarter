@@ -6,6 +6,7 @@ import io.ktor.client.call.body
 import io.ktor.client.plugins.ClientRequestException
 import io.ktor.client.plugins.HttpRequestTimeoutException
 import io.ktor.client.plugins.ServerResponseException
+import io.ktor.client.request.bearerAuth
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
 import io.ktor.client.statement.bodyAsText
@@ -28,6 +29,7 @@ import news.readian.notoesapp.core.data.model.LoginResponseDataModel
 import news.readian.notoesapp.core.data.model.RegisterPayloadDataModel
 import news.readian.notoesapp.core.data.model.RegistrationResponseDataModel
 import news.readian.notoesapp.core.data.model.UserDataModel
+import news.readian.notoesapp.core.data.util.generateSecurePassword
 import news.readian.notoesapp.core.data.util.withRestErrorHandling
 import software.amazon.lastmile.kotlin.inject.anvil.AppScope
 import software.amazon.lastmile.kotlin.inject.anvil.ContributesBinding
@@ -90,9 +92,10 @@ class KtorAuthRemoteDataSource(private val httpClient: HttpClient, private val j
     },
   )
 
-  override suspend fun registerGuest(password: String): AuthResultDataModel = withRestErrorHandling(
+  override suspend fun loginGuest(): AuthResultDataModel = withRestErrorHandling(
     tag = TAG,
     block = {
+      val password = generateSecurePassword(GUEST_PASSWORD_LENGTH)
       val response = httpClient.post("api/users/guest") {
         contentType(ContentType.Application.Json)
         setBody(
@@ -103,20 +106,27 @@ class KtorAuthRemoteDataSource(private val httpClient: HttpClient, private val j
         )
       }.body<GuestRegistrationResponseDataModel>()
 
-      AuthResultDataModel.GuestRegistered(
-        username = response.data.username,
-        password = password,
-      )
+      login(response.data.username, password)
     },
     errorBlock = { exception ->
       exception.toAuthError(defaultMessage = "Unable to continue as guest")
     },
   )
 
-  override suspend fun logout() = Unit
+  override suspend fun logout(token: String) {
+    withRestErrorHandling(
+      tag = TAG,
+      block = {
+        httpClient.post("api/auth/logout") {
+          bearerAuth(token)
+        }.body<Unit>()
+      },
+      errorBlock = { Unit },
+    )
+  }
 
   override suspend fun refreshToken(token: String): AuthResultDataModel =
-    AuthResultDataModel.Error(message = "Refresh token is not implemented", code = "UNSUPPORTED")
+    throw NotImplementedError("Refresh token endpoint is not implemented")
 
   override suspend fun getCurrentUser(token: String): UserDataModel? = null
 
@@ -162,11 +172,15 @@ class KtorAuthRemoteDataSource(private val httpClient: HttpClient, private val j
   private fun parseErrorPayload(bodyText: String): ApiErrorResponseDataModel = try {
     json.decodeFromString<ApiErrorResponseDataModel>(bodyText)
   } catch (_: SerializationException) {
-    val jsonElement = json.parseToJsonElement(bodyText).jsonObject
-    ApiErrorResponseDataModel(
-      code = jsonElement["code"]?.jsonPrimitive?.content,
-      message = jsonElement["message"]?.jsonPrimitive?.content,
-    )
+    try {
+      val jsonElement = json.parseToJsonElement(bodyText).jsonObject
+      ApiErrorResponseDataModel(
+        code = jsonElement["code"]?.jsonPrimitive?.content,
+        message = jsonElement["message"]?.jsonPrimitive?.content,
+      )
+    } catch (_: Exception) {
+      ApiErrorResponseDataModel()
+    }
   } catch (_: Exception) {
     ApiErrorResponseDataModel()
   }
@@ -186,6 +200,7 @@ class KtorAuthRemoteDataSource(private val httpClient: HttpClient, private val j
     )
 
   private companion object {
+    const val GUEST_PASSWORD_LENGTH = 32
     const val TAG = "KtorAuthRemoteDataSource"
   }
 }

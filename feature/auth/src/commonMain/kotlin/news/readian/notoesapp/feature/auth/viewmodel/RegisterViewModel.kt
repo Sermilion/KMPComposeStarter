@@ -18,15 +18,6 @@ class RegisterViewModel(private val authRepository: AuthRepository) : ViewModel(
 
   private val loadingState = MutableStateFlow(false)
   private val errorState = MutableStateFlow(listOf<RegisterContract.RegistrationProblem>())
-  private val mutableNavigationState = MutableStateFlow<RegisterContract.NavigationState>(
-    RegisterContract.NavigationState.Registration,
-  )
-
-  val navigationState = mutableNavigationState.stateIn(
-    scope = viewModelScope,
-    started = SharingStarted.WhileSubscribed(STOP_TIMEOUT_MILLIS),
-    initialValue = RegisterContract.NavigationState.Registration,
-  )
 
   val uiState = combine(loadingState, errorState) { loading, errors ->
     RegisterContract.UiState.Content(loading = loading, errors = errors)
@@ -37,6 +28,8 @@ class RegisterViewModel(private val authRepository: AuthRepository) : ViewModel(
   )
 
   fun onSignUpClick(username: String, email: String, password: String, confirmPassword: String) {
+    if (loadingState.value) return
+
     viewModelScope.launch {
       handleRegistration(
         username = username,
@@ -56,26 +49,25 @@ class RegisterViewModel(private val authRepository: AuthRepository) : ViewModel(
     loadingState.update { true }
     errorState.update { emptyList() }
 
-    if (password != confirmPassword) {
-      errorState.update {
-        listOf(
-          RegisterContract.RegistrationProblem.FieldValidation(
-            listOf(RegisterContract.Field.Password),
-          ),
-        )
+    try {
+      if (password != confirmPassword) {
+        errorState.update {
+          listOf(
+            RegisterContract.RegistrationProblem.FieldValidation(
+              listOf(RegisterContract.Field.Password),
+            ),
+          )
+        }
+        return
       }
-      loadingState.update { false }
-      return
-    }
 
-    when (val result = authRepository.register(email, password, username)) {
-      is LoginResult.Success -> {
-        errorState.update { emptyList() }
-        mutableNavigationState.update { RegisterContract.NavigationState.Close }
+      when (val result = authRepository.register(email, password, username)) {
+        is LoginResult.Success -> errorState.update { emptyList() }
+        is LoginResult.Error -> errorState.update { result.toUiProblems() }
       }
-      is LoginResult.Error -> errorState.update { result.toUiProblems() }
+    } finally {
+      loadingState.update { false }
     }
-    loadingState.update { false }
   }
 
   private fun LoginResult.Error.toUiProblems(): List<RegisterContract.RegistrationProblem> {
