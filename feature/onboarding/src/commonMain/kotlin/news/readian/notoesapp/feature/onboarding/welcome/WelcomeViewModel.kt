@@ -10,12 +10,17 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import me.tatarka.inject.annotations.Inject
+import news.readian.notoesapp.common.coroutines.DispatcherProvider
 import news.readian.notoesapp.core.data.repository.AuthRepository
 import news.readian.notoesapp.core.data.repository.LoginResult
 import news.readian.notoesapp.feature.onboarding.common.ui.model.AnonRegProblem
+import kotlin.time.Duration.Companion.seconds
 
 @Inject
-class WelcomeViewModel(private val authRepository: AuthRepository) : ViewModel() {
+class WelcomeViewModel(
+  private val authRepository: AuthRepository,
+  private val dispatcherProvider: DispatcherProvider,
+) : ViewModel() {
 
   private val loadingState = MutableStateFlow(false)
   private val errorState = MutableStateFlow(listOf<AnonRegProblem>())
@@ -24,28 +29,23 @@ class WelcomeViewModel(private val authRepository: AuthRepository) : ViewModel()
     WelcomeContract.UiState(loading = loading, errors = errors)
   }.stateIn(
     scope = viewModelScope,
-    started = SharingStarted.WhileSubscribed(STOP_TIMEOUT_MILLIS),
+    started = SharingStarted.WhileSubscribed(5.seconds.inWholeMilliseconds),
     initialValue = WelcomeContract.UiState(),
   )
 
   fun onSkipClick() {
-    if (loadingState.value) return
-
-    viewModelScope.launch {
+    viewModelScope.launch(dispatcherProvider.io) {
       loadingState.update { true }
-      errorState.update { emptyList() }
-      try {
-        when (authRepository.loginGuest()) {
-          is LoginResult.Success -> errorState.update { emptyList() }
-          is LoginResult.Error -> errorState.update { listOf(AnonRegProblem.GenericError) }
+      errorState.update { listOf() }
+      when (authRepository.loginGuest()) {
+        is LoginResult.Success -> {
+          errorState.update { listOf() }
         }
-      } finally {
-        loadingState.update { false }
+        is LoginResult.Error -> {
+          errorState.update { listOf(AnonRegProblem.GenericError) }
+        }
       }
+      loadingState.update { false }
     }
-  }
-
-  private companion object {
-    const val STOP_TIMEOUT_MILLIS = 5_000L
   }
 }

@@ -50,7 +50,7 @@ Adapted from the kinds of practices that scale well in larger Compose apps:
 When changing starter-wide behavior, update the relevant docs in the same change:
 
 - `README.md` for user-facing setup or feature changes
-- `docs/architecture/*.md` for architecture or contributor guidance
+- `docs/architecture/*.md` and `docs/window-insets.md` for architecture or contributor guidance
 - `AGENTS.md` and `CLAUDE.md` for agent-facing workflow expectations
 
 Documentation is part of the template contract, not optional follow-up work.

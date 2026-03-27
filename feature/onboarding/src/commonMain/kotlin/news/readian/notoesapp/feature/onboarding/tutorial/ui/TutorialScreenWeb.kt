@@ -149,7 +149,7 @@ private fun WebTopBar(onLoginClick: () -> Unit) {
   ) {
     Icon(
       imageVector = ReadianIcons.ReadianLowerCased,
-      contentDescription = stringResource(Res.string.readian_icon),
+      contentDescription = stringResource(Res.string.readina_icon),
       modifier = Modifier.size(48.dp),
     )
 

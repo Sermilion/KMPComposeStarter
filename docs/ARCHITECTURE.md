@@ -13,6 +13,7 @@ This documentation is intentionally split into focused files so contributors and
 5. `docs/architecture/persistence.md`
 6. `docs/architecture/build-and-tooling.md`
 7. `docs/architecture/conventions.md`
+8. `docs/window-insets.md` when touching Compose layout or system-bar behavior
 
 ## Contents
 
@@ -77,3 +78,11 @@ Read: `docs/architecture/build-and-tooling.md`
 - Documentation update expectations
 
 Read: `docs/architecture/conventions.md`
+
+### Window Insets and Edge-to-Edge
+
+- `enableEdgeToEdge()` expectations on Android
+- `Scaffold` inset ownership rules
+- bottom-bar and IME handling guidance
+
+Read: `docs/window-insets.md`

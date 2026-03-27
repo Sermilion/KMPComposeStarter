@@ -16,12 +16,12 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import kotlinx.collections.immutable.toImmutableList
+import news.readian.notoesapp.common.compose.collectAsStateMultiplatform
 import news.readian.notoesapp.core.designsystem.component.ButtonStyle
 import news.readian.notoesapp.core.designsystem.component.ReadianButton
 import news.readian.notoesapp.core.designsystem.icon.ReadianIcons
@@ -42,7 +42,7 @@ fun WelcomeScreen(
   onSignUpClick: () -> Unit,
   viewModel: WelcomeViewModel,
 ) {
-  val uiState by viewModel.uiState.collectAsState()
+  val uiState by viewModel.uiState.collectAsStateMultiplatform()
 
   WelcomeScreen(
     onLoginClick = onLoginClick,
@@ -133,13 +133,13 @@ private fun LogoContent() {
   ) {
     Icon(
       imageVector = ReadianIcons.ReadianLetter,
-      contentDescription = stringResource(Res.string.readian_icon),
+      contentDescription = stringResource(Res.string.readina_icon),
       tint = MaterialTheme.colorScheme.primary,
     )
 
     Icon(
       imageVector = ReadianIcons.ReadianText,
-      contentDescription = stringResource(Res.string.readian_icon),
+      contentDescription = stringResource(Res.string.readina_icon),
       modifier = Modifier.padding(start = 8.dp),
       tint = MaterialTheme.colorScheme.tertiary,
     )

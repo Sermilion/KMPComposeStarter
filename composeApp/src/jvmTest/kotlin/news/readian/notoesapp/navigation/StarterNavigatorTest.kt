@@ -5,7 +5,7 @@ import androidx.compose.runtime.mutableStateOf
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
-import news.readian.notoesapp.feature.auth.navigation.RegisterRoute
+import news.readian.notoesapp.feature.auth.navigation.RegistrationRoute
 import news.readian.notoesapp.feature.home.navigation.HomeRoute
 import news.readian.notoesapp.feature.onboarding.navigation.TutorialRoute
 import news.readian.notoesapp.feature.profile.navigation.ProfileRoute
@@ -21,20 +21,20 @@ class StarterNavigatorTest :
       state.value.isAuthenticated shouldBe false
     }
 
-    test("navigate to RegisterRoute from auth flow") {
+    test("navigate to RegistrationRoute from auth flow") {
       val state = mutableStateOf(StarterNavigationState())
       val navigator = StarterNavigator(state)
 
-      navigator.navigate(RegisterRoute)
+      navigator.navigate(RegistrationRoute)
 
       state.value.authBackStack.size shouldBe 2
-      state.value.currentRoute.shouldBeInstanceOf<RegisterRoute>()
+      state.value.currentRoute.shouldBeInstanceOf<RegistrationRoute>()
     }
 
     test("goBack in auth flow removes last route") {
       val state = mutableStateOf(StarterNavigationState())
       val navigator = StarterNavigator(state)
-      navigator.navigate(RegisterRoute)
+      navigator.navigate(RegistrationRoute)
 
       val result = navigator.goBack()
 

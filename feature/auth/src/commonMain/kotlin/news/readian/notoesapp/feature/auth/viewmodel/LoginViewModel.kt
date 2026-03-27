@@ -12,6 +12,7 @@ import kotlinx.coroutines.launch
 import me.tatarka.inject.annotations.Inject
 import news.readian.notoesapp.core.data.repository.AuthRepository
 import news.readian.notoesapp.core.data.repository.LoginResult
+import kotlin.time.Duration.Companion.seconds
 
 @Inject
 class LoginViewModel(private val authRepository: AuthRepository) : ViewModel() {
@@ -23,24 +24,19 @@ class LoginViewModel(private val authRepository: AuthRepository) : ViewModel() {
     LoginContract.UiState(loading = loading, errors = errors)
   }.stateIn(
     scope = viewModelScope,
-    started = SharingStarted.WhileSubscribed(STOP_TIMEOUT_MILLIS),
+    started = SharingStarted.WhileSubscribed(5.seconds.inWholeMilliseconds),
     initialValue = LoginContract.UiState(),
   )
 
   fun onLogin(identifier: String, password: String) {
-    if (loadingState.value) return
-
     viewModelScope.launch {
       loadingState.update { true }
-      errorState.update { emptyList() }
-      try {
-        when (val result = authRepository.login(identifier, password)) {
-          is LoginResult.Success -> errorState.update { emptyList() }
-          is LoginResult.Error -> errorState.update { listOf(result.toUiProblem()) }
-        }
-      } finally {
-        loadingState.update { false }
+      errorState.update { listOf() }
+      when (val result = authRepository.login(identifier, password)) {
+        is LoginResult.Success -> errorState.update { listOf() }
+        is LoginResult.Error -> errorState.update { listOf(result.toUiProblem()) }
       }
+      loadingState.update { false }
     }
   }
 
@@ -75,6 +71,5 @@ class LoginViewModel(private val authRepository: AuthRepository) : ViewModel() {
     const val UNPROCESSABLE_ENTITY_STATUS_CODE = 422
     const val TOO_MANY_REQUESTS_STATUS_CODE = 429
     const val SERVER_ERROR_THRESHOLD = 500
-    const val STOP_TIMEOUT_MILLIS = 5_000L
   }
 }

@@ -20,7 +20,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -33,6 +33,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.toImmutableList
+import news.readian.notoesapp.common.compose.collectAsStateMultiplatform
 import news.readian.notoesapp.common.isValidEmail
 import news.readian.notoesapp.common.isValidPassword
 import news.readian.notoesapp.core.designsystem.component.ButtonStyle
@@ -43,19 +44,28 @@ import news.readian.notoesapp.core.ui.composables.ErrorContainer
 import news.readian.notoesapp.core.ui.composables.ErrorContent
 import news.readian.notoesapp.core.ui.composables.LoadingContent
 import news.readian.notoesapp.feature.auth.testing.RegistrationTestIds
-import news.readian.notoesapp.feature.auth.viewmodel.RegisterContract
-import news.readian.notoesapp.feature.auth.viewmodel.RegisterContract.RegistrationProblem
-import news.readian.notoesapp.feature.auth.viewmodel.RegisterContract.RegistrationProblem.FieldValidation
-import news.readian.notoesapp.feature.auth.viewmodel.RegisterContract.UiState
-import news.readian.notoesapp.feature.auth.viewmodel.RegisterViewModel
+import news.readian.notoesapp.feature.auth.viewmodel.RegistrationContract
+import news.readian.notoesapp.feature.auth.viewmodel.RegistrationContract.NavigationState
+import news.readian.notoesapp.feature.auth.viewmodel.RegistrationContract.RegistrationProblem
+import news.readian.notoesapp.feature.auth.viewmodel.RegistrationContract.RegistrationProblem.FieldValidation
+import news.readian.notoesapp.feature.auth.viewmodel.RegistrationContract.UiState
+import news.readian.notoesapp.feature.auth.viewmodel.RegistrationViewModel
 import notesapp.feature.auth.generated.resources.*
 import org.jetbrains.compose.resources.stringResource
 
 @Composable
-fun RegisterScreen(viewModel: RegisterViewModel, onBackClick: () -> Unit) {
-  val uiState by viewModel.uiState.collectAsState()
+fun RegistrationScreen(viewModel: RegistrationViewModel, onBackClick: () -> Unit) {
+  val uiState by viewModel.uiState.collectAsStateMultiplatform()
+  val navigationState by viewModel.navigationState.collectAsStateMultiplatform()
 
-  RegisterScreen(
+  LaunchedEffect(navigationState, onBackClick) {
+    when (navigationState) {
+      NavigationState.Close -> onBackClick()
+      NavigationState.Registration -> Unit
+    }
+  }
+
+  RegistrationScreen(
     navigation = object : Navigation {
       override fun onSignUpClick(
         username: String,
@@ -78,7 +88,7 @@ fun RegisterScreen(viewModel: RegisterViewModel, onBackClick: () -> Unit) {
 }
 
 @Composable
-internal fun RegisterScreen(navigation: Navigation, uiState: UiState) {
+internal fun RegistrationScreen(navigation: Navigation, uiState: UiState) {
   Scaffold(
     topBar = { TopBar(onBackClick = navigation::onBackClicked) },
     contentWindowInsets = WindowInsets.statusBars,
@@ -92,7 +102,7 @@ internal fun RegisterScreen(navigation: Navigation, uiState: UiState) {
       when (uiState) {
         is UiState.Initial -> LoadingContent()
 
-        is UiState.Content -> RegisterContent(
+        is UiState.Content -> RegistrationContent(
           uiState = uiState,
           navigation = navigation,
         )
@@ -103,15 +113,15 @@ internal fun RegisterScreen(navigation: Navigation, uiState: UiState) {
 
 @Suppress("LongMethod", "CyclomaticComplexMethod")
 @Composable
-private fun RegisterContent(
+private fun RegistrationContent(
   uiState: UiState.Content,
   navigation: Navigation,
   modifier: Modifier = Modifier,
 ) {
-  var username by rememberSaveable { mutableStateOf("") }
-  var email by rememberSaveable { mutableStateOf("") }
-  var password by rememberSaveable { mutableStateOf("") }
-  var confirmPassword by rememberSaveable { mutableStateOf("") }
+  var username by remember { mutableStateOf("") }
+  var email by remember { mutableStateOf("") }
+  var password by remember { mutableStateOf("") }
+  var confirmPassword by remember { mutableStateOf("") }
   var passwordVisible by rememberSaveable { mutableStateOf(false) }
   var confirmPasswordVisible by rememberSaveable { mutableStateOf(false) }
 
@@ -124,7 +134,7 @@ private fun RegisterContent(
   val hasPasswordValidationError by remember(password) {
     derivedStateOf { password.isValidPassword().not() && password.isNotBlank() }
   }
-  val hasPasswordMatchError by remember(password, confirmPassword) {
+  val hasPasswordMatchError by remember(password) {
     derivedStateOf { password != confirmPassword }
   }
 
@@ -134,9 +144,9 @@ private fun RegisterContent(
       .flatMap { it.fields }
       .toSet()
   }
-  val hasServerUsernameError = RegisterContract.Field.Username in serverErrorFields
-  val hasServerEmailError = RegisterContract.Field.Email in serverErrorFields
-  val hasServerPasswordError = RegisterContract.Field.Password in serverErrorFields
+  val hasServerUsernameError = RegistrationContract.Field.Username in serverErrorFields
+  val hasServerEmailError = RegistrationContract.Field.Email in serverErrorFields
+  val hasServerPasswordError = RegistrationContract.Field.Password in serverErrorFields
 
   val registrationButtonEnabled by remember(username, email, password, confirmPassword) {
     derivedStateOf {
@@ -261,7 +271,7 @@ private fun RegisterContent(
     }
 
     item {
-      AuthTermsView(
+      TermsView(
         modifier = Modifier
           .padding(horizontal = 80.dp)
           .padding(top = 92.dp),
@@ -288,15 +298,15 @@ private fun ErrorsContent(
   ) {
     val errors = when {
       hasPasswordValidationError -> {
-        uiState.errors + FieldValidation(listOf(RegisterContract.Field.Password))
+        uiState.errors + FieldValidation(listOf(RegistrationContract.Field.Password))
       }
 
       hasEmailError -> {
-        uiState.errors + FieldValidation(listOf(RegisterContract.Field.EmailFormat))
+        uiState.errors + FieldValidation(listOf(RegistrationContract.Field.EmailFormat))
       }
 
       hasUsernameValidationError -> {
-        uiState.errors + FieldValidation(listOf(RegisterContract.Field.UsernameFormat))
+        uiState.errors + FieldValidation(listOf(RegistrationContract.Field.UsernameFormat))
       }
 
       else -> uiState.errors
@@ -325,32 +335,32 @@ private fun RemoteValidationErrorContent(errors: ImmutableList<RegistrationProbl
 private fun FieldValidation.mapToBuilder(builder: StringBuilder): StringBuilder {
   this.fields.forEach { field ->
     when (field) {
-      RegisterContract.Field.Email -> {
+      RegistrationContract.Field.Email -> {
         builder.append(stringResource(Res.string.error_email_exists))
         builder.append("\n")
       }
 
-      RegisterContract.Field.UsernameFormat -> {
+      RegistrationContract.Field.UsernameFormat -> {
         builder.append(stringResource(Res.string.error_username_validation))
         builder.append("")
       }
 
-      RegisterContract.Field.EmailFormat -> {
+      RegistrationContract.Field.EmailFormat -> {
         builder.append(stringResource(Res.string.error_email_validation))
         builder.append("")
       }
 
-      RegisterContract.Field.Username -> {
+      RegistrationContract.Field.Username -> {
         builder.append(stringResource(Res.string.error_unique_username))
         builder.append("\n")
       }
 
-      RegisterContract.Field.Password -> {
+      RegistrationContract.Field.Password -> {
         builder.append(stringResource(Res.string.error_password_validation))
         builder.append("\n")
       }
 
-      RegisterContract.Field.Unknown -> {
+      RegistrationContract.Field.Unknown -> {
         builder.append(stringResource(Res.string.error_generic))
         builder.append("\n")
       }
@@ -382,7 +392,7 @@ private fun TopBar(onBackClick: () -> Unit) {
       ) {
         Icon(
           imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
-          contentDescription = stringResource(Res.string.action_navigate_back),
+          contentDescription = null,
         )
       }
     },

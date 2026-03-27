@@ -10,11 +10,11 @@ import news.readian.notoesapp.common.navigation.Route
 import news.readian.notoesapp.core.ui.navigation.ViewModelScope
 import news.readian.notoesapp.core.ui.navigation.injectViewModel
 import news.readian.notoesapp.feature.auth.navigation.LoginRoute
-import news.readian.notoesapp.feature.auth.navigation.RegisterRoute
+import news.readian.notoesapp.feature.auth.navigation.RegistrationRoute
 import news.readian.notoesapp.feature.auth.ui.LoginScreen
-import news.readian.notoesapp.feature.auth.ui.RegisterScreen
+import news.readian.notoesapp.feature.auth.ui.RegistrationScreen
 import news.readian.notoesapp.feature.auth.viewmodel.LoginViewModel
-import news.readian.notoesapp.feature.auth.viewmodel.RegisterViewModel
+import news.readian.notoesapp.feature.auth.viewmodel.RegistrationViewModel
 import news.readian.notoesapp.feature.home.navigation.HomeRoute
 import news.readian.notoesapp.feature.home.ui.HomeScreen
 import news.readian.notoesapp.feature.home.viewmodel.HomeContract
@@ -50,7 +50,7 @@ fun createStarterEntryProvider(navigator: StarterNavigator, isLoggedIn: Boolean)
       val viewModel = injectViewModel<WelcomeViewModel>(scope = ViewModelScope.Onboarding)
       WelcomeScreen(
         onLoginClick = { navigator.navigate(LoginRoute) },
-        onSignUpClick = { navigator.navigate(RegisterRoute) },
+        onSignUpClick = { navigator.navigate(RegistrationRoute) },
         viewModel = viewModel,
       )
     }
@@ -64,9 +64,9 @@ fun createStarterEntryProvider(navigator: StarterNavigator, isLoggedIn: Boolean)
       )
     }
 
-    entry<RegisterRoute> {
-      val viewModel = injectViewModel<RegisterViewModel>(scope = ViewModelScope.Onboarding)
-      RegisterScreen(
+    entry<RegistrationRoute> {
+      val viewModel = injectViewModel<RegistrationViewModel>(scope = ViewModelScope.Onboarding)
+      RegistrationScreen(
         viewModel = viewModel,
         onBackClick = { navigator.goBack() },
       )

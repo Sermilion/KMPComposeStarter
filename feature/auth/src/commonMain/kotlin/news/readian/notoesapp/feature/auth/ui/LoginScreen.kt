@@ -23,7 +23,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -34,12 +33,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.toImmutableList
+import news.readian.notoesapp.common.compose.collectAsStateMultiplatform
 import news.readian.notoesapp.core.designsystem.component.ButtonStyle
 import news.readian.notoesapp.core.designsystem.component.ReadianButton
 import news.readian.notoesapp.core.designsystem.component.ReadianPasswordField
@@ -58,7 +57,7 @@ fun LoginScreen(
   onForgotPasswordClick: () -> Unit,
   onBackClick: () -> Unit,
 ) {
-  val uiState by viewModel.uiState.collectAsState()
+  val uiState by viewModel.uiState.collectAsStateMultiplatform()
 
   LoginScreen(
     uiState = uiState,
@@ -81,13 +80,13 @@ internal fun LoginScreen(uiState: LoginContract.UiState, navigation: LoginNaviga
     topBar = { TopBar(onBackClick = navigation::onBackClicked) },
     contentWindowInsets = WindowInsets.statusBars,
   ) { innerPaddings ->
-    var identifier by rememberSaveable { mutableStateOf("") }
-    var password by rememberSaveable { mutableStateOf("") }
+    var identifier by remember { mutableStateOf("") }
+    var password by remember { mutableStateOf("") }
     var passwordVisible by rememberSaveable { mutableStateOf(false) }
 
-    val loginButtonEnabled by remember(identifier, password, uiState.loading) {
+    val loginButtonEnabled by remember(identifier, password) {
       derivedStateOf {
-        identifier.isNotBlank() && password.isNotBlank() && !uiState.loading
+        identifier.isNotBlank() && password.isNotBlank()
       }
     }
 
@@ -124,7 +123,7 @@ internal fun LoginScreen(uiState: LoginContract.UiState, navigation: LoginNaviga
         item {
           ReadianTextField(
             value = identifier,
-            label = stringResource(Res.string.label_identifier),
+            label = stringResource(Res.string.label_email),
             onValueChange = { identifier = it },
             modifier = Modifier
               .fillMaxWidth()
@@ -151,7 +150,6 @@ internal fun LoginScreen(uiState: LoginContract.UiState, navigation: LoginNaviga
             ),
             keyboardActions = KeyboardActions(
               onDone = {
-                if (!loginButtonEnabled) return@KeyboardActions
                 focusManager.clearFocus()
                 navigation.onLoginClick(identifier, password)
               },
@@ -188,7 +186,7 @@ internal fun LoginScreen(uiState: LoginContract.UiState, navigation: LoginNaviga
         }
 
         item {
-          AuthTermsView(
+          TermsView(
             modifier = Modifier
               .padding(horizontal = 80.dp)
               .padding(top = 32.dp, bottom = 16.dp),
@@ -271,7 +269,7 @@ private fun TopBar(onBackClick: () -> Unit) {
       ) {
         Icon(
           imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
-          contentDescription = stringResource(Res.string.action_navigate_back),
+          contentDescription = "Back",
         )
       }
     },

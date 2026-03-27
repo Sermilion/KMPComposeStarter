@@ -8,7 +8,7 @@ import news.readian.notoesapp.common.navigation.AuthFlowRoute
 import news.readian.notoesapp.common.navigation.Route
 import news.readian.notoesapp.common.navigation.TopLevelRoute
 import news.readian.notoesapp.feature.auth.navigation.LoginRoute
-import news.readian.notoesapp.feature.auth.navigation.RegisterRoute
+import news.readian.notoesapp.feature.auth.navigation.RegistrationRoute
 import news.readian.notoesapp.feature.home.navigation.HomeRoute
 import news.readian.notoesapp.feature.profile.navigation.ProfileRoute
 import news.readian.notoesapp.feature.settings.navigation.SettingsRoute
@@ -16,7 +16,7 @@ import news.readian.notoesapp.feature.settings.navigation.SettingsRoute
 val starterSerializersModule = SerializersModule {
   polymorphic(NavKey::class) {
     subclass(LoginRoute::class, LoginRoute.serializer())
-    subclass(RegisterRoute::class, RegisterRoute.serializer())
+    subclass(RegistrationRoute::class, RegistrationRoute.serializer())
     subclass(HomeRoute::class, HomeRoute.serializer())
     subclass(ProfileRoute::class, ProfileRoute.serializer())
     subclass(SettingsRoute::class, SettingsRoute.serializer())
@@ -24,7 +24,7 @@ val starterSerializersModule = SerializersModule {
 
   polymorphic(Route::class) {
     subclass(LoginRoute::class, LoginRoute.serializer())
-    subclass(RegisterRoute::class, RegisterRoute.serializer())
+    subclass(RegistrationRoute::class, RegistrationRoute.serializer())
     subclass(HomeRoute::class, HomeRoute.serializer())
     subclass(ProfileRoute::class, ProfileRoute.serializer())
     subclass(SettingsRoute::class, SettingsRoute.serializer())
@@ -32,7 +32,7 @@ val starterSerializersModule = SerializersModule {
 
   polymorphic(AuthFlowRoute::class) {
     subclass(LoginRoute::class, LoginRoute.serializer())
-    subclass(RegisterRoute::class, RegisterRoute.serializer())
+    subclass(RegistrationRoute::class, RegistrationRoute.serializer())
   }
 
   polymorphic(TopLevelRoute::class) {

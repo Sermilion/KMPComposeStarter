@@ -7,7 +7,7 @@ import me.tatarka.inject.annotations.Provides
 import news.readian.notoesapp.common.di.AssistedArgs
 import news.readian.notoesapp.common.di.ViewModelEntry
 import news.readian.notoesapp.feature.auth.viewmodel.LoginViewModel
-import news.readian.notoesapp.feature.auth.viewmodel.RegisterViewModel
+import news.readian.notoesapp.feature.auth.viewmodel.RegistrationViewModel
 import news.readian.notoesapp.feature.onboarding.tutorial.TutorialViewModel
 import news.readian.notoesapp.feature.onboarding.welcome.WelcomeViewModel
 import software.amazon.lastmile.kotlin.inject.anvil.AppScope
@@ -43,9 +43,9 @@ interface AppScopedViewModelModule {
 
   @Provides
   @IntoSet
-  fun provideRegisterViewModelEntry(factory: () -> RegisterViewModel): ViewModelEntry =
+  fun provideRegistrationViewModelEntry(factory: () -> RegistrationViewModel): ViewModelEntry =
     object : ViewModelEntry {
-      override val kclass: KClass<out ViewModel> = RegisterViewModel::class
+      override val kclass: KClass<out ViewModel> = RegistrationViewModel::class
       override fun create(args: AssistedArgs): ViewModel = factory()
     }
 }

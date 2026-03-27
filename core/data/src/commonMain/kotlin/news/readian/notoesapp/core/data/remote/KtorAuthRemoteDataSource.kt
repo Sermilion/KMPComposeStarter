@@ -29,8 +29,8 @@ import news.readian.notoesapp.core.data.model.LoginResponseDataModel
 import news.readian.notoesapp.core.data.model.RegisterPayloadDataModel
 import news.readian.notoesapp.core.data.model.RegistrationResponseDataModel
 import news.readian.notoesapp.core.data.model.UserDataModel
-import news.readian.notoesapp.core.data.util.generateSecurePassword
 import news.readian.notoesapp.core.data.util.withRestErrorHandling
+import news.readian.notoesapp.core.domain.common.randomUuid
 import software.amazon.lastmile.kotlin.inject.anvil.AppScope
 import software.amazon.lastmile.kotlin.inject.anvil.ContributesBinding
 import software.amazon.lastmile.kotlin.inject.anvil.SingleIn
@@ -95,7 +95,7 @@ class KtorAuthRemoteDataSource(private val httpClient: HttpClient, private val j
   override suspend fun loginGuest(): AuthResultDataModel = withRestErrorHandling(
     tag = TAG,
     block = {
-      val password = generateSecurePassword(GUEST_PASSWORD_LENGTH)
+      val password = randomUuid().toString()
       val response = httpClient.post("api/users/guest") {
         contentType(ContentType.Application.Json)
         setBody(
@@ -200,7 +200,6 @@ class KtorAuthRemoteDataSource(private val httpClient: HttpClient, private val j
     )
 
   private companion object {
-    const val GUEST_PASSWORD_LENGTH = 32
     const val TAG = "KtorAuthRemoteDataSource"
   }
 }

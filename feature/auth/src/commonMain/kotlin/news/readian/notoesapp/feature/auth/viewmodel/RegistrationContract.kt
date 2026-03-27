@@ -1,7 +1,7 @@
 
 package news.readian.notoesapp.feature.auth.viewmodel
 
-object RegisterContract {
+object RegistrationContract {
   sealed interface UiState {
     data class Content(
       val loading: Boolean = false,
@@ -14,6 +14,11 @@ object RegisterContract {
   sealed interface RegistrationProblem {
     data class FieldValidation(val fields: List<Field>) : RegistrationProblem
     data object GenericError : RegistrationProblem
+  }
+
+  sealed interface NavigationState {
+    data object Registration : NavigationState
+    data object Close : NavigationState
   }
 
   enum class Field {

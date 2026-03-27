@@ -24,7 +24,7 @@ private const val TERMS_LINK = "https://readian.io/terms"
 private const val WHITE_SPACE = " "
 
 @Composable
-fun AuthTermsView(modifier: Modifier = Modifier) {
+fun TermsView(modifier: Modifier = Modifier) {
   val uriHandler = LocalUriHandler.current
   val textColor = MaterialTheme.colorScheme.onSurface.copy(alpha = KmpContentAlpha.lowEmphasis)
   val linkColor = MaterialTheme.colorScheme.onSurface

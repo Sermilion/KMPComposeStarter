@@ -168,7 +168,7 @@ private fun TopContent(onLoginClick: () -> Unit) {
   ) {
     Icon(
       imageVector = ReadianIcons.ReadianLowerCased,
-      contentDescription = stringResource(Res.string.readian_icon),
+      contentDescription = stringResource(Res.string.readina_icon),
     )
 
     ReadianButton(

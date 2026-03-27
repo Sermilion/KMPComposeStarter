@@ -14,6 +14,7 @@ This root file stays intentionally small so tools that look for a top-level `ARC
 6. `docs/architecture/persistence.md`
 7. `docs/architecture/build-and-tooling.md`
 8. `docs/architecture/conventions.md`
+9. `docs/window-insets.md` for Compose scaffold and edge-to-edge changes
 
 ## Current Architecture Summary
 
@@ -24,5 +25,6 @@ This root file stays intentionally small so tools that look for a top-level `ARC
 - Navigation is type-safe and back-stack driven through `StarterNavigationState` and `StarterNavigator`.
 - Local persistence now uses Room 3 instead of SQLDelight.
 - Build tooling is centralized in `build-logic/` and `gradle/libs.versions.toml`.
+- Android renders edge-to-edge; inset handling guidance lives in `docs/window-insets.md`.
 
 For the details, read the focused docs under `docs/architecture/`.

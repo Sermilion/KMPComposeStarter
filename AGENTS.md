@@ -2,6 +2,33 @@
 
 This starter is meant to stay reusable and production-ready. Treat build logic, version catalog changes, documentation, and generated surfaces as template-level decisions rather than one-off app changes.
 
+## Required Documentation
+
+**IMPORTANT: Before starting architectural work, feature implementation, or significant refactoring, review the relevant documentation first.**
+
+### Primary Documentation
+
+- **[Architecture docs index](docs/ARCHITECTURE.md)**: read this first for repository structure, architectural decisions, and contributor workflow.
+- **[Root architecture entry point](ARCHITECTURE.md)**: lightweight pointer for tools and contributors that start at the repository root.
+
+### Domain-Specific Documentation
+
+Before making changes in these areas, review the matching docs:
+
+- **Dependency injection or ViewModel wiring**: `docs/architecture/di-and-scoping.md`
+- **Navigation or route changes**: `docs/architecture/navigation.md`
+- **Persistence, Room, or DataStore changes**: `docs/architecture/persistence.md`
+- **Build logic, dependency, or CI changes**: `docs/architecture/build-and-tooling.md`
+- **Compose edge-to-edge, Scaffold, IME, or inset changes**: `docs/window-insets.md`
+
+### When to Reference Documentation
+
+1. **Before implementing a feature**: read `docs/ARCHITECTURE.md` and the focused docs for the area you are touching.
+2. **Before adding dependencies or changing build logic**: confirm the existing Gradle conventions and version-catalog rules in `docs/architecture/build-and-tooling.md`.
+3. **Before changing DI, ViewModel creation, or screen scoping**: review `docs/architecture/di-and-scoping.md`.
+4. **Before changing navigation behavior**: review `docs/architecture/navigation.md`.
+5. **Before changing Compose scaffolds or edge-to-edge layouts**: review `docs/window-insets.md`.
+
 ## Essential Build Commands
 
 ### Build and Verification
@@ -66,6 +93,7 @@ The repository is organized as a Kotlin Multiplatform application starter:
 
 - Read `docs/ARCHITECTURE.md` before making structural changes.
 - Read the focused docs under `docs/architecture/` before changing architecture, navigation, persistence, or build behavior.
+- Read `docs/window-insets.md` before changing Scaffold layout, system bar handling, or bottom-bar inset behavior.
 - When changing contributor workflows, update `README.md`, the relevant docs under `docs/`, and this file together.
 - Explain template-wide decisions, especially dependency upgrades, repository-policy changes, and DI or navigation changes.
 
@@ -75,4 +103,5 @@ The repository is organized as a Kotlin Multiplatform application starter:
 - Prefer passing stable IDs rather than full mutable objects through navigation and UI events when a deeper layer remains the source of truth.
 - Keep auth-only and authenticated flows clearly separated.
 - Preserve explicit back stack ownership instead of hiding navigation rules in opaque helpers.
+- Use `Scaffold`'s `contentWindowInsets` instead of stacking system bar padding modifiers onto the scaffold root.
 - Prefer surgical changes over broad churn, but complete the root fix when you touch build logic or starter docs.

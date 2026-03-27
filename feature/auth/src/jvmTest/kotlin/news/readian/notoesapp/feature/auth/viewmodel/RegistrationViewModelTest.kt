@@ -18,7 +18,7 @@ import news.readian.notoesapp.core.data.repository.LoginResult
 import news.readian.notoesapp.core.domain.model.UserData
 
 @OptIn(ExperimentalCoroutinesApi::class)
-class RegisterViewModelTest :
+class RegistrationViewModelTest :
   FunSpec({
     val testDispatcher = StandardTestDispatcher()
 
@@ -32,14 +32,14 @@ class RegisterViewModelTest :
 
     test("initial state is initial") {
       val authRepository = mockk<AuthRepository>()
-      val viewModel = RegisterViewModel(authRepository)
+      val viewModel = RegistrationViewModel(authRepository)
 
-      viewModel.uiState.value shouldBe RegisterContract.UiState.Initial
+      viewModel.uiState.value shouldBe RegistrationContract.UiState.Initial
     }
 
     test("password mismatch emits password field validation without calling repository") {
       val authRepository = mockk<AuthRepository>()
-      val viewModel = RegisterViewModel(authRepository)
+      val viewModel = RegistrationViewModel(authRepository)
 
       runTest(testDispatcher) {
         val uiStateCollector = backgroundScope.launch {
@@ -50,11 +50,11 @@ class RegisterViewModelTest :
         uiStateCollector.cancel()
       }
 
-      viewModel.uiState.value shouldBe RegisterContract.UiState.Content(
+      viewModel.uiState.value shouldBe RegistrationContract.UiState.Content(
         loading = false,
         errors = listOf(
-          RegisterContract.RegistrationProblem.FieldValidation(
-            listOf(RegisterContract.Field.Password),
+          RegistrationContract.RegistrationProblem.FieldValidation(
+            listOf(RegistrationContract.Field.Password),
           ),
         ),
       )
@@ -66,7 +66,7 @@ class RegisterViewModelTest :
       coEvery { authRepository.register(any(), any(), any()) } returns LoginResult.Error(
         message = "Email already exists",
       )
-      val viewModel = RegisterViewModel(authRepository)
+      val viewModel = RegistrationViewModel(authRepository)
 
       runTest(testDispatcher) {
         val uiStateCollector = backgroundScope.launch {
@@ -77,11 +77,11 @@ class RegisterViewModelTest :
         uiStateCollector.cancel()
       }
 
-      viewModel.uiState.value shouldBe RegisterContract.UiState.Content(
+      viewModel.uiState.value shouldBe RegistrationContract.UiState.Content(
         loading = false,
         errors = listOf(
-          RegisterContract.RegistrationProblem.FieldValidation(
-            listOf(RegisterContract.Field.Email),
+          RegistrationContract.RegistrationProblem.FieldValidation(
+            listOf(RegistrationContract.Field.Email),
           ),
         ),
       )
@@ -92,7 +92,7 @@ class RegisterViewModelTest :
       coEvery { authRepository.register(any(), any(), any()) } returns LoginResult.Error(
         message = "Username is taken",
       )
-      val viewModel = RegisterViewModel(authRepository)
+      val viewModel = RegistrationViewModel(authRepository)
 
       runTest(testDispatcher) {
         val uiStateCollector = backgroundScope.launch {
@@ -103,11 +103,11 @@ class RegisterViewModelTest :
         uiStateCollector.cancel()
       }
 
-      viewModel.uiState.value shouldBe RegisterContract.UiState.Content(
+      viewModel.uiState.value shouldBe RegistrationContract.UiState.Content(
         loading = false,
         errors = listOf(
-          RegisterContract.RegistrationProblem.FieldValidation(
-            listOf(RegisterContract.Field.Username),
+          RegistrationContract.RegistrationProblem.FieldValidation(
+            listOf(RegistrationContract.Field.Username),
           ),
         ),
       )
@@ -119,7 +119,7 @@ class RegisterViewModelTest :
         message = "Validation failed",
         statusCode = 422,
       )
-      val viewModel = RegisterViewModel(authRepository)
+      val viewModel = RegistrationViewModel(authRepository)
 
       runTest(testDispatcher) {
         val uiStateCollector = backgroundScope.launch {
@@ -130,11 +130,11 @@ class RegisterViewModelTest :
         uiStateCollector.cancel()
       }
 
-      viewModel.uiState.value shouldBe RegisterContract.UiState.Content(
+      viewModel.uiState.value shouldBe RegistrationContract.UiState.Content(
         loading = false,
         errors = listOf(
-          RegisterContract.RegistrationProblem.FieldValidation(
-            listOf(RegisterContract.Field.Unknown),
+          RegistrationContract.RegistrationProblem.FieldValidation(
+            listOf(RegistrationContract.Field.Unknown),
           ),
         ),
       )
@@ -145,7 +145,7 @@ class RegisterViewModelTest :
       coEvery { authRepository.register(any(), any(), any()) } returns LoginResult.Error(
         message = "Unexpected failure",
       )
-      val viewModel = RegisterViewModel(authRepository)
+      val viewModel = RegistrationViewModel(authRepository)
 
       runTest(testDispatcher) {
         val uiStateCollector = backgroundScope.launch {
@@ -156,9 +156,9 @@ class RegisterViewModelTest :
         uiStateCollector.cancel()
       }
 
-      viewModel.uiState.value shouldBe RegisterContract.UiState.Content(
+      viewModel.uiState.value shouldBe RegistrationContract.UiState.Content(
         loading = false,
-        errors = listOf(RegisterContract.RegistrationProblem.GenericError),
+        errors = listOf(RegistrationContract.RegistrationProblem.GenericError),
       )
     }
 
@@ -168,7 +168,7 @@ class RegisterViewModelTest :
         LoginResult.Success(
           UserData(id = "1", email = "user@email.com", name = "user", token = "token"),
         )
-      val viewModel = RegisterViewModel(authRepository)
+      val viewModel = RegistrationViewModel(authRepository)
 
       runTest(testDispatcher) {
         val uiStateCollector = backgroundScope.launch {
@@ -179,7 +179,7 @@ class RegisterViewModelTest :
         uiStateCollector.cancel()
       }
 
-      viewModel.uiState.value shouldBe RegisterContract.UiState.Content(
+      viewModel.uiState.value shouldBe RegistrationContract.UiState.Content(
         loading = false,
         errors = emptyList(),
       )

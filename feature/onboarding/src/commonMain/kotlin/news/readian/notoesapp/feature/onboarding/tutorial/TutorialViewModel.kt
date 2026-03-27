@@ -13,6 +13,7 @@ import me.tatarka.inject.annotations.Inject
 import news.readian.notoesapp.core.data.repository.AuthRepository
 import news.readian.notoesapp.core.data.repository.LoginResult
 import news.readian.notoesapp.feature.onboarding.common.ui.model.AnonRegProblem
+import kotlin.time.Duration.Companion.seconds
 
 @Inject
 class TutorialViewModel(private val authRepository: AuthRepository) : ViewModel() {
@@ -24,28 +25,23 @@ class TutorialViewModel(private val authRepository: AuthRepository) : ViewModel(
     TutorialContract.UiState(loading = loading, errors = errors)
   }.stateIn(
     scope = viewModelScope,
-    started = SharingStarted.WhileSubscribed(STOP_TIMEOUT_MILLIS),
+    started = SharingStarted.WhileSubscribed(5.seconds.inWholeMilliseconds),
     initialValue = TutorialContract.UiState(),
   )
 
   fun onNext() {
-    if (loadingState.value) return
-
     viewModelScope.launch {
       loadingState.update { true }
-      errorState.update { emptyList() }
-      try {
-        when (authRepository.loginGuest()) {
-          is LoginResult.Success -> errorState.update { emptyList() }
-          is LoginResult.Error -> errorState.update { listOf(AnonRegProblem.GenericError) }
+      errorState.update { listOf() }
+      when (authRepository.loginGuest()) {
+        is LoginResult.Success -> {
+          errorState.update { listOf() }
         }
-      } finally {
-        loadingState.update { false }
+        is LoginResult.Error -> {
+          errorState.update { listOf(AnonRegProblem.GenericError) }
+        }
       }
+      loadingState.update { false }
     }
-  }
-
-  private companion object {
-    const val STOP_TIMEOUT_MILLIS = 5_000L
   }
 }

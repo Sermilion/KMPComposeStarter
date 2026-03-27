@@ -7,4 +7,4 @@ import news.readian.notoesapp.common.navigation.AuthFlowRoute
 data object LoginRoute : AuthFlowRoute
 
 @Serializable
-data object RegisterRoute : AuthFlowRoute
+data object RegistrationRoute : AuthFlowRoute

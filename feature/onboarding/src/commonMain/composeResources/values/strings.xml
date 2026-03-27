@@ -20,15 +20,15 @@
   <string name="error_username_validation">Invalid username format.</string>
   <string name="label_alt_login">or login with</string>
   <string name="label_and">and</string>
-  <string name="label_by_joining">By signing up you accept the</string>
+  <string name="label_by_joining">By singing up you accept the</string>
   <string name="label_complete_registration">Complete registration</string>
   <string name="label_confirm_password">Confirm password</string>
   <string name="label_continue">Continue</string>
   <string name="label_discover">Discover</string>
   <string name="label_email">Email</string>
-  <string name="label_forgot_password">Forgot Password?</string>
+  <string name="label_forgot_password">Forget Password?</string>
   <string name="label_identifier">Identifier</string>
-  <string name="label_library">Library</string>
+  <string name="label_library">Discover</string>
   <string name="label_login">Login</string>
   <string name="label_login_or_register">Login or Register</string>
   <string name="label_next">Next</string>
@@ -47,7 +47,7 @@
   <string name="label_skip">Skip</string>
   <string name="login_facebook">Facebook login</string>
   <string name="login_google">Google login</string>
-  <string name="readian_icon">Readian label</string>
+  <string name="readina_icon">Readian label</string>
   <string name="tutorial_image">Tutorial image</string>
   <string name="welcome_image">Welcome image.</string>
 </resources>

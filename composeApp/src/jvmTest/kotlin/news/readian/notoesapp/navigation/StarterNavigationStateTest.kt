@@ -6,7 +6,7 @@ import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
 import news.readian.notoesapp.common.navigation.AuthFlowRoute
 import news.readian.notoesapp.common.navigation.TopLevelRoute
-import news.readian.notoesapp.feature.auth.navigation.RegisterRoute
+import news.readian.notoesapp.feature.auth.navigation.RegistrationRoute
 import news.readian.notoesapp.feature.home.navigation.HomeRoute
 import news.readian.notoesapp.feature.onboarding.navigation.TutorialRoute
 import news.readian.notoesapp.feature.onboarding.navigation.WelcomeRoute
@@ -62,11 +62,11 @@ class StarterNavigationStateTest :
     test("currentRoute returns last item in backstack") {
       val authBackStack = SnapshotStateList<AuthFlowRoute>().apply {
         add(WelcomeRoute)
-        add(RegisterRoute)
+        add(RegistrationRoute)
       }
       val state = StarterNavigationState(authBackStack = authBackStack)
 
-      state.currentRoute.shouldBeInstanceOf<RegisterRoute>()
+      state.currentRoute.shouldBeInstanceOf<RegistrationRoute>()
     }
 
     test("each tab starts with exactly one route") {
