@@ -2,10 +2,6 @@ package com.sermilion.kmpcomposestarter.common.di
 
 import androidx.compose.runtime.staticCompositionLocalOf
 
-val LocalViewModelFactory = staticCompositionLocalOf<ViewModelFactory> {
-  error("ViewModelFactory not provided")
-}
-
 val LocalViewModelProvider = staticCompositionLocalOf<ViewModelProvider> {
   error("ViewModelProvider not provided")
 }

@@ -26,7 +26,6 @@ import com.sermilion.kmpcomposestarter.feature.profile.viewmodel.ProfileContract
 import com.sermilion.kmpcomposestarter.feature.profile.viewmodel.ProfileViewModel
 import com.sermilion.kmpcomposestarter.feature.settings.navigation.SettingsRoute
 import com.sermilion.kmpcomposestarter.feature.settings.ui.SettingsScreen
-import com.sermilion.kmpcomposestarter.feature.settings.viewmodel.SettingsContract
 import com.sermilion.kmpcomposestarter.feature.settings.viewmodel.SettingsViewModel
 
 @Suppress("LongMethod")
@@ -34,7 +33,7 @@ import com.sermilion.kmpcomposestarter.feature.settings.viewmodel.SettingsViewMo
 fun createStarterEntryProvider(navigator: StarterNavigator, isLoggedIn: Boolean) =
   entryProvider<Route> {
     entry<LoginRoute> {
-      val viewModel = injectViewModel<LoginViewModel>(scope = ViewModelScope.Onboarding)
+      val viewModel = injectViewModel<LoginViewModel>(scope = ViewModelScope.PreAuth)
       val uiState by viewModel.uiState.collectAsState()
       LaunchedEffect(Unit) {
         viewModel.events.collect { event ->
@@ -55,7 +54,7 @@ fun createStarterEntryProvider(navigator: StarterNavigator, isLoggedIn: Boolean)
     }
 
     entry<RegisterRoute> {
-      val viewModel = injectViewModel<RegisterViewModel>(scope = ViewModelScope.Onboarding)
+      val viewModel = injectViewModel<RegisterViewModel>(scope = ViewModelScope.PreAuth)
       val uiState by viewModel.uiState.collectAsState()
       LaunchedEffect(Unit) {
         viewModel.events.collect { event ->
@@ -112,13 +111,6 @@ fun createStarterEntryProvider(navigator: StarterNavigator, isLoggedIn: Boolean)
       entry<SettingsRoute> {
         val viewModel = injectViewModel<SettingsViewModel>()
         val uiState by viewModel.uiState.collectAsState()
-        LaunchedEffect(Unit) {
-          viewModel.events.collect { event ->
-            when (event) {
-              SettingsContract.Event.NavigateBack -> navigator.goBack()
-            }
-          }
-        }
         SettingsScreen(
           uiState = uiState,
         )

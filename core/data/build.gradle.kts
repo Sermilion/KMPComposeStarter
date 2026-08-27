@@ -3,7 +3,6 @@ import org.gradle.kotlin.dsl.configure
 
 plugins {
   alias(libs.plugins.kmp.library)
-  alias(libs.plugins.kmp.jacoco)
   alias(libs.plugins.kotlin.serialization)
   alias(libs.plugins.ksp)
   alias(libs.plugins.room3)

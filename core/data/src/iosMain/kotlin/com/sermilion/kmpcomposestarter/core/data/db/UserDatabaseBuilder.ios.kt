@@ -17,14 +17,6 @@ fun createUserDatabaseBuilder(
   factory = UserDatabaseConstructor::initialize,
 ).setDriver(BundledSQLiteDriver())
 
-fun createOnboardingDatabaseBuilder(
-  databaseFileName: String = ONBOARDING_DATABASE_FILE_NAME,
-  path: String = defaultDatabasePath(databaseFileName),
-): RoomDatabase.Builder<OnboardingDatabase> = Room.databaseBuilder<OnboardingDatabase>(
-  name = path,
-  factory = OnboardingDatabaseConstructor::initialize,
-).setDriver(BundledSQLiteDriver())
-
 @OptIn(ExperimentalForeignApi::class)
 internal fun defaultDatabasePath(databaseFileName: String): String {
   val documentDirectory =

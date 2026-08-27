@@ -139,9 +139,7 @@ class ViewModelInjectProcessor(
       val scopeType = scopeArg as? KSType
       val scopeValue = scopeType?.declaration?.qualifiedName?.asString()
       when (scopeValue) {
-        "com.sermilion.kmpcomposestarter.common.di.AppScope",
-        "software.amazon.lastmile.kotlin.inject.anvil.AppScope",
-        ->
+        "software.amazon.lastmile.kotlin.inject.anvil.AppScope" ->
           ClassName("software.amazon.lastmile.kotlin.inject.anvil", "AppScope")
         "com.sermilion.kmpcomposestarter.common.di.UserScope" ->
           ClassName("com.sermilion.kmpcomposestarter.common.di", "UserScope")

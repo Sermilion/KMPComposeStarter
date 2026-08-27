@@ -15,7 +15,6 @@ coil = "3.4.0"
 compileSdk = "36"
 detekt = "1.23.8"
 detektCompose = "0.4.22"
-jacoco = "0.8.12"
 ksoup = "0.2.5"
 kotlin = "2.3.10"
 okio = "3.17.0"
@@ -151,7 +150,6 @@ android-kmp-library = { id = "com.android.kotlin.multiplatform.library", version
 kmp-library = { id = "kmp.library", version = "unspecified" }
 kmp-compose = { id = "kmp.compose", version = "unspecified" }
 kmp-application = { id = "kmp.application", version = "unspecified" }
-kmp-jacoco = { id = "kmp.jacoco", version = "unspecified" }
 kmp-lint = { id = "kmp.lint", version = "unspecified" }
 kmp-detekt = { id = "kmp.detekt", version = "unspecified" }
 kmp-kotlininject = { id = "kmp.kotlininject", version = "unspecified" }

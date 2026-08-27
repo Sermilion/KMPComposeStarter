@@ -1,6 +1,5 @@
 plugins {
   alias(libs.plugins.kmp.library)
-  alias(libs.plugins.kmp.jacoco)
   alias(libs.plugins.ksp)
   alias(libs.plugins.kotlin.serialization)
 }

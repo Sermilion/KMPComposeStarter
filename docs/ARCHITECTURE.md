@@ -14,6 +14,10 @@ This documentation is intentionally split into focused files so contributors and
 6. `docs/architecture/build-and-tooling.md`
 7. `docs/architecture/conventions.md`
 
+Platform-behavior notes live alongside these files:
+
+- `docs/window-insets.md`
+
 ## Contents
 
 ### Overview
@@ -54,7 +58,7 @@ Read: `docs/architecture/navigation.md`
 ### Persistence
 
 - Room 3 database layout
-- Per-user versus shared onboarding data
+- Per-user database lifetime
 - Platform-specific database builders
 - Schema export expectations
 

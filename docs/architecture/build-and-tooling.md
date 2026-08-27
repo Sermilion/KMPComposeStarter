@@ -14,7 +14,6 @@ Important convention plugins include:
 | `kmp.kotlininject` | Common KSP DI wiring |
 | `kmp.detekt` | Static analysis configuration |
 | `kmp.lint` | Android lint configuration |
-| `kmp.jacoco` | Coverage configuration |
 
 Keep shared build behavior in these plugins rather than repeating Gradle setup per module.
 
@@ -26,10 +25,10 @@ Current headline versions include:
 
 - Kotlin `2.3.10`
 - Compose Multiplatform `1.10.2`
-- AGP `9.0.1`
+- AGP `9.1.0`
 - KSP `2.3.6`
 - Room 3 `3.0.0-alpha01`
-- Gradle `9.1.0`
+- Gradle `9.4.0`
 
 Prefer updating the version catalog first, then adjusting convention logic only when compatibility actually requires it.
 

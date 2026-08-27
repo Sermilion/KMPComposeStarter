@@ -19,9 +19,8 @@ The shared route model distinguishes between:
 
 - `AuthFlowRoute`
 - `TopLevelRoute`
-- `UserScopedRoute`
 
-That split keeps auth-only destinations separate from routes that only make sense for signed-in users.
+That split keeps auth-only destinations separate from the authenticated tab destinations.
 
 ## Behavioral Rules
 
@@ -49,6 +48,9 @@ If the active stack has only one element left, back returns `false` so the host 
 - Register serializers in the shared navigation serialization module.
 - Add destination entries through the shared entry provider pattern.
 - Pass stable identifiers rather than full mutable domain objects whenever a deeper layer remains the source of truth.
+
+**Not wired yet — wired in KMP-1.** `starterSerializersModule` is declared in `composeApp` but is not installed
+into any serialization configuration yet, so registering a route there has no runtime effect today.
 
 ## Why this structure exists
 

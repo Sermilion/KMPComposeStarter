@@ -66,6 +66,7 @@ The repository is organized as a Kotlin Multiplatform application starter:
 
 - Read `docs/ARCHITECTURE.md` before making structural changes.
 - Read the focused docs under `docs/architecture/` before changing architecture, navigation, persistence, or build behavior.
+- Read `docs/window-insets.md` before changing scaffold, edge-to-edge, or window-inset behavior.
 - When changing contributor workflows, update `README.md`, the relevant docs under `docs/`, and this file together.
 - Explain template-wide decisions, especially dependency upgrades, repository-policy changes, and DI or navigation changes.
 

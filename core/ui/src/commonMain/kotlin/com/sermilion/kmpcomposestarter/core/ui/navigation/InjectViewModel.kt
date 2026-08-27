@@ -23,7 +23,7 @@ inline fun <reified VM : ViewModel> injectViewModel(
   assisted: Any? = null,
 ): VM = when (scope) {
   ViewModelScope.Feature -> injectFeatureScopedViewModel(key, assisted)
-  ViewModelScope.Onboarding -> injectOnboardingScopedViewModel()
+  ViewModelScope.PreAuth -> injectPreAuthScopedViewModel()
 }
 
 @Composable
@@ -76,7 +76,7 @@ internal inline fun <reified VM : ViewModel> injectFeatureScopedViewModel(
 
 @Composable
 @PublishedApi
-internal inline fun <reified VM : ViewModel> injectOnboardingScopedViewModel(): VM {
+internal inline fun <reified VM : ViewModel> injectPreAuthScopedViewModel(): VM {
   val provider = LocalViewModelProvider.current
   val viewModelStoreOwner = LocalViewModelStoreOwner.current
     ?: error("ViewModelStoreOwner not found")
@@ -106,5 +106,5 @@ internal inline fun <reified VM : ViewModel> injectOnboardingScopedViewModel(): 
 
 enum class ViewModelScope {
   Feature,
-  Onboarding,
+  PreAuth,
 }

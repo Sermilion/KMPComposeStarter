@@ -367,8 +367,6 @@ TwitterCompose:
   CompositionLocalAllowlist:
     active: true
     allowedCompositionLocals:
-      - LocalKmpColors
-      - LocalViewModelFactory
       - LocalViewModelProvider
       - LocalScreenComponentFactory
       - LocalUserComponentManager

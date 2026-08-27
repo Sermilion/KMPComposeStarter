@@ -61,6 +61,8 @@ Owns lightweight preference-style persistence.
 
 Use it for settings and small structured values, not relational data that belongs in Room.
 
+**Not wired yet — wired in KMP-1.** The module builds and is on the dependency graph, but no Kotlin code reads or writes it yet.
+
 ### `core:designsystem`
 
 Owns:

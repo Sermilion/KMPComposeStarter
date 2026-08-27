@@ -45,6 +45,9 @@ Adapted from the kinds of practices that scale well in larger Compose apps:
 - Treat DataStore file renames as migrations, not cosmetic refactors.
 - Commit Room schema exports when the schema changes.
 
+**Not wired yet — wired in KMP-1.** Both the per-user Room database and `core:datastore` are declared but unconsumed;
+these rules describe the intended boundary, not current runtime behavior.
+
 ## Documentation Workflow
 
 When changing starter-wide behavior, update the relevant docs in the same change:
@@ -52,5 +55,6 @@ When changing starter-wide behavior, update the relevant docs in the same change
 - `README.md` for user-facing setup or feature changes
 - `docs/architecture/*.md` for architecture or contributor guidance
 - `AGENTS.md` and `CLAUDE.md` for agent-facing workflow expectations
+- `docs/window-insets.md` when scaffold, edge-to-edge, or inset behavior changes
 
 Documentation is part of the template contract, not optional follow-up work.

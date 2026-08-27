@@ -7,5 +7,3 @@ interface Route : NavKey
 interface TopLevelRoute : Route
 
 interface AuthFlowRoute : Route
-
-interface UserScopedRoute

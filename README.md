@@ -57,6 +57,8 @@ The architecture docs are split into focused files so contributors and agents ca
 - `docs/architecture/build-and-tooling.md`
 - `docs/architecture/conventions.md`
 
+Platform-behavior notes: `docs/window-insets.md`.
+
 The root `ARCHITECTURE.md` remains as a lightweight entry point for tools and humans that expect it at the repository root.
 
 ## Getting Started
@@ -93,16 +95,16 @@ Open `iosApp/iosApp.xcodeproj` in Xcode and run the generated framework from the
 |----------|------------|
 | Kotlin | 2.3.10 |
 | Compose Multiplatform | 1.10.2 |
-| Android Gradle Plugin | 9.0.1 |
-| Dependency Injection | kotlin-inject 0.8.0 + Anvil 0.1.6 |
+| Android Gradle Plugin | 9.1.0 |
+| Dependency Injection | kotlin-inject 0.9.0 + Anvil 0.1.7 |
 | Navigation | Navigation 3 alpha06 |
 | Persistence | Room 3 alpha01 |
-| Networking | Ktor 3.3.2 |
-| Testing | Kotest 5.9.1, MockK 1.14.6 |
+| Networking | Ktor 3.4.1 |
+| Testing | Kotest 5.9.1, MockK 1.14.9 |
 
 ## Build Notes
 
-The project is updated to AGP 9 and Gradle 9.1.0.
+The project is updated to AGP 9.1.0 and Gradle 9.4.0.
 
 Android now lives in a dedicated `androidApp` module, while shared multiplatform modules use the Android KMP library plugin.
 

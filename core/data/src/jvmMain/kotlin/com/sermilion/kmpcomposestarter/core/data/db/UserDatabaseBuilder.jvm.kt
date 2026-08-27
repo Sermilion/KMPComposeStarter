@@ -12,14 +12,6 @@ fun createUserDatabaseBuilder(
   factory = UserDatabaseConstructor::initialize,
 ).setDriver(JdbcSqliteDriver())
 
-fun createOnboardingDatabaseBuilder(
-  databaseFileName: String = ONBOARDING_DATABASE_FILE_NAME,
-  path: String = defaultDatabasePath(databaseFileName),
-): RoomDatabase.Builder<OnboardingDatabase> = Room.databaseBuilder<OnboardingDatabase>(
-  name = path,
-  factory = OnboardingDatabaseConstructor::initialize,
-).setDriver(JdbcSqliteDriver())
-
 internal fun defaultDatabasePath(databaseFileName: String): String {
   val appDir = File(System.getProperty("user.home"), ".kmpcomposestarter")
   appDir.mkdirs()

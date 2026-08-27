@@ -1,6 +1,5 @@
 plugins {
   alias(libs.plugins.kmp.library)
-  alias(libs.plugins.kmp.jacoco)
   alias(libs.plugins.compose.multiplatform)
   alias(libs.plugins.compose.compiler)
   alias(libs.plugins.ksp)

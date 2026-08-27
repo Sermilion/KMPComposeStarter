@@ -47,10 +47,6 @@ gradlePlugin {
       id = "kmp.application"
       implementationClass = "KmpApplicationConventionPlugin"
     }
-    register("kmpJacoco") {
-      id = "kmp.jacoco"
-      implementationClass = "KmpJacocoConventionPlugin"
-    }
     register("kmpLint") {
       id = "kmp.lint"
       implementationClass = "KmpLintConventionPlugin"

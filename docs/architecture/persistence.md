@@ -4,10 +4,9 @@
 
 Local relational persistence uses Room 3.
 
-The starter currently defines two databases in `core:data`:
+The starter currently defines one database in `core:data`:
 
 - `UserDatabase`
-- `OnboardingDatabase`
 
 Room schemas are exported and committed under `core/data/schemas/`.
 
@@ -16,8 +15,10 @@ Room schemas are exported and committed under `core/data/schemas/`.
 The shared `DatabaseProvider` exposes:
 
 - a per-user `UserDatabase`
-- a shared onboarding database
 - deletion and cache-clearing hooks
+
+**Not wired yet — wired in KMP-1.** Nothing calls `provideUserDatabase` yet; the provider, `StarterUserDao`, and the
+platform builders are in place but unconsumed.
 
 `StarterRoomDatabaseProvider` caches opened database instances by filename so repeated requests reuse the same connection-backed database object.
 
@@ -56,6 +57,8 @@ Prefer extending wrappers like this instead of spreading entity-to-domain mappin
 ## DataStore Boundary
 
 Use `core:datastore` for preferences and lightweight structured settings.
+
+**Not wired yet — wired in KMP-1.** `core:datastore` has no callers yet; this section describes the intended boundary.
 
 Use Room for relational entities, queryable collections, and user-scoped local data.
 

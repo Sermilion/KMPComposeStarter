@@ -50,11 +50,13 @@ That keeps auth gating, top-level tab resets, and back behavior visible in code.
 
 Room 3 is the shared persistence layer.
 
-The starter keeps one onboarding database plus one user-specific database per active user, with platform-specific builders handling file locations and driver details.
+The starter defines one user-specific database per active user, with platform-specific builders handling file locations and driver details.
+
+**Not wired yet — wired in KMP-1.** No code path opens a user database yet; `StarterUserDao` and the per-user builders exist but are unconsumed.
 
 ## Current Build Shape
 
-The repository targets AGP 9 and Gradle 9.1.0 with the Android app split into its own module.
+The repository targets AGP 9.1.0 and Gradle 9.4.0 with the Android app split into its own module.
 
 - `androidApp` uses the Android application plugin.
 - Shared modules use the Android KMP library plugin.

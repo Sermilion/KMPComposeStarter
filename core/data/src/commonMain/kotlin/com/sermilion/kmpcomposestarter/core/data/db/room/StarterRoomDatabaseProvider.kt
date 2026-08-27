@@ -2,10 +2,7 @@ package com.sermilion.kmpcomposestarter.core.data.db.room
 
 import co.touchlab.kermit.Logger
 import com.sermilion.kmpcomposestarter.core.data.db.DatabaseProvider
-import com.sermilion.kmpcomposestarter.core.data.db.ONBOARDING_DATABASE_FILE_NAME
-import com.sermilion.kmpcomposestarter.core.data.db.OnboardingDatabase
 import com.sermilion.kmpcomposestarter.core.data.db.UserDatabase
-import com.sermilion.kmpcomposestarter.core.data.db.createOnboardingDatabase
 import com.sermilion.kmpcomposestarter.core.data.db.createUserDatabase
 import kotlinx.atomicfu.locks.SynchronizedObject
 import kotlinx.atomicfu.locks.synchronized
@@ -33,20 +30,10 @@ class StarterRoomDatabaseProvider(private val builderFactory: PlatformRoomDataba
     }
   }
 
-  override fun provideOnboardingDatabase(): OnboardingDatabase =
-    provideDatabase(ONBOARDING_DATABASE_FILE_NAME) {
-      createOnboardingDatabase(
-        builderFactory.createOnboardingDatabaseBuilder(ONBOARDING_DATABASE_FILE_NAME),
-      )
-    }
-
   override fun deleteDatabaseForUser(userId: Uuid) {
     val databaseFileName = userDatabaseFileName(userId)
     synchronized(cacheLock) {
-      when (val cachedDatabase = databaseCache.remove(databaseFileName)) {
-        is UserDatabase -> cachedDatabase.close()
-        is OnboardingDatabase -> cachedDatabase.close()
-      }
+      (databaseCache.remove(databaseFileName) as? UserDatabase)?.close()
     }
     try {
       builderFactory.deleteDatabaseFile(databaseFileName)
@@ -58,10 +45,7 @@ class StarterRoomDatabaseProvider(private val builderFactory: PlatformRoomDataba
   override fun clearCachedInstances() {
     synchronized(cacheLock) {
       databaseCache.values.forEach { cachedDatabase ->
-        when (cachedDatabase) {
-          is UserDatabase -> cachedDatabase.close()
-          is OnboardingDatabase -> cachedDatabase.close()
-        }
+        (cachedDatabase as? UserDatabase)?.close()
       }
       databaseCache.clear()
     }
