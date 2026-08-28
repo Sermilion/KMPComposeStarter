@@ -2,6 +2,7 @@ plugins {
   alias(libs.plugins.kmp.application)
   alias(libs.plugins.kotlin.serialization)
   alias(libs.plugins.ksp)
+  alias(libs.plugins.kmp.kotlininject)
 }
 
 kotlin {
@@ -70,23 +71,16 @@ kotlin {
       implementation(libs.kotlinx.coroutines.test)
     }
   }
+
+  // Both iOS targets share one actual instead of two byte-identical copies.
+  sourceSets {
+    named("iosArm64Main") { kotlin.srcDir("src/iosTargetMain/kotlin") }
+    named("iosSimulatorArm64Main") { kotlin.srcDir("src/iosTargetMain/kotlin") }
+  }
 }
 
 tasks.named<Test>("jvmTest") {
   useJUnitPlatform()
-}
-
-dependencies {
-  add("kspCommonMainMetadata", libs.kotlin.inject.compiler)
-  add("kspCommonMainMetadata", libs.kotlin.inject.anvil.compiler)
-  add("kspAndroid", libs.kotlin.inject.compiler)
-  add("kspAndroid", libs.kotlin.inject.anvil.compiler)
-  add("kspIosArm64", libs.kotlin.inject.compiler)
-  add("kspIosArm64", libs.kotlin.inject.anvil.compiler)
-  add("kspIosSimulatorArm64", libs.kotlin.inject.compiler)
-  add("kspIosSimulatorArm64", libs.kotlin.inject.anvil.compiler)
-  add("kspJvm", libs.kotlin.inject.compiler)
-  add("kspJvm", libs.kotlin.inject.anvil.compiler)
 }
 
 tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {

@@ -1,9 +1,10 @@
 package com.sermilion.kmpcomposestarter.feature.auth.viewmodel
 
-import com.sermilion.kmpcomposestarter.core.data.config.MockConfig
-import com.sermilion.kmpcomposestarter.core.data.repository.AuthRepository
-import com.sermilion.kmpcomposestarter.core.data.repository.LoginResult
+import com.sermilion.kmpcomposestarter.core.domain.model.AuthError
+import com.sermilion.kmpcomposestarter.core.domain.model.DemoCredentials
+import com.sermilion.kmpcomposestarter.core.domain.model.LoginResult
 import com.sermilion.kmpcomposestarter.core.domain.model.UserData
+import com.sermilion.kmpcomposestarter.core.domain.repository.AuthRepository
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
 import io.mockk.coEvery
@@ -17,6 +18,16 @@ import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
+
+private val demoCredentials = DemoCredentials(
+  loginEmail = "demo@example.com",
+  password = "demo-password",
+  newUserEmail = "new@example.com",
+  newUserName = "New User",
+)
+
+private fun viewModelWith(authRepository: AuthRepository) =
+  LoginViewModel(authRepository, demoCredentials)
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class LoginViewModelTest :
@@ -33,8 +44,7 @@ class LoginViewModelTest :
     }
 
     test("initial state should have empty email and password") {
-      val authRepository = mockk<AuthRepository>()
-      val viewModel = LoginViewModel(authRepository)
+      val viewModel = viewModelWith(mockk())
 
       val state = viewModel.uiState.value
 
@@ -45,8 +55,7 @@ class LoginViewModelTest :
     }
 
     test("onEmailChange updates email in state") {
-      val authRepository = mockk<AuthRepository>()
-      val viewModel = LoginViewModel(authRepository)
+      val viewModel = viewModelWith(mockk())
 
       viewModel.onEmailChange("test@email.com")
 
@@ -54,8 +63,7 @@ class LoginViewModelTest :
     }
 
     test("onPasswordChange updates password in state") {
-      val authRepository = mockk<AuthRepository>()
-      val viewModel = LoginViewModel(authRepository)
+      val viewModel = viewModelWith(mockk())
 
       viewModel.onPasswordChange("secret123")
 
@@ -64,9 +72,10 @@ class LoginViewModelTest :
 
     test("onEmailChange clears error") {
       val authRepository = mockk<AuthRepository>()
-      coEvery { authRepository.login(any(), any()) } returns LoginResult.Error("Invalid")
+      coEvery { authRepository.login(any(), any()) } returns
+        LoginResult.Failure(AuthError.InvalidCredentials)
 
-      val viewModel = LoginViewModel(authRepository)
+      val viewModel = viewModelWith(authRepository)
       viewModel.onEmailChange("test@email.com")
       viewModel.onPasswordChange("wrong")
 
@@ -75,7 +84,7 @@ class LoginViewModelTest :
         advanceUntilIdle()
       }
 
-      viewModel.uiState.value.error shouldBe LoginContract.Error.Unknown("Invalid")
+      viewModel.uiState.value.error shouldBe LoginContract.Error.InvalidCredentials
 
       viewModel.onEmailChange("new@email.com")
 
@@ -83,17 +92,12 @@ class LoginViewModelTest :
     }
 
     test("login with valid credentials emits LoginSuccess event") {
-      val userData = UserData(
-        id = "123",
-        email = "test@email.com",
-        name = "Test User",
-        token = "token",
-      )
+      val userData = UserData(id = "123", email = "test@email.com", name = "Test User")
       val authRepository = mockk<AuthRepository>()
       coEvery { authRepository.login("test@email.com", "password123") } returns
         LoginResult.Success(userData)
 
-      val viewModel = LoginViewModel(authRepository)
+      val viewModel = viewModelWith(authRepository)
       viewModel.onEmailChange("test@email.com")
       viewModel.onPasswordChange("password123")
 
@@ -113,12 +117,12 @@ class LoginViewModelTest :
       coVerify { authRepository.login("test@email.com", "password123") }
     }
 
-    test("login with invalid credentials sets error") {
+    test("wrong credentials surface the InvalidCredentials reason, not a generic error") {
       val authRepository = mockk<AuthRepository>()
       coEvery { authRepository.login(any(), any()) } returns
-        LoginResult.Error("Invalid credentials")
+        LoginResult.Failure(AuthError.InvalidCredentials)
 
-      val viewModel = LoginViewModel(authRepository)
+      val viewModel = viewModelWith(authRepository)
       viewModel.onEmailChange("wrong@email.com")
       viewModel.onPasswordChange("wrongpassword")
 
@@ -127,18 +131,34 @@ class LoginViewModelTest :
         advanceUntilIdle()
       }
 
-      viewModel.uiState.value.error shouldBe LoginContract.Error.Unknown("Invalid credentials")
+      viewModel.uiState.value.error shouldBe LoginContract.Error.InvalidCredentials
       viewModel.uiState.value.isLoading shouldBe false
+    }
+
+    test("a transport failure maps to the Network reason") {
+      val authRepository = mockk<AuthRepository>()
+      coEvery { authRepository.login(any(), any()) } returns LoginResult.Failure(AuthError.Network)
+
+      val viewModel = viewModelWith(authRepository)
+      viewModel.onEmailChange("test@email.com")
+      viewModel.onPasswordChange("password")
+
+      runTest(testDispatcher) {
+        viewModel.login()
+        advanceUntilIdle()
+      }
+
+      viewModel.uiState.value.error shouldBe LoginContract.Error.Network
     }
 
     test("login sets isLoading true during request") {
       val authRepository = mockk<AuthRepository>()
       coEvery { authRepository.login(any(), any()) } coAnswers {
         kotlinx.coroutines.delay(100)
-        LoginResult.Success(UserData("1", "test@email.com", "Test", "token"))
+        LoginResult.Success(UserData("1", "test@email.com", "Test"))
       }
 
-      val viewModel = LoginViewModel(authRepository)
+      val viewModel = viewModelWith(authRepository)
       viewModel.onEmailChange("test@email.com")
       viewModel.onPasswordChange("password")
 
@@ -158,10 +178,10 @@ class LoginViewModelTest :
       val authRepository = mockk<AuthRepository>()
       coEvery { authRepository.login(any(), any()) } coAnswers {
         kotlinx.coroutines.delay(1000)
-        LoginResult.Success(UserData("1", "test@email.com", "Test", "token"))
+        LoginResult.Success(UserData("1", "test@email.com", "Test"))
       }
 
-      val viewModel = LoginViewModel(authRepository)
+      val viewModel = viewModelWith(authRepository)
       viewModel.onEmailChange("test@email.com")
       viewModel.onPasswordChange("password")
 
@@ -175,33 +195,27 @@ class LoginViewModelTest :
       }
     }
 
-    test("loginDemo sets demo credentials and calls login") {
-      val userData = UserData(
-        id = "123",
-        email = MockConfig.DEMO_EMAIL,
-        name = MockConfig.DEMO_USER_NAME,
-        token = "token",
-      )
+    test("loginDemo uses the injected demo credentials") {
+      val userData = UserData(id = "123", email = demoCredentials.loginEmail, name = "Test User")
       val authRepository = mockk<AuthRepository>()
       coEvery {
-        authRepository.login(MockConfig.DEMO_EMAIL, MockConfig.DEMO_PASSWORD)
+        authRepository.login(demoCredentials.loginEmail, demoCredentials.password)
       } returns LoginResult.Success(userData)
 
-      val viewModel = LoginViewModel(authRepository)
+      val viewModel = viewModelWith(authRepository)
 
       runTest(testDispatcher) {
         viewModel.loginDemo()
         advanceUntilIdle()
       }
 
-      viewModel.uiState.value.email shouldBe MockConfig.DEMO_EMAIL
-      viewModel.uiState.value.password shouldBe MockConfig.DEMO_PASSWORD
-      coVerify { authRepository.login(MockConfig.DEMO_EMAIL, MockConfig.DEMO_PASSWORD) }
+      viewModel.uiState.value.email shouldBe demoCredentials.loginEmail
+      viewModel.uiState.value.password shouldBe demoCredentials.password
+      coVerify { authRepository.login(demoCredentials.loginEmail, demoCredentials.password) }
     }
 
     test("navigateToRegister emits NavigateToRegister event") {
-      val authRepository = mockk<AuthRepository>()
-      val viewModel = LoginViewModel(authRepository)
+      val viewModel = viewModelWith(mockk())
 
       runTest(testDispatcher) {
         val events = mutableListOf<LoginContract.Event>()

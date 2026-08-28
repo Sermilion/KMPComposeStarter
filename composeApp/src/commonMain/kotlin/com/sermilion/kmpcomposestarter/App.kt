@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import com.sermilion.kmpcomposestarter.common.di.ScreenComponentProvider
 import com.sermilion.kmpcomposestarter.navigation.StarterNavDisplay
 import com.sermilion.kmpcomposestarter.navigation.StarterNavigationState
 import com.sermilion.kmpcomposestarter.navigation.isTabRoot
@@ -16,8 +17,7 @@ import com.sermilion.kmpcomposestarter.ui.StarterBottomBar
 fun StarterApp(
   appState: StarterAppState,
   isLoggedIn: Boolean,
-  screenComponentFactory:
-  (() -> com.sermilion.kmpcomposestarter.common.di.ScreenComponentProvider)?,
+  screenComponentFactory: (() -> ScreenComponentProvider)?,
   modifier: Modifier = Modifier,
 ) {
   val canRenderAuthenticatedScreens = !isLoggedIn || screenComponentFactory != null

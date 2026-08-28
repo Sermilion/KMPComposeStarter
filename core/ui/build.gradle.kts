@@ -52,7 +52,18 @@ kotlin {
       implementation(libs.jetbrains.lifecycle.viewmodel.compose)
       implementation(libs.kotlin.inject.runtime)
     }
+
+    jvmTest.dependencies {
+      implementation(libs.kotest.framework.engine)
+      implementation(libs.kotest.assertions.core)
+      implementation(libs.kotest.runner.junit5.jvm)
+      implementation(libs.kotlinx.coroutines.test)
+    }
   }
+}
+
+tasks.named<Test>("jvmTest") {
+  useJUnitPlatform()
 }
 
 dependencies {

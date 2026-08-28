@@ -3,6 +3,7 @@ plugins {
   alias(libs.plugins.compose.multiplatform)
   alias(libs.plugins.compose.compiler)
   alias(libs.plugins.ksp)
+  alias(libs.plugins.kmp.kotlininject)
 }
 
 android {
@@ -63,6 +64,7 @@ dependencies {
   implementation(projects.core.common)
   implementation(projects.core.data)
   implementation(projects.core.designsystem)
+  implementation(projects.core.domain)
   implementation(projects.core.ui)
   implementation(projects.feature.auth)
   implementation(projects.feature.home)
@@ -80,10 +82,6 @@ dependencies {
   implementation(libs.kotlin.inject.runtime)
   implementation(libs.kotlin.inject.anvil.runtime)
   implementation(libs.kotlin.inject.anvil.runtime.optional)
-
-  add("ksp", libs.kotlin.inject.compiler)
-  add("ksp", libs.kotlin.inject.anvil.compiler)
-  add("ksp", projects.codegen.viewmodelInjectProcessor)
 
   debugImplementation(
     "org.jetbrains.compose.ui:ui-tooling:${libs.versions.composeMultiplatform.get()}",

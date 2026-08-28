@@ -1,5 +1,7 @@
 package com.sermilion.kmpcomposestarter.core.data.api
 
+import com.sermilion.kmpcomposestarter.core.domain.auth.AuthToken
+import com.sermilion.kmpcomposestarter.core.domain.model.AuthError
 import com.sermilion.kmpcomposestarter.core.domain.model.UserData
 
 interface AuthApiService {
@@ -9,6 +11,7 @@ interface AuthApiService {
 }
 
 sealed interface AuthResponse {
-  data class Success(val userData: UserData) : AuthResponse
-  data class Error(val message: String) : AuthResponse
+  data class Success(val userData: UserData, val token: AuthToken) : AuthResponse
+
+  data class Failure(val error: AuthError) : AuthResponse
 }

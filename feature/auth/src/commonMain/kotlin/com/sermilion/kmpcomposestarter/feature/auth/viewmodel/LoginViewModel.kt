@@ -2,9 +2,11 @@ package com.sermilion.kmpcomposestarter.feature.auth.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.sermilion.kmpcomposestarter.core.data.config.MockConfig
-import com.sermilion.kmpcomposestarter.core.data.repository.AuthRepository
-import com.sermilion.kmpcomposestarter.core.data.repository.LoginResult
+import com.sermilion.kmpcomposestarter.common.di.ContributesViewModel
+import com.sermilion.kmpcomposestarter.core.domain.model.AuthError
+import com.sermilion.kmpcomposestarter.core.domain.model.DemoCredentials
+import com.sermilion.kmpcomposestarter.core.domain.model.LoginResult
+import com.sermilion.kmpcomposestarter.core.domain.repository.AuthRepository
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -14,9 +16,14 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import me.tatarka.inject.annotations.Inject
+import software.amazon.lastmile.kotlin.inject.anvil.AppScope
 
 @Inject
-class LoginViewModel(private val authRepository: AuthRepository) : ViewModel() {
+@ContributesViewModel(AppScope::class)
+class LoginViewModel(
+  private val authRepository: AuthRepository,
+  private val demoCredentials: DemoCredentials,
+) : ViewModel() {
 
   private val _uiState = MutableStateFlow(LoginContract.UiState())
   val uiState: StateFlow<LoginContract.UiState> = _uiState.asStateFlow()
@@ -44,20 +51,17 @@ class LoginViewModel(private val authRepository: AuthRepository) : ViewModel() {
           _uiState.update { it.copy(isLoading = false) }
           _events.emit(LoginContract.Event.LoginSuccess)
         }
-        is LoginResult.Error -> {
-          _uiState.update {
-            it.copy(
-              isLoading = false,
-              error = LoginContract.Error.Unknown(result.message),
-            )
-          }
+        is LoginResult.Failure -> {
+          _uiState.update { it.copy(isLoading = false, error = result.error.toUiError()) }
         }
       }
     }
   }
 
   fun loginDemo() {
-    _uiState.update { it.copy(email = MockConfig.DEMO_EMAIL, password = MockConfig.DEMO_PASSWORD) }
+    _uiState.update {
+      it.copy(email = demoCredentials.loginEmail, password = demoCredentials.password)
+    }
     login()
   }
 
@@ -65,5 +69,11 @@ class LoginViewModel(private val authRepository: AuthRepository) : ViewModel() {
     viewModelScope.launch {
       _events.emit(LoginContract.Event.NavigateToRegister)
     }
+  }
+
+  private fun AuthError.toUiError(): LoginContract.Error = when (this) {
+    AuthError.InvalidCredentials -> LoginContract.Error.InvalidCredentials
+    AuthError.Network -> LoginContract.Error.Network
+    AuthError.RefreshFailed, is AuthError.Unexpected -> LoginContract.Error.Unknown
   }
 }

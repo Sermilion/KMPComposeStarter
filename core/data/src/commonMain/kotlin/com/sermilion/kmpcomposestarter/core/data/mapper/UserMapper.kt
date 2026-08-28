@@ -15,11 +15,10 @@ fun UserData.toLocalDataModel(): UserLocalDataModel = UserLocalDataModel(
 )
 
 @OptIn(ExperimentalUuidApi::class)
-fun UserLocalDataModel.toDomainModel(token: String = ""): UserData = UserData(
+fun UserLocalDataModel.toDomainModel(): UserData = UserData(
   id = id.toString(),
   email = email.orEmpty(),
   name = name,
-  token = token,
 )
 
 @OptIn(ExperimentalUuidApi::class)

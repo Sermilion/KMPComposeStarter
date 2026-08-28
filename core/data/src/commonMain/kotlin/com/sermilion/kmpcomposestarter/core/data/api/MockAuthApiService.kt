@@ -1,6 +1,8 @@
 package com.sermilion.kmpcomposestarter.core.data.api
 
 import com.sermilion.kmpcomposestarter.core.data.config.MockConfig
+import com.sermilion.kmpcomposestarter.core.domain.auth.AuthToken
+import com.sermilion.kmpcomposestarter.core.domain.model.AuthError
 import com.sermilion.kmpcomposestarter.core.domain.model.UserData
 import kotlinx.coroutines.delay
 import kotlinx.datetime.Clock
@@ -22,11 +24,11 @@ class MockAuthApiService : AuthApiService {
           id = MockConfig.DEMO_USER_ID,
           email = email,
           name = MockConfig.DEMO_USER_NAME,
-          token = "mock-token-${Clock.System.now().toEpochMilliseconds()}",
         ),
+        token = mockToken(),
       )
     } else {
-      AuthResponse.Error("Invalid credentials")
+      AuthResponse.Failure(AuthError.InvalidCredentials)
     }
   }
 
@@ -37,14 +39,17 @@ class MockAuthApiService : AuthApiService {
         id = "user-${Clock.System.now().toEpochMilliseconds()}",
         email = email,
         name = name,
-        token = "mock-token-${Clock.System.now().toEpochMilliseconds()}",
       ),
+      token = mockToken(),
     )
   }
 
   override suspend fun logout() {
     delay(MOCK_LOGOUT_DELAY_MS)
   }
+
+  private fun mockToken() =
+    AuthToken(accessToken = "mock-token-${Clock.System.now().toEpochMilliseconds()}")
 
   private companion object {
     const val MOCK_DELAY_MS = 1000L

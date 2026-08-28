@@ -39,7 +39,7 @@ kotlin {
 
   sourceSets {
     commonMain.dependencies {
-      api(projects.core.domain)
+      implementation(projects.core.domain)
       implementation(projects.core.common)
       implementation(projects.core.datastore)
 
@@ -48,7 +48,7 @@ kotlin {
       implementation(libs.okio)
       implementation(libs.kotlin.inject.runtime)
 
-      api(libs.ktor.client.core)
+      implementation(libs.ktor.client.core)
       implementation(libs.ktor.client.content.negotiation)
       implementation(libs.ktor.client.serialization)
       implementation(libs.ktor.client.auth)

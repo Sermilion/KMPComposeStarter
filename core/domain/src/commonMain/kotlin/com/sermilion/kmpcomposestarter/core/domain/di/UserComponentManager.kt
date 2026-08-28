@@ -7,6 +7,11 @@ interface UserComponentManager {
   val userComponent: UserDependencies?
   val userComponentFlow: StateFlow<UserDependencies?>
 
-  fun createComponent(userData: UserData)
+  /**
+   * Returns the live session for [userData]. Creating a session for a different user replaces and
+   * tears down the previous one; creating it for the current user is a no-op.
+   */
+  fun createComponent(userData: UserData): UserDependencies
+
   fun destroyComponent()
 }

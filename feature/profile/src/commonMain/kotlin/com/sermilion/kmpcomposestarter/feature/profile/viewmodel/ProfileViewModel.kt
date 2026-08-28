@@ -2,9 +2,10 @@ package com.sermilion.kmpcomposestarter.feature.profile.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.sermilion.kmpcomposestarter.common.di.ContributesViewModel
 import com.sermilion.kmpcomposestarter.common.di.ScreenScope
-import com.sermilion.kmpcomposestarter.core.data.repository.AuthRepository
 import com.sermilion.kmpcomposestarter.core.domain.model.UserData
+import com.sermilion.kmpcomposestarter.core.domain.repository.AuthRepository
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -14,10 +15,9 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import me.tatarka.inject.annotations.Inject
-import software.amazon.lastmile.kotlin.inject.anvil.SingleIn
 
 @Inject
-@SingleIn(ScreenScope::class)
+@ContributesViewModel(ScreenScope::class)
 class ProfileViewModel(private val userData: UserData, private val authRepository: AuthRepository) :
   ViewModel() {
 

@@ -2,6 +2,7 @@ package com.sermilion.kmpcomposestarter.feature.home.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.sermilion.kmpcomposestarter.common.di.ContributesViewModel
 import com.sermilion.kmpcomposestarter.common.di.ScreenScope
 import com.sermilion.kmpcomposestarter.core.domain.model.UserData
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -12,10 +13,9 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import me.tatarka.inject.annotations.Inject
-import software.amazon.lastmile.kotlin.inject.anvil.SingleIn
 
 @Inject
-@SingleIn(ScreenScope::class)
+@ContributesViewModel(ScreenScope::class)
 class HomeViewModel(private val userData: UserData) : ViewModel() {
 
   private val _uiState = MutableStateFlow(

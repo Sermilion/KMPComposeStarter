@@ -1,7 +1,6 @@
 plugins {
   alias(libs.plugins.kmp.library)
   alias(libs.plugins.ksp)
-  alias(libs.plugins.kotlin.serialization)
 }
 
 kotlin {
@@ -23,16 +22,15 @@ kotlin {
 
   sourceSets {
     commonMain.dependencies {
+      // api: core:common types (scopes, ScreenComponentProvider) appear in this module's own
+      // public contracts, so consumers need them on the compile classpath.
       api(projects.core.common)
-      api(libs.paging.common)
-      api(libs.serialization.json)
-      api(libs.kotlin.inject.runtime)
-      implementation(libs.kermit)
+      // api: StateFlow and CoroutineScope appear in this module's own public contracts
+      // (AuthRepository, UserComponentManager, UserSessionScope).
+      api(libs.kotlinx.coroutines.core)
     }
     androidMain.dependencies {
       implementation(libs.kotlinx.coroutines.android)
-      implementation(libs.paging.runtime)
-      implementation(libs.paging.compose)
     }
   }
 

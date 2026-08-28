@@ -1,5 +1,6 @@
 package com.sermilion.kmpcomposestarter.core.data.model
 
+import com.sermilion.kmpcomposestarter.core.domain.model.AuthError
 import kotlinx.serialization.Serializable
 
 @Serializable
@@ -15,5 +16,5 @@ data class AuthTokenDataModel(
 sealed interface AuthResultDataModel {
   data class Success(val user: UserDataModel, val token: AuthTokenDataModel) : AuthResultDataModel
 
-  data class Error(val message: String, val code: String? = null) : AuthResultDataModel
+  data class Failure(val error: AuthError) : AuthResultDataModel
 }

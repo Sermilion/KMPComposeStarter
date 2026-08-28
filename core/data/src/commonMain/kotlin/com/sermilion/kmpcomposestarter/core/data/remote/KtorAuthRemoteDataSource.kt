@@ -5,6 +5,7 @@ import com.sermilion.kmpcomposestarter.core.data.model.AuthResultDataModel
 import com.sermilion.kmpcomposestarter.core.data.model.AuthTokenDataModel
 import com.sermilion.kmpcomposestarter.core.data.model.UserDataModel
 import com.sermilion.kmpcomposestarter.core.data.util.withRestErrorHandling
+import com.sermilion.kmpcomposestarter.core.domain.model.AuthError
 import io.ktor.client.HttpClient
 import kotlinx.coroutines.delay
 import kotlinx.datetime.Clock
@@ -31,23 +32,13 @@ class KtorAuthRemoteDataSource(@Suppress("unused") private val httpClient: HttpC
               email = email,
               name = MockConfig.DEMO_USER_NAME,
             ),
-            token = AuthTokenDataModel(
-              accessToken = "mock-token-${Clock.System.now().toEpochMilliseconds()}",
-            ),
+            token = mockToken("mock-token"),
           )
         } else {
-          AuthResultDataModel.Error(
-            message = "Invalid credentials",
-            code = "INVALID_CREDENTIALS",
-          )
+          AuthResultDataModel.Failure(AuthError.InvalidCredentials)
         }
       },
-      errorBlock = { e ->
-        AuthResultDataModel.Error(
-          message = e.message.orEmpty(),
-          code = "NETWORK_ERROR",
-        )
-      },
+      errorBlock = { AuthResultDataModel.Failure(AuthError.Network) },
     )
 
   override suspend fun register(
@@ -64,17 +55,10 @@ class KtorAuthRemoteDataSource(@Suppress("unused") private val httpClient: HttpC
           email = email,
           name = name,
         ),
-        token = AuthTokenDataModel(
-          accessToken = "mock-token-${Clock.System.now().toEpochMilliseconds()}",
-        ),
+        token = mockToken("mock-token"),
       )
     },
-    errorBlock = { e ->
-      AuthResultDataModel.Error(
-        message = e.message.orEmpty(),
-        code = "NETWORK_ERROR",
-      )
-    },
+    errorBlock = { AuthResultDataModel.Failure(AuthError.Network) },
   )
 
   override suspend fun logout() {
@@ -91,20 +75,16 @@ class KtorAuthRemoteDataSource(@Suppress("unused") private val httpClient: HttpC
           email = MockConfig.DEMO_EMAIL,
           name = MockConfig.DEMO_USER_NAME,
         ),
-        token = AuthTokenDataModel(
-          accessToken = "refreshed-token-${Clock.System.now().toEpochMilliseconds()}",
-        ),
+        token = mockToken("refreshed-token"),
       )
     },
-    errorBlock = { e ->
-      AuthResultDataModel.Error(
-        message = e.message.orEmpty(),
-        code = "REFRESH_FAILED",
-      )
-    },
+    errorBlock = { AuthResultDataModel.Failure(AuthError.RefreshFailed) },
   )
 
   override suspend fun getCurrentUser(token: String): UserDataModel? = null
+
+  private fun mockToken(prefix: String) =
+    AuthTokenDataModel(accessToken = "$prefix-${Clock.System.now().toEpochMilliseconds()}")
 
   private companion object {
     const val TAG = "KtorAuthRemoteDataSource"

@@ -1,38 +1,49 @@
 package com.sermilion.kmpcomposestarter.common.di
 
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
-import co.touchlab.kermit.Logger
-import me.tatarka.inject.annotations.Inject
-import software.amazon.lastmile.kotlin.inject.anvil.AppScope
-import software.amazon.lastmile.kotlin.inject.anvil.SingleIn
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.createSavedStateHandle
+import androidx.lifecycle.viewmodel.CreationExtras
 import kotlin.reflect.KClass
 
-@Inject
-@SingleIn(AppScope::class)
-class StarterViewModelFactory(private val entries: Set<ViewModelEntry>) :
-  ViewModelFactory,
-  ViewModelProvider {
+/**
+ * The single ViewModel factory in the app. One instance exists per DI scope; the scope decides
+ * which [ViewModelEntry] multibindings are visible, so the same class serves the app scope
+ * (pre-auth screens) and every screen scope.
+ */
+class StarterViewModelFactory(entries: Set<ViewModelEntry>) : ViewModelProvider.Factory {
+
+  private val entriesByClass: Map<KClass<out ViewModel>, ViewModelEntry> =
+    entries.associateBy { it.kclass }.also { byClass ->
+      require(byClass.size == entries.size) {
+        val duplicates = entries
+          .groupBy { it.kclass }
+          .filterValues { it.size > 1 }
+          .keys
+          .joinToString { it.simpleName.orEmpty() }
+        "Duplicate ViewModel registrations for: $duplicates"
+      }
+    }
 
   @Suppress("UNCHECKED_CAST")
-  override fun <T : ViewModel> create(viewModelClass: KClass<T>): T {
-    val entry = entries.firstOrNull { it.kclass == viewModelClass }
-      ?: run {
-        val availableViewModels = entries.joinToString { it.kclass.simpleName.orEmpty() }
-        Logger.e(TAG) {
-          "ViewModel not found: ${viewModelClass.simpleName}. Available: $availableViewModels"
-        }
-        throw IllegalArgumentException(
-          "ViewModel ${viewModelClass.simpleName} not found. " +
-            "Did you forget to add @Inject annotation? " +
-            "Available: $availableViewModels",
-        )
-      }
-    return entry.create(EmptyAssistedArgs) as T
+  override fun <T : ViewModel> create(modelClass: KClass<T>, extras: CreationExtras): T {
+    val entry = entriesByClass[modelClass] ?: error(
+      "ViewModel ${modelClass.simpleName} is not registered. Annotate it with " +
+        "@ContributesViewModel. Registered: " +
+        entriesByClass.keys.joinToString { it.simpleName.orEmpty() },
+    )
+    return entry.create(assistedArgsFor(entry, extras)) as T
   }
 
-  override fun <T : ViewModel> provide(viewModelClass: KClass<T>): T = create(viewModelClass)
+  private fun assistedArgsFor(entry: ViewModelEntry, extras: CreationExtras): AssistedArgs {
+    val args = extras[AssistedArgsKey] ?: EmptyAssistedArgs
+    val handleArgName = entry.savedStateHandleArgName ?: return args
+    val savedStateHandle: SavedStateHandle = extras.createSavedStateHandle()
+    return args.withArg(handleArgName, savedStateHandle)
+  }
 
-  private companion object {
-    const val TAG = "StarterViewModelFactory"
+  companion object {
+    val AssistedArgsKey = object : CreationExtras.Key<AssistedArgs> {}
   }
 }

@@ -9,6 +9,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import com.sermilion.kmpcomposestarter.common.di.ScreenComponentProvider
 import com.sermilion.kmpcomposestarter.common.navigation.Route
 import com.sermilion.kmpcomposestarter.core.domain.di.UserComponentManager
 import com.sermilion.kmpcomposestarter.navigation.StarterNavigationState
@@ -18,8 +19,7 @@ import com.sermilion.kmpcomposestarter.navigation.TopLevelTab
 @Composable
 fun rememberStarterAppState(
   userComponentManager: UserComponentManager,
-  screenComponentFactory:
-  (() -> com.sermilion.kmpcomposestarter.common.di.ScreenComponentProvider)?,
+  screenComponentFactory: (() -> ScreenComponentProvider)?,
 ): StarterAppState {
   val userComponent by userComponentManager.userComponentFlow.collectAsState()
   val isLoggedIn = userComponent != null

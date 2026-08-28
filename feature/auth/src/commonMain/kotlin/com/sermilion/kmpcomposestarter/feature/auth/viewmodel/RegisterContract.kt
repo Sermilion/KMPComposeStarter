@@ -12,7 +12,8 @@ object RegisterContract {
 
   sealed interface Error {
     data object RegistrationFailed : Error
-    data class Unknown(val message: String) : Error
+    data object Network : Error
+    data object Unknown : Error
   }
 
   sealed interface Event {

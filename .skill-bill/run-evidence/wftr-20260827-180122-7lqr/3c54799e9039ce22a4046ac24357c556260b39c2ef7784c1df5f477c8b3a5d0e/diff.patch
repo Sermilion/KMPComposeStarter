@@ -1,0 +1,3709 @@
+diff --git a/androidApp/build.gradle.kts b/androidApp/build.gradle.kts
+index c1c26c8..2b7dcac 100644
+--- a/androidApp/build.gradle.kts
++++ b/androidApp/build.gradle.kts
+@@ -3,6 +3,7 @@ plugins {
+   alias(libs.plugins.compose.multiplatform)
+   alias(libs.plugins.compose.compiler)
+   alias(libs.plugins.ksp)
++  alias(libs.plugins.kmp.kotlininject)
+ }
+ 
+ android {
+@@ -63,6 +64,7 @@ dependencies {
+   implementation(projects.core.common)
+   implementation(projects.core.data)
+   implementation(projects.core.designsystem)
++  implementation(projects.core.domain)
+   implementation(projects.core.ui)
+   implementation(projects.feature.auth)
+   implementation(projects.feature.home)
+@@ -81,10 +83,6 @@ dependencies {
+   implementation(libs.kotlin.inject.anvil.runtime)
+   implementation(libs.kotlin.inject.anvil.runtime.optional)
+ 
+-  add("ksp", libs.kotlin.inject.compiler)
+-  add("ksp", libs.kotlin.inject.anvil.compiler)
+-  add("ksp", projects.codegen.viewmodelInjectProcessor)
+-
+   debugImplementation(
+     "org.jetbrains.compose.ui:ui-tooling:${libs.versions.composeMultiplatform.get()}",
+   )
+diff --git a/androidApp/src/main/kotlin/com/sermilion/kmpcomposestarter/AndroidApplicationComponent.kt b/androidApp/src/main/kotlin/com/sermilion/kmpcomposestarter/AndroidApplicationComponent.kt
+index 18face7..de003dc 100644
+--- a/androidApp/src/main/kotlin/com/sermilion/kmpcomposestarter/AndroidApplicationComponent.kt
++++ b/androidApp/src/main/kotlin/com/sermilion/kmpcomposestarter/AndroidApplicationComponent.kt
+@@ -1,35 +1,26 @@
+ package com.sermilion.kmpcomposestarter
+ 
+ import android.app.Application
+-import androidx.lifecycle.ViewModel
+ import com.sermilion.kmpcomposestarter.common.di.StarterViewModelFactory
+-import com.sermilion.kmpcomposestarter.common.di.ViewModelFactory
+-import com.sermilion.kmpcomposestarter.common.di.ViewModelProvider
+ import com.sermilion.kmpcomposestarter.core.data.di.UserComponent
+-import com.sermilion.kmpcomposestarter.core.data.repository.AuthRepository
+ import com.sermilion.kmpcomposestarter.core.domain.di.UserComponentManager
++import com.sermilion.kmpcomposestarter.core.domain.repository.AuthRepository
++import com.sermilion.kmpcomposestarter.di.AppComponent
+ import me.tatarka.inject.annotations.Provides
+ import software.amazon.lastmile.kotlin.inject.anvil.AppScope
+ import software.amazon.lastmile.kotlin.inject.anvil.MergeComponent
+ import software.amazon.lastmile.kotlin.inject.anvil.SingleIn
+-import kotlin.reflect.KClass
+ 
+ @MergeComponent(AppScope::class)
+ @SingleIn(AppScope::class)
+ abstract class AndroidApplicationComponent(@get:Provides val application: Application) :
+-  ViewModelProvider {
++  AppComponent {
++
++  abstract override val userComponentManager: UserComponentManager
++  abstract override val viewModelFactory: StarterViewModelFactory
+ 
+   abstract val userComponentFactory: UserComponent.Factory
+-  abstract val userComponentManager: UserComponentManager
+   abstract val authRepository: AuthRepository
+-
+-  val viewModelFactory: ViewModelFactory
+-    get() = viewModelFactoryImpl
+-
+-  abstract val viewModelFactoryImpl: StarterViewModelFactory
+-
+-  override fun <T : ViewModel> provide(viewModelClass: KClass<T>): T =
+-    viewModelFactory.create(viewModelClass)
+ }
+ 
+ fun createAndroidComponent(application: Application): AndroidApplicationComponent =
+diff --git a/androidApp/src/main/kotlin/com/sermilion/kmpcomposestarter/MainActivity.kt b/androidApp/src/main/kotlin/com/sermilion/kmpcomposestarter/MainActivity.kt
+index 50f531b..d9f1aa9 100644
+--- a/androidApp/src/main/kotlin/com/sermilion/kmpcomposestarter/MainActivity.kt
++++ b/androidApp/src/main/kotlin/com/sermilion/kmpcomposestarter/MainActivity.kt
+@@ -4,13 +4,6 @@ import android.os.Bundle
+ import androidx.activity.ComponentActivity
+ import androidx.activity.compose.setContent
+ import androidx.activity.enableEdgeToEdge
+-import androidx.compose.runtime.CompositionLocalProvider
+-import com.sermilion.kmpcomposestarter.common.di.LocalScreenComponentFactory
+-import com.sermilion.kmpcomposestarter.common.di.LocalViewModelProvider
+-import com.sermilion.kmpcomposestarter.core.designsystem.theme.StarterTheme
+-import com.sermilion.kmpcomposestarter.core.ui.di.LocalUserComponentManager
+-import com.sermilion.kmpcomposestarter.core.ui.di.ProvideScreenComponentFactory
+-import com.sermilion.kmpcomposestarter.ui.rememberStarterAppState
+ 
+ class MainActivity : ComponentActivity() {
+ 
+@@ -23,25 +16,7 @@ class MainActivity : ComponentActivity() {
+     enableEdgeToEdge()
+ 
+     setContent {
+-      CompositionLocalProvider(
+-        LocalViewModelProvider provides component,
+-        LocalUserComponentManager provides component.userComponentManager,
+-      ) {
+-        ProvideScreenComponentFactory {
+-          StarterTheme {
+-            val screenComponentFactory = LocalScreenComponentFactory.current
+-            val appState = rememberStarterAppState(
+-              userComponentManager = component.userComponentManager,
+-              screenComponentFactory = screenComponentFactory,
+-            )
+-            StarterApp(
+-              appState = appState,
+-              isLoggedIn = appState.isAuthenticated,
+-              screenComponentFactory = screenComponentFactory,
+-            )
+-          }
+-        }
+-      }
++      StarterRoot(component)
+     }
+   }
+ }
+diff --git a/androidApp/src/main/kotlin/com/sermilion/kmpcomposestarter/StarterApplication.kt b/androidApp/src/main/kotlin/com/sermilion/kmpcomposestarter/StarterApplication.kt
+index 47eb13c..43f9834 100644
+--- a/androidApp/src/main/kotlin/com/sermilion/kmpcomposestarter/StarterApplication.kt
++++ b/androidApp/src/main/kotlin/com/sermilion/kmpcomposestarter/StarterApplication.kt
+@@ -4,11 +4,8 @@ import android.app.Application
+ 
+ class StarterApplication : Application() {
+ 
++  /** Process-level graph, created once and outside composition. */
+   val component: AndroidApplicationComponent by lazy {
+     createAndroidComponent(this)
+   }
+-
+-  override fun onCreate() {
+-    super.onCreate()
+-  }
+ }
+diff --git a/build-logic/convention/src/main/kotlin/KmpKotlinInjectConventionPlugin.kt b/build-logic/convention/src/main/kotlin/KmpKotlinInjectConventionPlugin.kt
+index 9277c8f..e9a8bb1 100644
+--- a/build-logic/convention/src/main/kotlin/KmpKotlinInjectConventionPlugin.kt
++++ b/build-logic/convention/src/main/kotlin/KmpKotlinInjectConventionPlugin.kt
+@@ -1,35 +1,64 @@
++import com.google.devtools.ksp.gradle.KspExtension
+ import com.sermilion.kmpcomposestarter.libs
+ import org.gradle.api.Plugin
+ import org.gradle.api.Project
++import org.gradle.kotlin.dsl.configure
+ import org.gradle.kotlin.dsl.dependencies
+ 
+ class KmpKotlinInjectConventionPlugin : Plugin<Project> {
+ 
+   private companion object {
+-    val KSP_CONFIGURATIONS = listOf(
++    const val KOTLIN_MULTIPLATFORM_PLUGIN = "org.jetbrains.kotlin.multiplatform"
++    const val KSP_PLUGIN = "com.google.devtools.ksp"
++
++    /**
++     * Package the ViewModel processor resolves its DI types from. It lives here rather than in the
++     * processor so the processor stays project-agnostic, and here rather than in each module so no
++     * module needs per-module processor configuration.
++     */
++    const val DI_PACKAGE_OPTION = "di.package"
++    const val DI_PACKAGE = "com.sermilion.kmpcomposestarter.common.di"
++
++    val KMP_KSP_CONFIGURATIONS = listOf(
+       "kspCommonMainMetadata",
+       "kspAndroid",
+       "kspIosArm64",
+       "kspIosSimulatorArm64",
+       "kspJvm",
+     )
++    val JVM_KSP_CONFIGURATIONS = listOf("ksp")
+   }
+ 
+   override fun apply(target: Project) {
+-      with(target) {
++    with(target) {
++      pluginManager.withPlugin(KOTLIN_MULTIPLATFORM_PLUGIN) {
+         dependencies {
+-        add("commonMainImplementation", libs.findLibrary("kotlin.inject.runtime").get())
+-        add("commonMainImplementation", libs.findLibrary("kotlin.inject.anvil.runtime").get())
+-        add("commonMainImplementation", libs.findLibrary("kotlin.inject.anvil.runtime.optional").get())
++          add("commonMainImplementation", libs.findLibrary("kotlin.inject.runtime").get())
++          add("commonMainImplementation", libs.findLibrary("kotlin.inject.anvil.runtime").get())
++          add(
++            "commonMainImplementation",
++            libs.findLibrary("kotlin.inject.anvil.runtime.optional").get(),
++          )
++        }
++      }
++
++      pluginManager.withPlugin(KSP_PLUGIN) {
++        extensions.configure<KspExtension> {
++          arg(DI_PACKAGE_OPTION, DI_PACKAGE)
++        }
++
++        val kspConfigurations = if (pluginManager.hasPlugin(KOTLIN_MULTIPLATFORM_PLUGIN)) {
++          KMP_KSP_CONFIGURATIONS
++        } else {
++          JVM_KSP_CONFIGURATIONS
+         }
+ 
+-      pluginManager.withPlugin("com.google.devtools.ksp") {
+         dependencies {
+           val kotlinInjectCompiler = libs.findLibrary("kotlin.inject.compiler").get()
+           val anvilCompiler = libs.findLibrary("kotlin.inject.anvil.compiler").get()
+           val viewModelProcessor = project(":codegen:viewmodel-inject-processor")
+ 
+-          KSP_CONFIGURATIONS.forEach { config ->
++          kspConfigurations.forEach { config ->
+             add(config, kotlinInjectCompiler)
+             add(config, anvilCompiler)
+             add(config, viewModelProcessor)
+diff --git a/codegen/viewmodel-inject-processor/build.gradle.kts b/codegen/viewmodel-inject-processor/build.gradle.kts
+index e3c56d6..1e1d0d2 100644
+--- a/codegen/viewmodel-inject-processor/build.gradle.kts
++++ b/codegen/viewmodel-inject-processor/build.gradle.kts
+@@ -8,4 +8,14 @@ dependencies {
+   implementation(libs.kotlin.inject.anvil.runtime)
+   implementation(libs.kotlinpoet)
+   implementation(libs.kotlinpoet.ksp)
++
++  testImplementation(libs.kotlin.compile.testing)
++  testImplementation(libs.kotlin.compile.testing.ksp)
++  testImplementation(libs.kotest.framework.engine)
++  testImplementation(libs.kotest.assertions.core)
++  testImplementation(libs.kotest.runner.junit5.jvm)
++}
++
++tasks.named<Test>("test") {
++  useJUnitPlatform()
+ }
+diff --git a/codegen/viewmodel-inject-processor/src/main/kotlin/com/sermilion/kmpcomposestarter/codegen/ViewModelInjectProcessor.kt b/codegen/viewmodel-inject-processor/src/main/kotlin/com/sermilion/kmpcomposestarter/codegen/ViewModelInjectProcessor.kt
+index 668e8cc..61e24b9 100644
+--- a/codegen/viewmodel-inject-processor/src/main/kotlin/com/sermilion/kmpcomposestarter/codegen/ViewModelInjectProcessor.kt
++++ b/codegen/viewmodel-inject-processor/src/main/kotlin/com/sermilion/kmpcomposestarter/codegen/ViewModelInjectProcessor.kt
+@@ -26,193 +26,149 @@ import com.squareup.kotlinpoet.ksp.toClassName
+ import com.squareup.kotlinpoet.ksp.toTypeName
+ import com.squareup.kotlinpoet.ksp.writeTo
+ 
++/**
++ * Generates one `ViewModelEntry` multibinding per class annotated with `@ContributesViewModel`.
++ *
++ * Every project-specific DI type is resolved from [diPackage] (the `di.package` KSP option), so
++ * the processor carries no hardcoded package of its own.
++ */
+ class ViewModelInjectProcessor(
+   private val codeGenerator: CodeGenerator,
+   private val logger: KSPLogger,
++  private val diPackage: String,
+ ) : SymbolProcessor {
+ 
+   private companion object {
+-    const val SINGLE_IN_ANNOTATION = "software.amazon.lastmile.kotlin.inject.anvil.SingleIn"
+     const val VIEW_MODEL_CLASS = "androidx.lifecycle.ViewModel"
+     const val SAVED_STATE_HANDLE_CLASS = "androidx.lifecycle.SavedStateHandle"
++    const val ASSISTED_ANNOTATION = "me.tatarka.inject.annotations.Assisted"
++    const val ANVIL_PACKAGE = "software.amazon.lastmile.kotlin.inject.anvil"
++    const val APP_SCOPE_CLASS = "$ANVIL_PACKAGE.AppScope"
+   }
+ 
+-  override fun process(resolver: Resolver): List<KSAnnotated> {
+-    val singleInSymbols = resolver
+-      .getSymbolsWithAnnotation(SINGLE_IN_ANNOTATION)
+-      .filterIsInstance<KSClassDeclaration>()
+-      .filter { classDeclaration ->
+-        classDeclaration.superTypes.any { superType ->
+-          val declaration = superType.resolve().declaration
+-          declaration.qualifiedName?.asString() == VIEW_MODEL_CLASS ||
+-            isSubtypeOfViewModel(declaration, resolver)
+-        }
+-      }
++  private val contributesViewModelAnnotation = "$diPackage.ContributesViewModel"
++  private val viewModelEntryClass = ClassName(diPackage, "ViewModelEntry")
++  private val assistedArgsClass = ClassName(diPackage, "AssistedArgs")
++  private val viewModelClass = ClassName("androidx.lifecycle", "ViewModel")
++  private val injectClass = ClassName("me.tatarka.inject.annotations", "Inject")
++  private val contributesBindingClass = ClassName(ANVIL_PACKAGE, "ContributesBinding")
+ 
+-    val assistedViewModels = resolver
+-      .getSymbolsWithAnnotation("me.tatarka.inject.annotations.Assisted")
+-      .filterIsInstance<KSValueParameter>()
+-      .mapNotNull { parameter ->
+-        val constructor = parameter.parent
+-        constructor?.parent as? KSClassDeclaration
+-      }
+-      .distinct()
+-      .filter { classDeclaration ->
+-        classDeclaration.superTypes.any { superType ->
+-          val declaration = superType.resolve().declaration
+-          declaration.qualifiedName?.asString() == VIEW_MODEL_CLASS ||
+-            isSubtypeOfViewModel(declaration, resolver)
+-        }
+-      }
++  private val scopesByQualifiedName = mapOf(
++    APP_SCOPE_CLASS to ClassName(ANVIL_PACKAGE, "AppScope"),
++    "$diPackage.UserScope" to ClassName(diPackage, "UserScope"),
++    "$diPackage.ScreenScope" to ClassName(diPackage, "ScreenScope"),
++  )
+ 
+-    val symbols = (singleInSymbols + assistedViewModels).distinct()
+-
+-    if (!symbols.iterator().hasNext()) return emptyList()
++  override fun process(resolver: Resolver): List<KSAnnotated> {
++    val symbols = resolver
++      .getSymbolsWithAnnotation(contributesViewModelAnnotation)
++      .filterIsInstance<KSClassDeclaration>()
++      .toList()
+ 
+-    symbols.forEach { classDeclaration ->
+-      if (!classDeclaration.validate()) {
+-        return@forEach
+-      }
++    // Symbols that do not resolve yet depend on code another processor has still to emit; hand
++    // them back so KSP retries them in a later round instead of failing on a half-built graph.
++    val (resolved, deferred) = symbols.partition { it.validate() }
+ 
+-      try {
+-        generateViewModelEntry(classDeclaration, resolver)
+-      } catch (e: Exception) {
+-        logger.error(
+-          "Failed to generate entry for ${classDeclaration.simpleName.asString()}: ${e.message}",
+-          classDeclaration,
+-        )
+-        e.printStackTrace()
+-      }
+-    }
++    resolved.forEach(::generateViewModelEntry)
+ 
+-    return emptyList()
++    return deferred
+   }
+ 
+-  private fun generateViewModelEntry(classDeclaration: KSClassDeclaration, resolver: Resolver) {
++  private fun generateViewModelEntry(classDeclaration: KSClassDeclaration) {
+     val viewModelClassName = classDeclaration.toClassName()
+-    val packageName = viewModelClassName.packageName
+     val viewModelSimpleName = viewModelClassName.simpleName
+-    val entryName = "${viewModelSimpleName}_Entry"
+-
+-    val extendsViewModel = classDeclaration.superTypes.any { superType ->
+-      val declaration = superType.resolve().declaration
+-      declaration.qualifiedName?.asString() == VIEW_MODEL_CLASS ||
+-        isSubtypeOfViewModel(declaration, resolver)
+-    }
+ 
+-    if (!extendsViewModel) {
++    if (!isSubtypeOfViewModel(classDeclaration)) {
+       logger.error(
+-        "Can only be applied to classes extending androidx.lifecycle.ViewModel. " +
++        "@ContributesViewModel can only be applied to classes extending $VIEW_MODEL_CLASS. " +
+           "$viewModelSimpleName does not extend ViewModel.",
+         classDeclaration,
+       )
+       return
+     }
+ 
+-    logger.info("Generating entry for $viewModelSimpleName")
++    val scopeClassName = resolveScope(classDeclaration) ?: return
+ 
+     val constructor = classDeclaration.primaryConstructor
+-      ?: throw IllegalStateException("No primary constructor found for $viewModelSimpleName")
+-
+-    val parameters = constructor.parameters
+-
+-    val assistedParams = parameters.filter { param ->
+-      val hasAssistedAnnotation = param.annotations.any { it.shortName.asString() == "Assisted" }
+-      val isSavedStateHandle =
+-        param.type.resolve().declaration.qualifiedName?.asString() == SAVED_STATE_HANDLE_CLASS
+-      hasAssistedAnnotation || isSavedStateHandle
++    if (constructor == null) {
++      logger.error("No primary constructor found for $viewModelSimpleName", classDeclaration)
++      return
+     }
+ 
+-    logger.info(
+-      "Assisted params for $viewModelSimpleName: ${assistedParams.map {
+-        it.name?.asString()
+-      }}",
+-    )
+-
+-    val inject = ClassName("me.tatarka.inject.annotations", "Inject")
+-    val contributesBinding =
+-      ClassName("software.amazon.lastmile.kotlin.inject.anvil", "ContributesBinding")
+-
+-    val scopeClassName = classDeclaration.annotations.firstOrNull { annotation ->
+-      annotation.shortName.asString() == "SingleIn"
+-    }?.arguments?.firstOrNull()?.value?.let { scopeArg ->
+-      val scopeType = scopeArg as? KSType
+-      val scopeValue = scopeType?.declaration?.qualifiedName?.asString()
+-      when (scopeValue) {
+-        "software.amazon.lastmile.kotlin.inject.anvil.AppScope" ->
+-          ClassName("software.amazon.lastmile.kotlin.inject.anvil", "AppScope")
+-        "com.sermilion.kmpcomposestarter.common.di.UserScope" ->
+-          ClassName("com.sermilion.kmpcomposestarter.common.di", "UserScope")
+-        "com.sermilion.kmpcomposestarter.common.di.ScreenScope" ->
+-          ClassName("com.sermilion.kmpcomposestarter.common.di", "ScreenScope")
+-        else -> {
+-          logger.warn("Unknown scope $scopeValue, defaulting to ScreenScope", classDeclaration)
+-          ClassName("com.sermilion.kmpcomposestarter.common.di", "ScreenScope")
+-        }
+-      }
+-    } ?: ClassName("com.sermilion.kmpcomposestarter.common.di", "ScreenScope")
+-
+-    val viewModelEntry = ClassName("com.sermilion.kmpcomposestarter.common.di", "ViewModelEntry")
+-    val viewModelClass = ClassName("androidx.lifecycle", "ViewModel")
+-    val assistedArgs = ClassName("com.sermilion.kmpcomposestarter.common.di", "AssistedArgs")
++    val assistedParams = constructor.parameters.filter(::isAssisted)
++    val unmarkedSavedStateHandle = constructor.parameters.firstOrNull { parameter ->
++      !isAssisted(parameter) && qualifiedTypeName(parameter) == SAVED_STATE_HANDLE_CLASS
++    }
++    if (unmarkedSavedStateHandle != null) {
++      logger.error(
++        "SavedStateHandle parameter '${unmarkedSavedStateHandle.name?.asString()}' of " +
++          "$viewModelSimpleName must be annotated @Assisted.",
++        classDeclaration,
++      )
++      return
++    }
+ 
+-    val functionType = if (assistedParams.isNotEmpty()) {
+-      val paramTypes = assistedParams.map { it.type.toTypeName() }.toTypedArray()
+-      LambdaTypeName.get(
+-        parameters = paramTypes,
+-        returnType = viewModelClassName,
++    val namedAssistedParams = assistedParams.mapNotNull { parameter ->
++      parameter.name?.asString()?.let { name -> name to parameter }
++    }
++    if (namedAssistedParams.size != assistedParams.size) {
++      logger.error(
++        "Every @Assisted parameter of $viewModelSimpleName must have a name.",
++        classDeclaration,
+       )
+-    } else {
+-      LambdaTypeName.get(returnType = viewModelClassName)
++      return
+     }
+ 
+-    val entryConstructorParam = ParameterSpec.builder("create", functionType).build()
++    val fileSpec = FileSpec
++      .builder(viewModelClassName.packageName, "${viewModelSimpleName}_Entry")
++      .addType(
++        buildEntryType(
++          entryName = "${viewModelSimpleName}_Entry",
++          viewModelClassName = viewModelClassName,
++          scopeClassName = scopeClassName,
++          assistedParams = namedAssistedParams,
++        ),
++      )
++      .build()
+ 
+-    val createMethod = if (assistedParams.isNotEmpty()) {
+-      FunSpec.builder("create")
+-        .addModifiers(KModifier.OVERRIDE)
+-        .addParameter("args", assistedArgs)
+-        .returns(viewModelClass)
+-        .apply {
+-          val validParams = assistedParams.mapNotNull { param ->
+-            param.name?.asString()?.let { name -> name to param.type.toTypeName() }
+-          }
+-          validParams.forEach { (paramName, paramType) ->
+-            addStatement(
+-              "val %L: %T = args[%S] ?: error(%S)",
+-              paramName,
+-              paramType,
+-              paramName,
+-              "Missing assisted arg '$paramName' for $viewModelSimpleName",
+-            )
+-          }
+-          addStatement(
+-            "return create(%L)",
+-            validParams.joinToString(", ") { it.first },
+-          )
+-        }
+-        .build()
++    val containingFile = classDeclaration.containingFile
++    val dependencies = if (containingFile == null) {
++      Dependencies(aggregating = false)
+     } else {
+-      FunSpec.builder("create")
+-        .addModifiers(KModifier.OVERRIDE)
+-        .addParameter("args", assistedArgs)
+-        .returns(viewModelClass)
+-        .addStatement("return create()")
+-        .build()
++      Dependencies(aggregating = false, containingFile)
+     }
++    fileSpec.writeTo(codeGenerator, dependencies)
++  }
+ 
+-    val entryClass = TypeSpec.classBuilder(entryName)
+-      .addAnnotation(inject)
++  private fun buildEntryType(
++    entryName: String,
++    viewModelClassName: ClassName,
++    scopeClassName: ClassName,
++    assistedParams: List<Pair<String, KSValueParameter>>,
++  ): TypeSpec {
++    val assistedTypes = assistedParams
++      .map { (_, parameter) -> parameter.type.toTypeName() }
++      .toTypedArray()
++    val functionType = LambdaTypeName.get(
++      parameters = assistedTypes,
++      returnType = viewModelClassName,
++    )
++    val savedStateHandleArgName = assistedParams
++      .firstOrNull { (_, parameter) -> qualifiedTypeName(parameter) == SAVED_STATE_HANDLE_CLASS }
++      ?.first
++
++    return TypeSpec.classBuilder(entryName)
++      .addAnnotation(injectClass)
+       .addAnnotation(
+-        AnnotationSpec.builder(contributesBinding)
++        AnnotationSpec.builder(contributesBindingClass)
+           .addMember("%T::class", scopeClassName)
+           .addMember("multibinding = true")
+           .build(),
+       )
+-      .addSuperinterface(viewModelEntry)
++      .addSuperinterface(viewModelEntryClass)
+       .primaryConstructor(
+         FunSpec.constructorBuilder()
+-          .addParameter(entryConstructorParam)
++          .addParameter(ParameterSpec.builder("create", functionType).build())
+           .build(),
+       )
+       .addProperty(
+@@ -221,36 +177,97 @@ class ViewModelInjectProcessor(
+           .build(),
+       )
+       .addProperty(
+-        PropertySpec.builder(
+-          "kclass",
+-          ClassName(
+-            "kotlin.reflect",
+-            "KClass",
+-          ).parameterizedBy(WildcardTypeName.producerOf(viewModelClass)),
+-        )
++        PropertySpec
++          .builder(
++            "kclass",
++            ClassName("kotlin.reflect", "KClass")
++              .parameterizedBy(WildcardTypeName.producerOf(viewModelClass)),
++          )
+           .addModifiers(KModifier.OVERRIDE)
+           .initializer("%T::class", viewModelClassName)
+           .build(),
+       )
+-      .addFunction(createMethod)
++      .addProperty(
++        PropertySpec
++          .builder("savedStateHandleArgName", STRING_NULLABLE)
++          .addModifiers(KModifier.OVERRIDE)
++          .apply {
++            if (savedStateHandleArgName == null) {
++              initializer("null")
++            } else {
++              initializer("%S", savedStateHandleArgName)
++            }
++          }
++          .build(),
++      )
++      .addFunction(
++        buildCreateFunction(viewModelClassName.simpleName, assistedParams),
++      )
+       .build()
++  }
+ 
+-    val fileSpec = FileSpec.builder(packageName, entryName)
+-      .addType(entryClass)
++  private fun buildCreateFunction(
++    viewModelSimpleName: String,
++    assistedParams: List<Pair<String, KSValueParameter>>,
++  ): FunSpec {
++    val builder = FunSpec.builder("create")
++      .addModifiers(KModifier.OVERRIDE)
++      .addParameter("args", assistedArgsClass)
++      .returns(viewModelClass)
++
++    if (assistedParams.isEmpty()) {
++      return builder.addStatement("return create()").build()
++    }
++
++    // The lookup key is the constructor parameter name, the same key InjectViewModel writes.
++    assistedParams.forEach { (name, parameter) ->
++      builder.addStatement(
++        "val %L: %T = args[%S] ?: error(%S)",
++        name,
++        parameter.type.toTypeName(),
++        name,
++        "Missing assisted arg '$name' for $viewModelSimpleName",
++      )
++    }
++    return builder
++      .addStatement("return create(%L)", assistedParams.joinToString(", ") { it.first })
+       .build()
++  }
++
++  private fun resolveScope(classDeclaration: KSClassDeclaration): ClassName? {
++    val scopeArgument = classDeclaration.annotations
++      .firstOrNull { it.shortName.asString() == "ContributesViewModel" }
++      ?.arguments
++      ?.firstOrNull()
++      ?.value as? KSType
++    val scopeQualifiedName = scopeArgument?.declaration?.qualifiedName?.asString()
+ 
+-    fileSpec.writeTo(codeGenerator, Dependencies(true, classDeclaration.containingFile!!))
++    return scopesByQualifiedName[scopeQualifiedName] ?: run {
++      logger.error(
++        "Unknown ViewModel scope '$scopeQualifiedName'. Supported scopes: " +
++          scopesByQualifiedName.keys.joinToString(),
++        classDeclaration,
++      )
++      null
++    }
+   }
+ 
+-  private fun isSubtypeOfViewModel(declaration: KSDeclaration, resolver: Resolver): Boolean {
+-    if (declaration.qualifiedName?.asString() == VIEW_MODEL_CLASS) {
+-      return true
++  private fun isAssisted(parameter: KSValueParameter): Boolean =
++    parameter.annotations.any { annotation ->
++      annotation.annotationType.resolve().declaration.qualifiedName?.asString() ==
++        ASSISTED_ANNOTATION
+     }
+-    if (declaration is KSClassDeclaration) {
+-      return declaration.superTypes.any { superType ->
+-        isSubtypeOfViewModel(superType.resolve().declaration, resolver)
+-      }
++
++  private fun qualifiedTypeName(parameter: KSValueParameter): String? =
++    parameter.type.resolve().declaration.qualifiedName?.asString()
++
++  private fun isSubtypeOfViewModel(declaration: KSDeclaration): Boolean {
++    if (declaration.qualifiedName?.asString() == VIEW_MODEL_CLASS) return true
++    if (declaration !is KSClassDeclaration) return false
++    return declaration.superTypes.any { superType ->
++      isSubtypeOfViewModel(superType.resolve().declaration)
+     }
+-    return false
+   }
+ }
++
++private val STRING_NULLABLE = ClassName("kotlin", "String").copy(nullable = true)
+diff --git a/codegen/viewmodel-inject-processor/src/main/kotlin/com/sermilion/kmpcomposestarter/codegen/ViewModelInjectProcessorProvider.kt b/codegen/viewmodel-inject-processor/src/main/kotlin/com/sermilion/kmpcomposestarter/codegen/ViewModelInjectProcessorProvider.kt
+index 4d32587..1c19f35 100644
+--- a/codegen/viewmodel-inject-processor/src/main/kotlin/com/sermilion/kmpcomposestarter/codegen/ViewModelInjectProcessorProvider.kt
++++ b/codegen/viewmodel-inject-processor/src/main/kotlin/com/sermilion/kmpcomposestarter/codegen/ViewModelInjectProcessorProvider.kt
+@@ -5,9 +5,22 @@ import com.google.devtools.ksp.processing.SymbolProcessorEnvironment
+ import com.google.devtools.ksp.processing.SymbolProcessorProvider
+ 
+ class ViewModelInjectProcessorProvider : SymbolProcessorProvider {
+-  override fun create(environment: SymbolProcessorEnvironment): SymbolProcessor =
+-    ViewModelInjectProcessor(
++
++  override fun create(environment: SymbolProcessorEnvironment): SymbolProcessor {
++    val diPackage = environment.options[DI_PACKAGE_OPTION]
++    require(!diPackage.isNullOrBlank()) {
++      "Missing KSP option '$DI_PACKAGE_OPTION'. It names the package holding " +
++        "ContributesViewModel, ViewModelEntry, AssistedArgs, UserScope and ScreenScope. " +
++        "The kmp.kotlininject convention plugin sets it for every module."
++    }
++    return ViewModelInjectProcessor(
+       codeGenerator = environment.codeGenerator,
+       logger = environment.logger,
++      diPackage = diPackage,
+     )
++  }
++
++  companion object {
++    const val DI_PACKAGE_OPTION = "di.package"
++  }
+ }
+diff --git a/codegen/viewmodel-inject-processor/src/test/kotlin/com/sermilion/kmpcomposestarter/codegen/LateTypeProcessor.kt b/codegen/viewmodel-inject-processor/src/test/kotlin/com/sermilion/kmpcomposestarter/codegen/LateTypeProcessor.kt
+new file mode 100644
+index 0000000..8911a48
+--- /dev/null
++++ b/codegen/viewmodel-inject-processor/src/test/kotlin/com/sermilion/kmpcomposestarter/codegen/LateTypeProcessor.kt
+@@ -0,0 +1,32 @@
++package com.sermilion.kmpcomposestarter.codegen
++
++import com.google.devtools.ksp.processing.Dependencies
++import com.google.devtools.ksp.processing.Resolver
++import com.google.devtools.ksp.processing.SymbolProcessor
++import com.google.devtools.ksp.processing.SymbolProcessorEnvironment
++import com.google.devtools.ksp.processing.SymbolProcessorProvider
++import com.google.devtools.ksp.symbol.KSAnnotated
++
++/**
++ * Emits `com.example.testapp.LateType` in the first round only. A ViewModel that references it
++ * therefore cannot resolve during round one, which is exactly the situation the processor has to
++ * survive by deferring the symbol instead of dropping it.
++ */
++class LateTypeProcessorProvider : SymbolProcessorProvider {
++  override fun create(environment: SymbolProcessorEnvironment): SymbolProcessor =
++    object : SymbolProcessor {
++      private var emitted = false
++
++      override fun process(resolver: Resolver): List<KSAnnotated> {
++        if (emitted) return emptyList()
++        emitted = true
++        environment.codeGenerator
++          .createNewFile(Dependencies(aggregating = false), "com.example.testapp", "LateType")
++          .bufferedWriter()
++          .use { writer ->
++            writer.write("package com.example.testapp\n\nclass LateType(val value: String)\n")
++          }
++        return emptyList()
++      }
++    }
++}
+diff --git a/codegen/viewmodel-inject-processor/src/test/kotlin/com/sermilion/kmpcomposestarter/codegen/ProcessorTestSupport.kt b/codegen/viewmodel-inject-processor/src/test/kotlin/com/sermilion/kmpcomposestarter/codegen/ProcessorTestSupport.kt
+new file mode 100644
+index 0000000..9a0de6e
+--- /dev/null
++++ b/codegen/viewmodel-inject-processor/src/test/kotlin/com/sermilion/kmpcomposestarter/codegen/ProcessorTestSupport.kt
+@@ -0,0 +1,86 @@
++package com.sermilion.kmpcomposestarter.codegen
++
++import com.tschuchort.compiletesting.JvmCompilationResult
++import com.tschuchort.compiletesting.KotlinCompilation
++import com.tschuchort.compiletesting.SourceFile
++import com.tschuchort.compiletesting.configureKsp
++import com.tschuchort.compiletesting.sourcesGeneratedBySymbolProcessor
++import com.google.devtools.ksp.processing.SymbolProcessorProvider
++import org.jetbrains.kotlin.compiler.plugin.ExperimentalCompilerApi
++
++const val TEST_DI_PACKAGE: String = "com.example.testapp.di"
++
++/**
++ * The project types the processor resolves through the `di.package` option, plus the lifecycle
++ * types it recognises by name. Declared as sources so the suite stays hermetic: it exercises the
++ * processor, not artifact resolution.
++ */
++fun diSupportSources(diPackage: String): List<SourceFile> = listOf(
++  SourceFile.kotlin(
++    "Lifecycle.kt",
++    """
++    package androidx.lifecycle
++
++    abstract class ViewModel
++
++    class SavedStateHandle
++    """.trimIndent(),
++  ),
++  SourceFile.kotlin(
++    "DiSupport.kt",
++    """
++    package $diPackage
++
++    import androidx.lifecycle.ViewModel
++    import kotlin.reflect.KClass
++
++    @Target(AnnotationTarget.CLASS)
++    @Retention(AnnotationRetention.BINARY)
++    annotation class ContributesViewModel(val scope: KClass<*>)
++
++    interface AssistedArgs {
++      operator fun <T> get(name: String): T?
++    }
++
++    interface ViewModelEntry {
++      val kclass: KClass<out ViewModel>
++      val savedStateHandleArgName: String?
++      fun create(args: AssistedArgs): ViewModel
++    }
++
++    annotation class UserScope
++
++    annotation class ScreenScope
++    """.trimIndent(),
++  ),
++)
++
++@OptIn(ExperimentalCompilerApi::class)
++fun compileWithProcessor(
++  vararg sources: SourceFile,
++  diPackage: String = TEST_DI_PACKAGE,
++  processorOptions: Map<String, String> = mapOf("di.package" to diPackage),
++  extraProcessors: List<SymbolProcessorProvider> = emptyList(),
++): JvmCompilationResult = KotlinCompilation()
++  .apply {
++    this.sources = diSupportSources(diPackage) + sources
++    inheritClassPath = true
++    messageOutputStream = System.out
++    configureKsp {
++      symbolProcessorProviders += ViewModelInjectProcessorProvider()
++      symbolProcessorProviders += extraProcessors
++      this.processorOptions += processorOptions
++    }
++  }
++  .compile()
++
++@OptIn(ExperimentalCompilerApi::class)
++fun JvmCompilationResult.generatedSourceOrNull(fileName: String): String? =
++  sourcesGeneratedBySymbolProcessor.firstOrNull { it.name == fileName }?.readText()
++
++@OptIn(ExperimentalCompilerApi::class)
++fun JvmCompilationResult.generatedSource(fileName: String): String =
++  requireNotNull(generatedSourceOrNull(fileName)) {
++    "No generated file named $fileName. Generated: " +
++      sourcesGeneratedBySymbolProcessor.joinToString { it.name }
++  }
+diff --git a/codegen/viewmodel-inject-processor/src/test/kotlin/com/sermilion/kmpcomposestarter/codegen/ViewModelInjectProcessorTest.kt b/codegen/viewmodel-inject-processor/src/test/kotlin/com/sermilion/kmpcomposestarter/codegen/ViewModelInjectProcessorTest.kt
+new file mode 100644
+index 0000000..c2d7057
+--- /dev/null
++++ b/codegen/viewmodel-inject-processor/src/test/kotlin/com/sermilion/kmpcomposestarter/codegen/ViewModelInjectProcessorTest.kt
+@@ -0,0 +1,175 @@
++package com.sermilion.kmpcomposestarter.codegen
++
++import com.tschuchort.compiletesting.KotlinCompilation
++import com.tschuchort.compiletesting.SourceFile
++import io.kotest.core.spec.style.FunSpec
++import io.kotest.matchers.shouldBe
++import io.kotest.matchers.string.shouldContain
++
++private fun viewModelSource(body: String) = SourceFile.kotlin("TestViewModels.kt", body)
++
++class ViewModelInjectProcessorTest :
++  FunSpec({
++
++    test("a plain ViewModel gets one entry bound into its scope") {
++      val result = compileWithProcessor(
++        viewModelSource(
++          """
++          package com.example.testapp
++
++          import androidx.lifecycle.ViewModel
++          import com.example.testapp.di.ContributesViewModel
++          import software.amazon.lastmile.kotlin.inject.anvil.AppScope
++
++          @ContributesViewModel(AppScope::class)
++          class PlainViewModel : ViewModel()
++          """.trimIndent(),
++        ),
++      )
++
++      result.exitCode shouldBe KotlinCompilation.ExitCode.OK
++
++      val generated = result.generatedSource("PlainViewModel_Entry.kt")
++      generated shouldContain "AppScope::class"
++      generated shouldContain "multibinding = true"
++      generated shouldContain "savedStateHandleArgName: String? = null"
++      generated shouldContain "return create()"
++    }
++
++    test("an assisted arg is looked up under its constructor parameter name") {
++      val result = compileWithProcessor(
++        viewModelSource(
++          """
++          package com.example.testapp
++
++          import androidx.lifecycle.ViewModel
++          import com.example.testapp.di.ContributesViewModel
++          import com.example.testapp.di.ScreenScope
++          import me.tatarka.inject.annotations.Assisted
++
++          @ContributesViewModel(ScreenScope::class)
++          class DetailViewModel(@Assisted private val itemId: String) : ViewModel()
++          """.trimIndent(),
++        ),
++      )
++
++      result.exitCode shouldBe KotlinCompilation.ExitCode.OK
++
++      val generated = result.generatedSource("DetailViewModel_Entry.kt")
++      generated shouldContain """args["itemId"]"""
++      generated shouldContain "ScreenScope::class"
++    }
++
++    test("a SavedStateHandle is published and read under its own parameter name") {
++      val result = compileWithProcessor(
++        viewModelSource(
++          """
++          package com.example.testapp
++
++          import androidx.lifecycle.SavedStateHandle
++          import androidx.lifecycle.ViewModel
++          import com.example.testapp.di.ContributesViewModel
++          import com.example.testapp.di.ScreenScope
++          import me.tatarka.inject.annotations.Assisted
++
++          @ContributesViewModel(ScreenScope::class)
++          class StatefulViewModel(@Assisted private val handle: SavedStateHandle) : ViewModel()
++          """.trimIndent(),
++        ),
++      )
++
++      result.exitCode shouldBe KotlinCompilation.ExitCode.OK
++
++      val generated = result.generatedSource("StatefulViewModel_Entry.kt")
++      generated shouldContain """savedStateHandleArgName: String? = "handle""""
++      generated shouldContain """args["handle"]"""
++    }
++
++    test("a SavedStateHandle that is not @Assisted fails the build") {
++      val result = compileWithProcessor(
++        viewModelSource(
++          """
++          package com.example.testapp
++
++          import androidx.lifecycle.SavedStateHandle
++          import androidx.lifecycle.ViewModel
++          import com.example.testapp.di.ContributesViewModel
++          import com.example.testapp.di.ScreenScope
++
++          @ContributesViewModel(ScreenScope::class)
++          class ImplicitStateViewModel(private val handle: SavedStateHandle) : ViewModel()
++          """.trimIndent(),
++        ),
++      )
++
++      result.exitCode shouldBe KotlinCompilation.ExitCode.COMPILATION_ERROR
++      result.messages shouldContain "must be annotated @Assisted"
++    }
++
++    test("an unknown scope fails the build instead of silently defaulting") {
++      val result = compileWithProcessor(
++        viewModelSource(
++          """
++          package com.example.testapp
++
++          import androidx.lifecycle.ViewModel
++          import com.example.testapp.di.ContributesViewModel
++
++          annotation class MysteryScope
++
++          @ContributesViewModel(MysteryScope::class)
++          class MysteriousViewModel : ViewModel()
++          """.trimIndent(),
++        ),
++      )
++
++      result.exitCode shouldBe KotlinCompilation.ExitCode.COMPILATION_ERROR
++      result.messages shouldContain "MysteryScope"
++      result.generatedSourceOrNull("MysteriousViewModel_Entry.kt") shouldBe null
++    }
++
++    test("a symbol that only resolves in a later round is deferred, not dropped") {
++      val result = compileWithProcessor(
++        viewModelSource(
++          """
++          package com.example.testapp
++
++          import androidx.lifecycle.ViewModel
++          import com.example.testapp.di.ContributesViewModel
++          import com.example.testapp.di.ScreenScope
++          import me.tatarka.inject.annotations.Assisted
++
++          @ContributesViewModel(ScreenScope::class)
++          class DeferredViewModel(@Assisted private val late: LateType) : ViewModel()
++          """.trimIndent(),
++        ),
++        extraProcessors = listOf(LateTypeProcessorProvider()),
++      )
++
++      result.exitCode shouldBe KotlinCompilation.ExitCode.OK
++      result.generatedSource("DeferredViewModel_Entry.kt") shouldContain """args["late"]"""
++    }
++
++    test("the processor honours a non-default di.package option") {
++      val diPackage = "com.other.project.wiring"
++      val result = compileWithProcessor(
++        viewModelSource(
++          """
++          package com.example.testapp
++
++          import androidx.lifecycle.ViewModel
++          import com.other.project.wiring.ContributesViewModel
++          import software.amazon.lastmile.kotlin.inject.anvil.AppScope
++
++          @ContributesViewModel(AppScope::class)
++          class RelocatedViewModel : ViewModel()
++          """.trimIndent(),
++        ),
++        diPackage = diPackage,
++      )
++
++      result.exitCode shouldBe KotlinCompilation.ExitCode.OK
++      result.generatedSource("RelocatedViewModel_Entry.kt") shouldContain
++        "import com.other.project.wiring.ViewModelEntry"
++    }
++  })
+diff --git a/composeApp/build.gradle.kts b/composeApp/build.gradle.kts
+index daf6937..7dd95eb 100644
+--- a/composeApp/build.gradle.kts
++++ b/composeApp/build.gradle.kts
+@@ -2,6 +2,7 @@ plugins {
+   alias(libs.plugins.kmp.application)
+   alias(libs.plugins.kotlin.serialization)
+   alias(libs.plugins.ksp)
++  alias(libs.plugins.kmp.kotlininject)
+ }
+ 
+ kotlin {
+@@ -70,25 +71,18 @@ kotlin {
+       implementation(libs.kotlinx.coroutines.test)
+     }
+   }
++
++  // Both iOS targets share one actual instead of two byte-identical copies.
++  sourceSets {
++    named("iosArm64Main") { kotlin.srcDir("src/iosTargetMain/kotlin") }
++    named("iosSimulatorArm64Main") { kotlin.srcDir("src/iosTargetMain/kotlin") }
++  }
+ }
+ 
+ tasks.named<Test>("jvmTest") {
+   useJUnitPlatform()
+ }
+ 
+-dependencies {
+-  add("kspCommonMainMetadata", libs.kotlin.inject.compiler)
+-  add("kspCommonMainMetadata", libs.kotlin.inject.anvil.compiler)
+-  add("kspAndroid", libs.kotlin.inject.compiler)
+-  add("kspAndroid", libs.kotlin.inject.anvil.compiler)
+-  add("kspIosArm64", libs.kotlin.inject.compiler)
+-  add("kspIosArm64", libs.kotlin.inject.anvil.compiler)
+-  add("kspIosSimulatorArm64", libs.kotlin.inject.compiler)
+-  add("kspIosSimulatorArm64", libs.kotlin.inject.anvil.compiler)
+-  add("kspJvm", libs.kotlin.inject.compiler)
+-  add("kspJvm", libs.kotlin.inject.anvil.compiler)
+-}
+-
+ tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
+   if (name.contains("IosSimulatorArm64")) {
+     dependsOn("kspKotlinIosSimulatorArm64")
+diff --git a/composeApp/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/App.kt b/composeApp/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/App.kt
+index e5ae7a4..0f3cae3 100644
+--- a/composeApp/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/App.kt
++++ b/composeApp/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/App.kt
+@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.padding
+ import androidx.compose.material3.Scaffold
+ import androidx.compose.runtime.Composable
+ import androidx.compose.ui.Modifier
++import com.sermilion.kmpcomposestarter.common.di.ScreenComponentProvider
+ import com.sermilion.kmpcomposestarter.navigation.StarterNavDisplay
+ import com.sermilion.kmpcomposestarter.navigation.StarterNavigationState
+ import com.sermilion.kmpcomposestarter.navigation.isTabRoot
+@@ -16,8 +17,7 @@ import com.sermilion.kmpcomposestarter.ui.StarterBottomBar
+ fun StarterApp(
+   appState: StarterAppState,
+   isLoggedIn: Boolean,
+-  screenComponentFactory:
+-  (() -> com.sermilion.kmpcomposestarter.common.di.ScreenComponentProvider)?,
++  screenComponentFactory: (() -> ScreenComponentProvider)?,
+   modifier: Modifier = Modifier,
+ ) {
+   val canRenderAuthenticatedScreens = !isLoggedIn || screenComponentFactory != null
+diff --git a/composeApp/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/StarterRoot.kt b/composeApp/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/StarterRoot.kt
+new file mode 100644
+index 0000000..91c4081
+--- /dev/null
++++ b/composeApp/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/StarterRoot.kt
+@@ -0,0 +1,35 @@
++package com.sermilion.kmpcomposestarter
++
++import androidx.compose.runtime.Composable
++import androidx.compose.runtime.CompositionLocalProvider
++import com.sermilion.kmpcomposestarter.common.di.LocalScreenComponentFactory
++import com.sermilion.kmpcomposestarter.common.di.LocalViewModelFactory
++import com.sermilion.kmpcomposestarter.core.designsystem.theme.StarterTheme
++import com.sermilion.kmpcomposestarter.core.ui.di.LocalUserComponentManager
++import com.sermilion.kmpcomposestarter.core.ui.di.ProvideScreenComponentFactory
++import com.sermilion.kmpcomposestarter.di.AppComponent
++import com.sermilion.kmpcomposestarter.ui.rememberStarterAppState
++
++/** The single host wiring block. Android, iOS and desktop all render through this. */
++@Composable
++fun StarterRoot(component: AppComponent) {
++  CompositionLocalProvider(
++    LocalViewModelFactory provides component.viewModelFactory,
++    LocalUserComponentManager provides component.userComponentManager,
++  ) {
++    ProvideScreenComponentFactory {
++      StarterTheme {
++        val screenComponentFactory = LocalScreenComponentFactory.current
++        val appState = rememberStarterAppState(
++          userComponentManager = component.userComponentManager,
++          screenComponentFactory = screenComponentFactory,
++        )
++        StarterApp(
++          appState = appState,
++          isLoggedIn = appState.isAuthenticated,
++          screenComponentFactory = screenComponentFactory,
++        )
++      }
++    }
++  }
++}
+diff --git a/composeApp/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/di/AppComponent.kt b/composeApp/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/di/AppComponent.kt
+new file mode 100644
+index 0000000..75c86f9
+--- /dev/null
++++ b/composeApp/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/di/AppComponent.kt
+@@ -0,0 +1,15 @@
++package com.sermilion.kmpcomposestarter.di
++
++import com.sermilion.kmpcomposestarter.common.di.StarterViewModelFactory
++import com.sermilion.kmpcomposestarter.core.domain.di.UserComponentManager
++
++/**
++ * What the UI needs from the DI graph, independent of which platform built it.
++ *
++ * Every platform creates its graph once per process and hands it to `StarterRoot`, so no host
++ * duplicates the wiring and no graph is ever built inside composition.
++ */
++interface AppComponent {
++  val userComponentManager: UserComponentManager
++  val viewModelFactory: StarterViewModelFactory
++}
+diff --git a/composeApp/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/di/AppScopedViewModelModule.kt b/composeApp/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/di/AppScopedViewModelModule.kt
+deleted file mode 100644
+index e958042..0000000
+--- a/composeApp/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/di/AppScopedViewModelModule.kt
++++ /dev/null
+@@ -1,32 +0,0 @@
+-package com.sermilion.kmpcomposestarter.di
+-
+-import androidx.lifecycle.ViewModel
+-import com.sermilion.kmpcomposestarter.common.di.AssistedArgs
+-import com.sermilion.kmpcomposestarter.common.di.ViewModelEntry
+-import com.sermilion.kmpcomposestarter.feature.auth.viewmodel.LoginViewModel
+-import com.sermilion.kmpcomposestarter.feature.auth.viewmodel.RegisterViewModel
+-import me.tatarka.inject.annotations.IntoSet
+-import me.tatarka.inject.annotations.Provides
+-import software.amazon.lastmile.kotlin.inject.anvil.AppScope
+-import software.amazon.lastmile.kotlin.inject.anvil.ContributesTo
+-import kotlin.reflect.KClass
+-
+-@ContributesTo(AppScope::class)
+-interface AppScopedViewModelModule {
+-
+-  @Provides
+-  @IntoSet
+-  fun provideLoginViewModelEntry(factory: () -> LoginViewModel): ViewModelEntry =
+-    object : ViewModelEntry {
+-      override val kclass: KClass<out ViewModel> = LoginViewModel::class
+-      override fun create(args: AssistedArgs): ViewModel = factory()
+-    }
+-
+-  @Provides
+-  @IntoSet
+-  fun provideRegisterViewModelEntry(factory: () -> RegisterViewModel): ViewModelEntry =
+-    object : ViewModelEntry {
+-      override val kclass: KClass<out ViewModel> = RegisterViewModel::class
+-      override fun create(args: AssistedArgs): ViewModel = factory()
+-    }
+-}
+diff --git a/composeApp/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/ui/StarterAppState.kt b/composeApp/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/ui/StarterAppState.kt
+index 027c058..6d5daec 100644
+--- a/composeApp/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/ui/StarterAppState.kt
++++ b/composeApp/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/ui/StarterAppState.kt
+@@ -9,6 +9,7 @@ import androidx.compose.runtime.collectAsState
+ import androidx.compose.runtime.getValue
+ import androidx.compose.runtime.mutableStateOf
+ import androidx.compose.runtime.remember
++import com.sermilion.kmpcomposestarter.common.di.ScreenComponentProvider
+ import com.sermilion.kmpcomposestarter.common.navigation.Route
+ import com.sermilion.kmpcomposestarter.core.domain.di.UserComponentManager
+ import com.sermilion.kmpcomposestarter.navigation.StarterNavigationState
+@@ -18,8 +19,7 @@ import com.sermilion.kmpcomposestarter.navigation.TopLevelTab
+ @Composable
+ fun rememberStarterAppState(
+   userComponentManager: UserComponentManager,
+-  screenComponentFactory:
+-  (() -> com.sermilion.kmpcomposestarter.common.di.ScreenComponentProvider)?,
++  screenComponentFactory: (() -> ScreenComponentProvider)?,
+ ): StarterAppState {
+   val userComponent by userComponentManager.userComponentFlow.collectAsState()
+   val isLoggedIn = userComponent != null
+diff --git a/composeApp/src/iosMain/kotlin/com/sermilion/kmpcomposestarter/IosApplicationComponent.kt b/composeApp/src/iosMain/kotlin/com/sermilion/kmpcomposestarter/IosApplicationComponent.kt
+index fed7dce..7e62ba3 100644
+--- a/composeApp/src/iosMain/kotlin/com/sermilion/kmpcomposestarter/IosApplicationComponent.kt
++++ b/composeApp/src/iosMain/kotlin/com/sermilion/kmpcomposestarter/IosApplicationComponent.kt
+@@ -1,32 +1,26 @@
+ package com.sermilion.kmpcomposestarter
+ 
+-import androidx.lifecycle.ViewModel
+ import com.sermilion.kmpcomposestarter.common.di.StarterViewModelFactory
+-import com.sermilion.kmpcomposestarter.common.di.ViewModelFactory
+-import com.sermilion.kmpcomposestarter.common.di.ViewModelProvider
+ import com.sermilion.kmpcomposestarter.core.data.di.UserComponent
+-import com.sermilion.kmpcomposestarter.core.data.repository.AuthRepository
+ import com.sermilion.kmpcomposestarter.core.domain.di.UserComponentManager
++import com.sermilion.kmpcomposestarter.core.domain.repository.AuthRepository
++import com.sermilion.kmpcomposestarter.di.AppComponent
+ import software.amazon.lastmile.kotlin.inject.anvil.AppScope
+ import software.amazon.lastmile.kotlin.inject.anvil.MergeComponent
+ import software.amazon.lastmile.kotlin.inject.anvil.SingleIn
+-import kotlin.reflect.KClass
+ 
+ @MergeComponent(AppScope::class)
+ @SingleIn(AppScope::class)
+-abstract class IosApplicationComponent : ViewModelProvider {
++abstract class IosApplicationComponent : AppComponent {
++
++  abstract override val userComponentManager: UserComponentManager
++  abstract override val viewModelFactory: StarterViewModelFactory
+ 
+   abstract val userComponentFactory: UserComponent.Factory
+-  abstract val userComponentManager: UserComponentManager
+   abstract val authRepository: AuthRepository
+-
+-  val viewModelFactory: ViewModelFactory
+-    get() = viewModelFactoryImpl
+-
+-  abstract val viewModelFactoryImpl: StarterViewModelFactory
+-
+-  override fun <T : ViewModel> provide(viewModelClass: KClass<T>): T =
+-    viewModelFactory.create(viewModelClass)
+ }
+ 
+ expect fun createIosComponent(): IosApplicationComponent
++
++/** Process-level graph, created once and outside composition. */
++val iosAppComponent: IosApplicationComponent by lazy { createIosComponent() }
+diff --git a/composeApp/src/iosMain/kotlin/com/sermilion/kmpcomposestarter/MainViewController.kt b/composeApp/src/iosMain/kotlin/com/sermilion/kmpcomposestarter/MainViewController.kt
+index ddee2aa..0cea06c 100644
+--- a/composeApp/src/iosMain/kotlin/com/sermilion/kmpcomposestarter/MainViewController.kt
++++ b/composeApp/src/iosMain/kotlin/com/sermilion/kmpcomposestarter/MainViewController.kt
+@@ -1,36 +1,8 @@
+ package com.sermilion.kmpcomposestarter
+ 
+-import androidx.compose.runtime.CompositionLocalProvider
+-import androidx.compose.runtime.remember
+ import androidx.compose.ui.window.ComposeUIViewController
+-import com.sermilion.kmpcomposestarter.common.di.LocalScreenComponentFactory
+-import com.sermilion.kmpcomposestarter.common.di.LocalViewModelProvider
+-import com.sermilion.kmpcomposestarter.core.designsystem.theme.StarterTheme
+-import com.sermilion.kmpcomposestarter.core.ui.di.LocalUserComponentManager
+-import com.sermilion.kmpcomposestarter.core.ui.di.ProvideScreenComponentFactory
+-import com.sermilion.kmpcomposestarter.ui.rememberStarterAppState
+ 
+ @Suppress("FunctionName")
+ fun MainViewController() = ComposeUIViewController {
+-  val component = remember { createIosComponent() }
+-
+-  CompositionLocalProvider(
+-    LocalViewModelProvider provides component,
+-    LocalUserComponentManager provides component.userComponentManager,
+-  ) {
+-    ProvideScreenComponentFactory {
+-      StarterTheme {
+-        val screenComponentFactory = LocalScreenComponentFactory.current
+-        val appState = rememberStarterAppState(
+-          userComponentManager = component.userComponentManager,
+-          screenComponentFactory = screenComponentFactory,
+-        )
+-        StarterApp(
+-          appState = appState,
+-          isLoggedIn = appState.isAuthenticated,
+-          screenComponentFactory = screenComponentFactory,
+-        )
+-      }
+-    }
+-  }
++  StarterRoot(iosAppComponent)
+ }
+diff --git a/composeApp/src/iosSimulatorArm64Main/kotlin/com/sermilion/kmpcomposestarter/IosComponentFactory.kt b/composeApp/src/iosSimulatorArm64Main/kotlin/com/sermilion/kmpcomposestarter/IosComponentFactory.kt
+deleted file mode 100644
+index 8abb16a..0000000
+--- a/composeApp/src/iosSimulatorArm64Main/kotlin/com/sermilion/kmpcomposestarter/IosComponentFactory.kt
++++ /dev/null
+@@ -1,3 +0,0 @@
+-package com.sermilion.kmpcomposestarter
+-
+-actual fun createIosComponent(): IosApplicationComponent = IosApplicationComponent::class.create()
+diff --git a/composeApp/src/iosArm64Main/kotlin/com/sermilion/kmpcomposestarter/IosComponentFactory.kt b/composeApp/src/iosTargetMain/kotlin/com/sermilion/kmpcomposestarter/IosComponentFactory.kt
+similarity index 100%
+rename from composeApp/src/iosArm64Main/kotlin/com/sermilion/kmpcomposestarter/IosComponentFactory.kt
+rename to composeApp/src/iosTargetMain/kotlin/com/sermilion/kmpcomposestarter/IosComponentFactory.kt
+diff --git a/composeApp/src/jvmMain/kotlin/com/sermilion/kmpcomposestarter/JvmApplicationComponent.kt b/composeApp/src/jvmMain/kotlin/com/sermilion/kmpcomposestarter/JvmApplicationComponent.kt
+index 37a1cba..458db02 100644
+--- a/composeApp/src/jvmMain/kotlin/com/sermilion/kmpcomposestarter/JvmApplicationComponent.kt
++++ b/composeApp/src/jvmMain/kotlin/com/sermilion/kmpcomposestarter/JvmApplicationComponent.kt
+@@ -1,32 +1,26 @@
+ package com.sermilion.kmpcomposestarter
+ 
+-import androidx.lifecycle.ViewModel
+ import com.sermilion.kmpcomposestarter.common.di.StarterViewModelFactory
+-import com.sermilion.kmpcomposestarter.common.di.ViewModelFactory
+-import com.sermilion.kmpcomposestarter.common.di.ViewModelProvider
+ import com.sermilion.kmpcomposestarter.core.data.di.UserComponent
+-import com.sermilion.kmpcomposestarter.core.data.repository.AuthRepository
+ import com.sermilion.kmpcomposestarter.core.domain.di.UserComponentManager
++import com.sermilion.kmpcomposestarter.core.domain.repository.AuthRepository
++import com.sermilion.kmpcomposestarter.di.AppComponent
+ import software.amazon.lastmile.kotlin.inject.anvil.AppScope
+ import software.amazon.lastmile.kotlin.inject.anvil.MergeComponent
+ import software.amazon.lastmile.kotlin.inject.anvil.SingleIn
+-import kotlin.reflect.KClass
+ 
+ @MergeComponent(AppScope::class)
+ @SingleIn(AppScope::class)
+-abstract class JvmApplicationComponent : ViewModelProvider {
++abstract class JvmApplicationComponent : AppComponent {
++
++  abstract override val userComponentManager: UserComponentManager
++  abstract override val viewModelFactory: StarterViewModelFactory
+ 
+   abstract val userComponentFactory: UserComponent.Factory
+-  abstract val userComponentManager: UserComponentManager
+   abstract val authRepository: AuthRepository
+-
+-  val viewModelFactory: ViewModelFactory
+-    get() = viewModelFactoryImpl
+-
+-  abstract val viewModelFactoryImpl: StarterViewModelFactory
+-
+-  override fun <T : ViewModel> provide(viewModelClass: KClass<T>): T =
+-    viewModelFactory.create(viewModelClass)
+ }
+ 
+-fun createJvmComponent(): JvmApplicationComponent = JvmApplicationComponent::class.create()
++/** Process-level graph, created once and outside composition. */
++object JvmAppComponentHolder {
++  val component: JvmApplicationComponent by lazy { JvmApplicationComponent::class.create() }
++}
+diff --git a/composeApp/src/jvmMain/kotlin/com/sermilion/kmpcomposestarter/Main.kt b/composeApp/src/jvmMain/kotlin/com/sermilion/kmpcomposestarter/Main.kt
+index f62cdf0..12a06b5 100644
+--- a/composeApp/src/jvmMain/kotlin/com/sermilion/kmpcomposestarter/Main.kt
++++ b/composeApp/src/jvmMain/kotlin/com/sermilion/kmpcomposestarter/Main.kt
+@@ -1,41 +1,13 @@
+ package com.sermilion.kmpcomposestarter
+ 
+-import androidx.compose.runtime.CompositionLocalProvider
+-import androidx.compose.runtime.remember
+ import androidx.compose.ui.window.Window
+ import androidx.compose.ui.window.application
+-import com.sermilion.kmpcomposestarter.common.di.LocalScreenComponentFactory
+-import com.sermilion.kmpcomposestarter.common.di.LocalViewModelProvider
+-import com.sermilion.kmpcomposestarter.core.designsystem.theme.StarterTheme
+-import com.sermilion.kmpcomposestarter.core.ui.di.LocalUserComponentManager
+-import com.sermilion.kmpcomposestarter.core.ui.di.ProvideScreenComponentFactory
+-import com.sermilion.kmpcomposestarter.ui.rememberStarterAppState
+ 
+ fun main() = application {
+-  val component = remember { createJvmComponent() }
+-
+   Window(
+     onCloseRequest = ::exitApplication,
+     title = "KMP Compose Starter",
+   ) {
+-    CompositionLocalProvider(
+-      LocalViewModelProvider provides component,
+-      LocalUserComponentManager provides component.userComponentManager,
+-    ) {
+-      ProvideScreenComponentFactory {
+-        StarterTheme {
+-          val screenComponentFactory = LocalScreenComponentFactory.current
+-          val appState = rememberStarterAppState(
+-            userComponentManager = component.userComponentManager,
+-            screenComponentFactory = screenComponentFactory,
+-          )
+-          StarterApp(
+-            appState = appState,
+-            isLoggedIn = appState.isAuthenticated,
+-            screenComponentFactory = screenComponentFactory,
+-          )
+-        }
+-      }
+-    }
++    StarterRoot(JvmAppComponentHolder.component)
+   }
+ }
+diff --git a/composeApp/src/jvmTest/kotlin/com/sermilion/kmpcomposestarter/JvmAppComponentHolderTest.kt b/composeApp/src/jvmTest/kotlin/com/sermilion/kmpcomposestarter/JvmAppComponentHolderTest.kt
+new file mode 100644
+index 0000000..65596c4
+--- /dev/null
++++ b/composeApp/src/jvmTest/kotlin/com/sermilion/kmpcomposestarter/JvmAppComponentHolderTest.kt
+@@ -0,0 +1,32 @@
++package com.sermilion.kmpcomposestarter
++
++import io.kotest.core.spec.style.FunSpec
++import io.kotest.matchers.shouldBe
++import kotlinx.coroutines.Dispatchers
++import kotlinx.coroutines.async
++import kotlinx.coroutines.awaitAll
++import kotlinx.coroutines.runBlocking
++import java.util.concurrent.CyclicBarrier
++
++class JvmAppComponentHolderTest :
++  FunSpec({
++
++    test("the DI graph is built once per process, even under concurrent access") {
++      val accessorCount = 8
++      val barrier = CyclicBarrier(accessorCount)
++
++      val components = runBlocking {
++        (0 until accessorCount)
++          .map {
++            async(Dispatchers.Default) {
++              barrier.await()
++              JvmAppComponentHolder.component
++            }
++          }
++          .awaitAll()
++      }
++
++      components.distinct().size shouldBe 1
++      JvmAppComponentHolder.component shouldBe components.first()
++    }
++  })
+diff --git a/core/common/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/common/di/AppScopeModule.kt b/core/common/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/common/di/AppScopeModule.kt
+index 4f71cc8..933d924 100644
+--- a/core/common/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/common/di/AppScopeModule.kt
++++ b/core/common/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/common/di/AppScopeModule.kt
+@@ -1,7 +1,9 @@
+ package com.sermilion.kmpcomposestarter.common.di
+ 
++import co.touchlab.kermit.Logger
+ import com.sermilion.kmpcomposestarter.common.coroutines.DispatcherProvider
+ import com.sermilion.kmpcomposestarter.common.coroutines.KmpDispatcherProvider
++import kotlinx.coroutines.CoroutineExceptionHandler
+ import kotlinx.coroutines.CoroutineScope
+ import kotlinx.coroutines.SupervisorJob
+ import me.tatarka.inject.annotations.Provides
+@@ -18,6 +20,19 @@ interface AppScopeModule {
+ 
+   @Provides
+   @SingleIn(AppScope::class)
+-  fun provideAppCoroutineScope(dispatcherProvider: DispatcherProvider): CoroutineScope =
+-    CoroutineScope(SupervisorJob() + dispatcherProvider.default)
++  fun provideUnhandledErrorReporter(): UnhandledErrorReporter =
++    UnhandledErrorReporter { throwable ->
++      Logger.e("AppCoroutineScope", throwable) { "Unhandled exception in app-scoped coroutine" }
++    }
++
++  @Provides
++  @SingleIn(AppScope::class)
++  fun provideAppCoroutineScope(
++    dispatcherProvider: DispatcherProvider,
++    reporter: UnhandledErrorReporter,
++  ): CoroutineScope = CoroutineScope(
++    SupervisorJob() +
++      dispatcherProvider.default +
++      CoroutineExceptionHandler { _, throwable -> reporter.report(throwable) },
++  )
+ }
+diff --git a/core/common/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/common/di/CompositionLocals.kt b/core/common/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/common/di/CompositionLocals.kt
+index 7fdc812..740a325 100644
+--- a/core/common/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/common/di/CompositionLocals.kt
++++ b/core/common/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/common/di/CompositionLocals.kt
+@@ -1,15 +1,18 @@
+ package com.sermilion.kmpcomposestarter.common.di
+ 
+ import androidx.compose.runtime.staticCompositionLocalOf
++import androidx.lifecycle.ViewModelProvider
+ 
+-val LocalViewModelProvider = staticCompositionLocalOf<ViewModelProvider> {
+-  error("ViewModelProvider not provided")
++/** Factory for ViewModels that must resolve before a user session exists (login, register). */
++val LocalViewModelFactory = staticCompositionLocalOf<ViewModelProvider.Factory> {
++  error("ViewModel factory not provided")
+ }
+ 
++/** `null` until a user session exists; creates one screen component per nav entry. */
+ val LocalScreenComponentFactory = staticCompositionLocalOf<(() -> ScreenComponentProvider)?> {
+   null
+ }
+ 
+ interface ScreenComponentProvider {
+-  val diViewModelFactory: androidx.lifecycle.ViewModelProvider.Factory
++  val viewModelFactory: ViewModelProvider.Factory
+ }
+diff --git a/core/common/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/common/di/ContributesViewModel.kt b/core/common/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/common/di/ContributesViewModel.kt
+new file mode 100644
+index 0000000..a3ed0ef
+--- /dev/null
++++ b/core/common/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/common/di/ContributesViewModel.kt
+@@ -0,0 +1,14 @@
++package com.sermilion.kmpcomposestarter.common.di
++
++import kotlin.reflect.KClass
++
++/**
++ * Registers the annotated `androidx.lifecycle.ViewModel` in [scope].
++ *
++ * The KSP processor generates one [ViewModelEntry] multibinding per annotated class, so no
++ * hand-written registration module is required. [scope] must be `AppScope`, [UserScope] or
++ * [ScreenScope]; any other scope fails the build.
++ */
++@Target(AnnotationTarget.CLASS)
++@Retention(AnnotationRetention.BINARY)
++annotation class ContributesViewModel(val scope: KClass<*>)
+diff --git a/core/common/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/common/di/StarterViewModelFactory.kt b/core/common/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/common/di/StarterViewModelFactory.kt
+index edb1b33..e3ca27a 100644
+--- a/core/common/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/common/di/StarterViewModelFactory.kt
++++ b/core/common/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/common/di/StarterViewModelFactory.kt
+@@ -1,38 +1,49 @@
+ package com.sermilion.kmpcomposestarter.common.di
+ 
++import androidx.lifecycle.SavedStateHandle
+ import androidx.lifecycle.ViewModel
+-import co.touchlab.kermit.Logger
+-import me.tatarka.inject.annotations.Inject
+-import software.amazon.lastmile.kotlin.inject.anvil.AppScope
+-import software.amazon.lastmile.kotlin.inject.anvil.SingleIn
++import androidx.lifecycle.ViewModelProvider
++import androidx.lifecycle.createSavedStateHandle
++import androidx.lifecycle.viewmodel.CreationExtras
+ import kotlin.reflect.KClass
+ 
+-@Inject
+-@SingleIn(AppScope::class)
+-class StarterViewModelFactory(private val entries: Set<ViewModelEntry>) :
+-  ViewModelFactory,
+-  ViewModelProvider {
++/**
++ * The single ViewModel factory in the app. One instance exists per DI scope; the scope decides
++ * which [ViewModelEntry] multibindings are visible, so the same class serves the app scope
++ * (pre-auth screens) and every screen scope.
++ */
++class StarterViewModelFactory(entries: Set<ViewModelEntry>) : ViewModelProvider.Factory {
+ 
+-  @Suppress("UNCHECKED_CAST")
+-  override fun <T : ViewModel> create(viewModelClass: KClass<T>): T {
+-    val entry = entries.firstOrNull { it.kclass == viewModelClass }
+-      ?: run {
+-        val availableViewModels = entries.joinToString { it.kclass.simpleName.orEmpty() }
+-        Logger.e(TAG) {
+-          "ViewModel not found: ${viewModelClass.simpleName}. Available: $availableViewModels"
+-        }
+-        throw IllegalArgumentException(
+-          "ViewModel ${viewModelClass.simpleName} not found. " +
+-            "Did you forget to add @Inject annotation? " +
+-            "Available: $availableViewModels",
+-        )
++  private val entriesByClass: Map<KClass<out ViewModel>, ViewModelEntry> =
++    entries.associateBy { it.kclass }.also { byClass ->
++      require(byClass.size == entries.size) {
++        val duplicates = entries
++          .groupBy { it.kclass }
++          .filterValues { it.size > 1 }
++          .keys
++          .joinToString { it.simpleName.orEmpty() }
++        "Duplicate ViewModel registrations for: $duplicates"
+       }
+-    return entry.create(EmptyAssistedArgs) as T
++    }
++
++  @Suppress("UNCHECKED_CAST")
++  override fun <T : ViewModel> create(modelClass: KClass<T>, extras: CreationExtras): T {
++    val entry = entriesByClass[modelClass] ?: error(
++      "ViewModel ${modelClass.simpleName} is not registered. Annotate it with " +
++        "@ContributesViewModel. Registered: " +
++        entriesByClass.keys.joinToString { it.simpleName.orEmpty() },
++    )
++    return entry.create(assistedArgsFor(entry, extras)) as T
+   }
+ 
+-  override fun <T : ViewModel> provide(viewModelClass: KClass<T>): T = create(viewModelClass)
++  private fun assistedArgsFor(entry: ViewModelEntry, extras: CreationExtras): AssistedArgs {
++    val args = extras[AssistedArgsKey] ?: EmptyAssistedArgs
++    val handleArgName = entry.savedStateHandleArgName ?: return args
++    val savedStateHandle: SavedStateHandle = extras.createSavedStateHandle()
++    return args.withArg(handleArgName, savedStateHandle)
++  }
+ 
+-  private companion object {
+-    const val TAG = "StarterViewModelFactory"
++  companion object {
++    val AssistedArgsKey = object : CreationExtras.Key<AssistedArgs> {}
+   }
+ }
+diff --git a/core/common/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/common/di/UnhandledErrorReporter.kt b/core/common/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/common/di/UnhandledErrorReporter.kt
+new file mode 100644
+index 0000000..56eee2b
+--- /dev/null
++++ b/core/common/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/common/di/UnhandledErrorReporter.kt
+@@ -0,0 +1,6 @@
++package com.sermilion.kmpcomposestarter.common.di
++
++/** Receives failures that escape an app-scoped coroutine instead of reaching the platform. */
++fun interface UnhandledErrorReporter {
++  fun report(throwable: Throwable)
++}
+diff --git a/core/common/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/common/di/ViewModelEntry.kt b/core/common/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/common/di/ViewModelEntry.kt
+index 46ca1c0..3a5afc3 100644
+--- a/core/common/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/common/di/ViewModelEntry.kt
++++ b/core/common/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/common/di/ViewModelEntry.kt
+@@ -5,6 +5,14 @@ import kotlin.reflect.KClass
+ 
+ interface ViewModelEntry {
+   val kclass: KClass<out ViewModel>
++
++  /**
++   * Constructor parameter name of the ViewModel's `SavedStateHandle`, or `null` when it does not
++   * take one. The factory uses this to publish the handle under the very key the generated lookup
++   * reads, instead of guessing a conventional parameter name.
++   */
++  val savedStateHandleArgName: String?
++
+   fun create(args: AssistedArgs): ViewModel
+ }
+ 
+@@ -20,3 +28,12 @@ fun mapToAssistedArgs(map: Map<String, Any?>): AssistedArgs = object : AssistedA
+   @Suppress("UNCHECKED_CAST")
+   override fun <T> get(name: String): T? = map[name] as T?
+ }
++
++/** Returns [AssistedArgs] that resolves [key] to [value] and delegates every other name. */
++fun AssistedArgs.withArg(key: String, value: Any?): AssistedArgs {
++  val delegate = this
++  return object : AssistedArgs {
++    @Suppress("UNCHECKED_CAST")
++    override fun <T> get(name: String): T? = if (name == key) value as T? else delegate[name]
++  }
++}
+diff --git a/core/common/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/common/di/ViewModelFactory.kt b/core/common/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/common/di/ViewModelFactory.kt
+deleted file mode 100644
+index 3af5754..0000000
+--- a/core/common/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/common/di/ViewModelFactory.kt
++++ /dev/null
+@@ -1,12 +0,0 @@
+-package com.sermilion.kmpcomposestarter.common.di
+-
+-import androidx.lifecycle.ViewModel
+-import kotlin.reflect.KClass
+-
+-interface ViewModelFactory {
+-  fun <T : ViewModel> create(viewModelClass: KClass<T>): T
+-}
+-
+-interface ViewModelProvider {
+-  fun <T : ViewModel> provide(viewModelClass: KClass<T>): T
+-}
+diff --git a/core/common/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/common/di/ViewModelFactoryModules.kt b/core/common/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/common/di/ViewModelFactoryModules.kt
+new file mode 100644
+index 0000000..3eb2822
+--- /dev/null
++++ b/core/common/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/common/di/ViewModelFactoryModules.kt
+@@ -0,0 +1,24 @@
++package com.sermilion.kmpcomposestarter.common.di
++
++import me.tatarka.inject.annotations.Provides
++import software.amazon.lastmile.kotlin.inject.anvil.AppScope
++import software.amazon.lastmile.kotlin.inject.anvil.ContributesTo
++import software.amazon.lastmile.kotlin.inject.anvil.SingleIn
++
++@ContributesTo(AppScope::class)
++interface AppViewModelFactoryModule {
++
++  @Provides
++  @SingleIn(AppScope::class)
++  fun provideAppViewModelFactory(entries: Set<ViewModelEntry>): StarterViewModelFactory =
++    StarterViewModelFactory(entries)
++}
++
++@ContributesTo(ScreenScope::class)
++interface ScreenViewModelFactoryModule {
++
++  @Provides
++  @SingleIn(ScreenScope::class)
++  fun provideScreenViewModelFactory(entries: Set<ViewModelEntry>): StarterViewModelFactory =
++    StarterViewModelFactory(entries)
++}
+diff --git a/core/common/src/jvmTest/kotlin/com/sermilion/kmpcomposestarter/common/di/AppScopeModuleTest.kt b/core/common/src/jvmTest/kotlin/com/sermilion/kmpcomposestarter/common/di/AppScopeModuleTest.kt
+new file mode 100644
+index 0000000..2d347c3
+--- /dev/null
++++ b/core/common/src/jvmTest/kotlin/com/sermilion/kmpcomposestarter/common/di/AppScopeModuleTest.kt
+@@ -0,0 +1,41 @@
++package com.sermilion.kmpcomposestarter.common.di
++
++import com.sermilion.kmpcomposestarter.common.coroutines.DispatcherProvider
++import io.kotest.core.spec.style.FunSpec
++import io.kotest.matchers.shouldBe
++import kotlinx.coroutines.CoroutineDispatcher
++import kotlinx.coroutines.CoroutineScope
++import kotlinx.coroutines.ExperimentalCoroutinesApi
++import kotlinx.coroutines.launch
++import kotlinx.coroutines.test.UnconfinedTestDispatcher
++import kotlinx.coroutines.test.runTest
++
++private class SingleDispatcherProvider(dispatcher: CoroutineDispatcher) : DispatcherProvider {
++  override val io: CoroutineDispatcher = dispatcher
++  override val main: CoroutineDispatcher = dispatcher
++  override val default: CoroutineDispatcher = dispatcher
++}
++
++@OptIn(ExperimentalCoroutinesApi::class)
++class AppScopeModuleTest :
++  FunSpec({
++
++    test("a failure in an app-scoped coroutine reaches the reporter and spares the scope") {
++      runTest {
++        val reported = mutableListOf<Throwable>()
++        val module = object : AppScopeModule {}
++        val scope: CoroutineScope = module.provideAppCoroutineScope(
++          dispatcherProvider = SingleDispatcherProvider(UnconfinedTestDispatcher(testScheduler)),
++          reporter = { throwable -> reported += throwable },
++        )
++
++        scope.launch { throw IllegalStateException("background work blew up") }
++
++        reported.map { it.message } shouldBe listOf("background work blew up")
++
++        var survived = false
++        scope.launch { survived = true }
++        survived shouldBe true
++      }
++    }
++  })
+diff --git a/core/common/src/jvmTest/kotlin/com/sermilion/kmpcomposestarter/common/di/StarterViewModelFactoryTest.kt b/core/common/src/jvmTest/kotlin/com/sermilion/kmpcomposestarter/common/di/StarterViewModelFactoryTest.kt
+new file mode 100644
+index 0000000..fa9b2ef
+--- /dev/null
++++ b/core/common/src/jvmTest/kotlin/com/sermilion/kmpcomposestarter/common/di/StarterViewModelFactoryTest.kt
+@@ -0,0 +1,63 @@
++package com.sermilion.kmpcomposestarter.common.di
++
++import androidx.lifecycle.ViewModel
++import androidx.lifecycle.viewmodel.CreationExtras
++import androidx.lifecycle.viewmodel.MutableCreationExtras
++import io.kotest.assertions.throwables.shouldThrowAny
++import io.kotest.core.spec.style.FunSpec
++import io.kotest.matchers.shouldBe
++import io.kotest.matchers.string.shouldContain
++import kotlin.reflect.KClass
++
++private class SampleViewModel(val label: String = "") : ViewModel()
++
++private class OtherViewModel : ViewModel()
++
++private class SampleEntry(private val build: (AssistedArgs) -> ViewModel) : ViewModelEntry {
++  override val kclass: KClass<out ViewModel> = SampleViewModel::class
++  override val savedStateHandleArgName: String? = null
++  override fun create(args: AssistedArgs): ViewModel = build(args)
++}
++
++class StarterViewModelFactoryTest :
++  FunSpec({
++
++    test("a duplicate registration fails loudly and names the shadowed ViewModel") {
++      val failure = shouldThrowAny {
++        StarterViewModelFactory(
++          setOf(
++            SampleEntry { SampleViewModel() },
++            SampleEntry { SampleViewModel() },
++          ),
++        )
++      }
++
++      failure.message.orEmpty() shouldContain "SampleViewModel"
++    }
++
++    test("requesting an unregistered ViewModel fails loudly instead of returning null") {
++      val factory = StarterViewModelFactory(setOf(SampleEntry { SampleViewModel() }))
++
++      val failure = shouldThrowAny {
++        factory.create(OtherViewModel::class, CreationExtras.Empty)
++      }
++
++      failure.message.orEmpty() shouldContain "OtherViewModel"
++    }
++
++    test("assisted args reach the entry under the constructor parameter name") {
++      val factory = StarterViewModelFactory(
++        setOf(SampleEntry { args -> SampleViewModel(args["label"] ?: "missing") }),
++      )
++      val extras = MutableCreationExtras().apply {
++        set(
++          StarterViewModelFactory.AssistedArgsKey,
++          mapToAssistedArgs(mapOf("label" to "from-navigation")),
++        )
++      }
++
++      val viewModel = factory.create(SampleViewModel::class, extras)
++
++      viewModel.label shouldBe "from-navigation"
++    }
++  })
+diff --git a/core/data/build.gradle.kts b/core/data/build.gradle.kts
+index 4712853..473109f 100644
+--- a/core/data/build.gradle.kts
++++ b/core/data/build.gradle.kts
+@@ -39,7 +39,7 @@ kotlin {
+ 
+   sourceSets {
+     commonMain.dependencies {
+-      api(projects.core.domain)
++      implementation(projects.core.domain)
+       implementation(projects.core.common)
+       implementation(projects.core.datastore)
+ 
+@@ -48,7 +48,7 @@ kotlin {
+       implementation(libs.okio)
+       implementation(libs.kotlin.inject.runtime)
+ 
+-      api(libs.ktor.client.core)
++      implementation(libs.ktor.client.core)
+       implementation(libs.ktor.client.content.negotiation)
+       implementation(libs.ktor.client.serialization)
+       implementation(libs.ktor.client.auth)
+diff --git a/core/data/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/core/data/api/AuthApiService.kt b/core/data/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/core/data/api/AuthApiService.kt
+index bc88722..fa6bb12 100644
+--- a/core/data/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/core/data/api/AuthApiService.kt
++++ b/core/data/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/core/data/api/AuthApiService.kt
+@@ -1,5 +1,7 @@
+ package com.sermilion.kmpcomposestarter.core.data.api
+ 
++import com.sermilion.kmpcomposestarter.core.domain.auth.AuthToken
++import com.sermilion.kmpcomposestarter.core.domain.model.AuthError
+ import com.sermilion.kmpcomposestarter.core.domain.model.UserData
+ 
+ interface AuthApiService {
+@@ -9,6 +11,7 @@ interface AuthApiService {
+ }
+ 
+ sealed interface AuthResponse {
+-  data class Success(val userData: UserData) : AuthResponse
+-  data class Error(val message: String) : AuthResponse
++  data class Success(val userData: UserData, val token: AuthToken) : AuthResponse
++
++  data class Failure(val error: AuthError) : AuthResponse
+ }
+diff --git a/core/data/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/core/data/api/MockAuthApiService.kt b/core/data/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/core/data/api/MockAuthApiService.kt
+index 6c40b6e..a312831 100644
+--- a/core/data/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/core/data/api/MockAuthApiService.kt
++++ b/core/data/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/core/data/api/MockAuthApiService.kt
+@@ -1,6 +1,8 @@
+ package com.sermilion.kmpcomposestarter.core.data.api
+ 
+ import com.sermilion.kmpcomposestarter.core.data.config.MockConfig
++import com.sermilion.kmpcomposestarter.core.domain.auth.AuthToken
++import com.sermilion.kmpcomposestarter.core.domain.model.AuthError
+ import com.sermilion.kmpcomposestarter.core.domain.model.UserData
+ import kotlinx.coroutines.delay
+ import kotlinx.datetime.Clock
+@@ -22,11 +24,11 @@ class MockAuthApiService : AuthApiService {
+           id = MockConfig.DEMO_USER_ID,
+           email = email,
+           name = MockConfig.DEMO_USER_NAME,
+-          token = "mock-token-${Clock.System.now().toEpochMilliseconds()}",
+         ),
++        token = mockToken(),
+       )
+     } else {
+-      AuthResponse.Error("Invalid credentials")
++      AuthResponse.Failure(AuthError.InvalidCredentials)
+     }
+   }
+ 
+@@ -37,8 +39,8 @@ class MockAuthApiService : AuthApiService {
+         id = "user-${Clock.System.now().toEpochMilliseconds()}",
+         email = email,
+         name = name,
+-        token = "mock-token-${Clock.System.now().toEpochMilliseconds()}",
+       ),
++      token = mockToken(),
+     )
+   }
+ 
+@@ -46,6 +48,9 @@ class MockAuthApiService : AuthApiService {
+     delay(MOCK_LOGOUT_DELAY_MS)
+   }
+ 
++  private fun mockToken() =
++    AuthToken(accessToken = "mock-token-${Clock.System.now().toEpochMilliseconds()}")
++
+   private companion object {
+     const val MOCK_DELAY_MS = 1000L
+     const val MOCK_LOGOUT_DELAY_MS = 500L
+diff --git a/core/data/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/core/data/auth/InMemoryTokenStore.kt b/core/data/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/core/data/auth/InMemoryTokenStore.kt
+new file mode 100644
+index 0000000..c2c95d7
+--- /dev/null
++++ b/core/data/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/core/data/auth/InMemoryTokenStore.kt
+@@ -0,0 +1,31 @@
++package com.sermilion.kmpcomposestarter.core.data.auth
++
++import com.sermilion.kmpcomposestarter.core.domain.auth.AuthToken
++import com.sermilion.kmpcomposestarter.core.domain.auth.TokenStore
++import com.sermilion.kmpcomposestarter.core.domain.di.UserScopedCloseable
++import kotlinx.atomicfu.atomic
++
++/**
++ * Default [TokenStore] binding: keeps the session's token in memory only, so it disappears with
++ * the process and with the user component. Subtask 3 replaces this with DataStore-backed storage.
++ *
++ * shortcut: in-memory only, replace once sessions must survive process death
++ */
++class InMemoryTokenStore : TokenStore, UserScopedCloseable {
++
++  private val current = atomic<AuthToken?>(null)
++
++  override suspend fun get(): AuthToken? = current.value
++
++  override suspend fun save(token: AuthToken) {
++    current.value = token
++  }
++
++  override suspend fun clear() {
++    current.value = null
++  }
++
++  override fun close() {
++    current.value = null
++  }
++}
+diff --git a/core/data/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/core/data/config/MockConfig.kt b/core/data/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/core/data/config/MockConfig.kt
+index a1ca3a6..0b61bb3 100644
+--- a/core/data/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/core/data/config/MockConfig.kt
++++ b/core/data/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/core/data/config/MockConfig.kt
+@@ -5,4 +5,6 @@ object MockConfig {
+   const val DEMO_PASSWORD = "password"
+   const val DEMO_USER_ID = "user-123"
+   const val DEMO_USER_NAME = "Test User"
++  const val DEMO_NEW_EMAIL = "new@test.com"
++  const val DEMO_NEW_USER_NAME = "New User"
+ }
+diff --git a/core/data/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/core/data/di/DemoCredentialsModule.kt b/core/data/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/core/data/di/DemoCredentialsModule.kt
+new file mode 100644
+index 0000000..9031bcb
+--- /dev/null
++++ b/core/data/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/core/data/di/DemoCredentialsModule.kt
+@@ -0,0 +1,21 @@
++package com.sermilion.kmpcomposestarter.core.data.di
++
++import com.sermilion.kmpcomposestarter.core.data.config.MockConfig
++import com.sermilion.kmpcomposestarter.core.domain.model.DemoCredentials
++import me.tatarka.inject.annotations.Provides
++import software.amazon.lastmile.kotlin.inject.anvil.AppScope
++import software.amazon.lastmile.kotlin.inject.anvil.ContributesTo
++import software.amazon.lastmile.kotlin.inject.anvil.SingleIn
++
++@ContributesTo(AppScope::class)
++interface DemoCredentialsModule {
++
++  @Provides
++  @SingleIn(AppScope::class)
++  fun provideDemoCredentials(): DemoCredentials = DemoCredentials(
++    loginEmail = MockConfig.DEMO_EMAIL,
++    password = MockConfig.DEMO_PASSWORD,
++    newUserEmail = MockConfig.DEMO_NEW_EMAIL,
++    newUserName = MockConfig.DEMO_NEW_USER_NAME,
++  )
++}
+diff --git a/core/data/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/core/data/di/StarterUserComponentManager.kt b/core/data/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/core/data/di/StarterUserComponentManager.kt
+index ebf1a54..c6bd990 100644
+--- a/core/data/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/core/data/di/StarterUserComponentManager.kt
++++ b/core/data/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/core/data/di/StarterUserComponentManager.kt
+@@ -3,41 +3,56 @@ package com.sermilion.kmpcomposestarter.core.data.di
+ import com.sermilion.kmpcomposestarter.core.domain.di.UserComponentManager
+ import com.sermilion.kmpcomposestarter.core.domain.di.UserDependencies
+ import com.sermilion.kmpcomposestarter.core.domain.model.UserData
+-import kotlinx.atomicfu.atomic
++import kotlinx.coroutines.cancel
+ import kotlinx.coroutines.flow.MutableStateFlow
+ import kotlinx.coroutines.flow.StateFlow
+ import kotlinx.coroutines.flow.asStateFlow
++import kotlinx.coroutines.flow.getAndUpdate
+ import me.tatarka.inject.annotations.Inject
+ import software.amazon.lastmile.kotlin.inject.anvil.AppScope
+ import software.amazon.lastmile.kotlin.inject.anvil.ContributesBinding
+ import software.amazon.lastmile.kotlin.inject.anvil.SingleIn
+ 
++/**
++ * Owns the signed-in session. The [MutableStateFlow] is the only source of truth, and every
++ * transition goes through a compare-and-set, so exactly one caller ever observes a given component
++ * leaving the flow and is therefore the one that tears it down. That makes teardown exactly-once
++ * even when two logins race.
++ */
+ @Inject
+ @SingleIn(AppScope::class)
+ @ContributesBinding(AppScope::class)
+ class StarterUserComponentManager(private val userComponentFactory: UserComponent.Factory) :
+   UserComponentManager {
+ 
+-  private val _userComponent = atomic<UserComponent?>(null)
+-  private val _userComponentFlow = MutableStateFlow<UserDependencies?>(null)
++  private val state = MutableStateFlow<UserDependencies?>(null)
+ 
+   override val userComponent: UserDependencies?
+-    get() = _userComponent.value
++    get() = state.value
+ 
+-  override val userComponentFlow: StateFlow<UserDependencies?>
+-    get() = _userComponentFlow.asStateFlow()
++  override val userComponentFlow: StateFlow<UserDependencies?> = state.asStateFlow()
+ 
+-  override fun createComponent(userData: UserData) {
+-    val current = _userComponent.value
+-    if (current == null) {
+-      val component = userComponentFactory.create(userData)
+-      _userComponent.value = component
+-      _userComponentFlow.value = component
++  override fun createComponent(userData: UserData): UserDependencies {
++    while (true) {
++      val current = state.value
++      if (current != null && current.userData == userData) return current
++
++      val replacement = userComponentFactory.create(userData)
++      if (state.compareAndSet(current, replacement)) {
++        current?.let(::tearDown)
++        return replacement
++      }
++      // Lost the race: this component was never published, so closing it here cannot double-close.
++      tearDown(replacement)
+     }
+   }
+ 
+   override fun destroyComponent() {
+-    _userComponent.value = null
+-    _userComponentFlow.value = null
++    state.getAndUpdate { null }?.let(::tearDown)
++  }
++
++  private fun tearDown(dependencies: UserDependencies) {
++    dependencies.userSessionScope.cancel()
++    dependencies.userScopedCloseables.forEach { it.close() }
+   }
+ }
+diff --git a/core/data/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/core/data/di/UserComponent.kt b/core/data/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/core/data/di/UserComponent.kt
+index 35af5e6..6ba8cdb 100644
+--- a/core/data/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/core/data/di/UserComponent.kt
++++ b/core/data/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/core/data/di/UserComponent.kt
+@@ -1,8 +1,11 @@
+ package com.sermilion.kmpcomposestarter.core.data.di
+ 
+ import com.sermilion.kmpcomposestarter.common.di.UserScope
++import com.sermilion.kmpcomposestarter.core.domain.auth.TokenStore
+ import com.sermilion.kmpcomposestarter.core.domain.di.ScreenComponent
+ import com.sermilion.kmpcomposestarter.core.domain.di.UserDependencies
++import com.sermilion.kmpcomposestarter.core.domain.di.UserScopedCloseable
++import com.sermilion.kmpcomposestarter.core.domain.di.UserSessionScope
+ import com.sermilion.kmpcomposestarter.core.domain.model.UserData
+ import software.amazon.lastmile.kotlin.inject.anvil.AppScope
+ import software.amazon.lastmile.kotlin.inject.anvil.ContributesSubcomponent
+@@ -13,6 +16,9 @@ import software.amazon.lastmile.kotlin.inject.anvil.SingleIn
+ interface UserComponent : UserDependencies {
+ 
+   override val userData: UserData
++  override val tokenStore: TokenStore
++  override val userSessionScope: UserSessionScope
++  override val userScopedCloseables: Set<UserScopedCloseable>
+   override val screenComponentFactory: ScreenComponent.Factory
+ 
+   @ContributesSubcomponent.Factory(AppScope::class)
+diff --git a/core/data/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/core/data/di/UserScopeModule.kt b/core/data/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/core/data/di/UserScopeModule.kt
+new file mode 100644
+index 0000000..e008fb7
+--- /dev/null
++++ b/core/data/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/core/data/di/UserScopeModule.kt
+@@ -0,0 +1,34 @@
++package com.sermilion.kmpcomposestarter.core.data.di
++
++import com.sermilion.kmpcomposestarter.common.coroutines.DispatcherProvider
++import com.sermilion.kmpcomposestarter.common.di.UserScope
++import com.sermilion.kmpcomposestarter.core.data.auth.InMemoryTokenStore
++import com.sermilion.kmpcomposestarter.core.domain.auth.TokenStore
++import com.sermilion.kmpcomposestarter.core.domain.di.UserScopedCloseable
++import com.sermilion.kmpcomposestarter.core.domain.di.UserSessionScope
++import kotlinx.coroutines.CoroutineScope
++import kotlinx.coroutines.SupervisorJob
++import me.tatarka.inject.annotations.IntoSet
++import me.tatarka.inject.annotations.Provides
++import software.amazon.lastmile.kotlin.inject.anvil.ContributesTo
++import software.amazon.lastmile.kotlin.inject.anvil.SingleIn
++
++@ContributesTo(UserScope::class)
++interface UserScopeModule {
++
++  @Provides
++  @SingleIn(UserScope::class)
++  fun provideUserSessionScope(dispatcherProvider: DispatcherProvider): UserSessionScope =
++    UserSessionScope(CoroutineScope(SupervisorJob() + dispatcherProvider.default))
++
++  @Provides
++  @SingleIn(UserScope::class)
++  fun provideInMemoryTokenStore(): InMemoryTokenStore = InMemoryTokenStore()
++
++  @Provides
++  fun provideTokenStore(store: InMemoryTokenStore): TokenStore = store
++
++  @Provides
++  @IntoSet
++  fun provideTokenStoreCloseable(store: InMemoryTokenStore): UserScopedCloseable = store
++}
+diff --git a/core/data/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/core/data/mapper/UserMapper.kt b/core/data/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/core/data/mapper/UserMapper.kt
+index f333482..98993c3 100644
+--- a/core/data/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/core/data/mapper/UserMapper.kt
++++ b/core/data/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/core/data/mapper/UserMapper.kt
+@@ -15,11 +15,10 @@ fun UserData.toLocalDataModel(): UserLocalDataModel = UserLocalDataModel(
+ )
+ 
+ @OptIn(ExperimentalUuidApi::class)
+-fun UserLocalDataModel.toDomainModel(token: String = ""): UserData = UserData(
++fun UserLocalDataModel.toDomainModel(): UserData = UserData(
+   id = id.toString(),
+   email = email.orEmpty(),
+   name = name,
+-  token = token,
+ )
+ 
+ @OptIn(ExperimentalUuidApi::class)
+diff --git a/core/data/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/core/data/model/AuthDataModels.kt b/core/data/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/core/data/model/AuthDataModels.kt
+index 942349c..f50ce07 100644
+--- a/core/data/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/core/data/model/AuthDataModels.kt
++++ b/core/data/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/core/data/model/AuthDataModels.kt
+@@ -1,5 +1,6 @@
+ package com.sermilion.kmpcomposestarter.core.data.model
+ 
++import com.sermilion.kmpcomposestarter.core.domain.model.AuthError
+ import kotlinx.serialization.Serializable
+ 
+ @Serializable
+@@ -15,5 +16,5 @@ data class AuthTokenDataModel(
+ sealed interface AuthResultDataModel {
+   data class Success(val user: UserDataModel, val token: AuthTokenDataModel) : AuthResultDataModel
+ 
+-  data class Error(val message: String, val code: String? = null) : AuthResultDataModel
++  data class Failure(val error: AuthError) : AuthResultDataModel
+ }
+diff --git a/core/data/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/core/data/remote/KtorAuthRemoteDataSource.kt b/core/data/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/core/data/remote/KtorAuthRemoteDataSource.kt
+index 6c921b6..e441a64 100644
+--- a/core/data/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/core/data/remote/KtorAuthRemoteDataSource.kt
++++ b/core/data/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/core/data/remote/KtorAuthRemoteDataSource.kt
+@@ -5,6 +5,7 @@ import com.sermilion.kmpcomposestarter.core.data.model.AuthResultDataModel
+ import com.sermilion.kmpcomposestarter.core.data.model.AuthTokenDataModel
+ import com.sermilion.kmpcomposestarter.core.data.model.UserDataModel
+ import com.sermilion.kmpcomposestarter.core.data.util.withRestErrorHandling
++import com.sermilion.kmpcomposestarter.core.domain.model.AuthError
+ import io.ktor.client.HttpClient
+ import kotlinx.coroutines.delay
+ import kotlinx.datetime.Clock
+@@ -31,23 +32,13 @@ class KtorAuthRemoteDataSource(@Suppress("unused") private val httpClient: HttpC
+               email = email,
+               name = MockConfig.DEMO_USER_NAME,
+             ),
+-            token = AuthTokenDataModel(
+-              accessToken = "mock-token-${Clock.System.now().toEpochMilliseconds()}",
+-            ),
++            token = mockToken("mock-token"),
+           )
+         } else {
+-          AuthResultDataModel.Error(
+-            message = "Invalid credentials",
+-            code = "INVALID_CREDENTIALS",
+-          )
++          AuthResultDataModel.Failure(AuthError.InvalidCredentials)
+         }
+       },
+-      errorBlock = { e ->
+-        AuthResultDataModel.Error(
+-          message = e.message.orEmpty(),
+-          code = "NETWORK_ERROR",
+-        )
+-      },
++      errorBlock = { AuthResultDataModel.Failure(AuthError.Network) },
+     )
+ 
+   override suspend fun register(
+@@ -64,17 +55,10 @@ class KtorAuthRemoteDataSource(@Suppress("unused") private val httpClient: HttpC
+           email = email,
+           name = name,
+         ),
+-        token = AuthTokenDataModel(
+-          accessToken = "mock-token-${Clock.System.now().toEpochMilliseconds()}",
+-        ),
+-      )
+-    },
+-    errorBlock = { e ->
+-      AuthResultDataModel.Error(
+-        message = e.message.orEmpty(),
+-        code = "NETWORK_ERROR",
++        token = mockToken("mock-token"),
+       )
+     },
++    errorBlock = { AuthResultDataModel.Failure(AuthError.Network) },
+   )
+ 
+   override suspend fun logout() {
+@@ -91,21 +75,17 @@ class KtorAuthRemoteDataSource(@Suppress("unused") private val httpClient: HttpC
+           email = MockConfig.DEMO_EMAIL,
+           name = MockConfig.DEMO_USER_NAME,
+         ),
+-        token = AuthTokenDataModel(
+-          accessToken = "refreshed-token-${Clock.System.now().toEpochMilliseconds()}",
+-        ),
+-      )
+-    },
+-    errorBlock = { e ->
+-      AuthResultDataModel.Error(
+-        message = e.message.orEmpty(),
+-        code = "REFRESH_FAILED",
++        token = mockToken("refreshed-token"),
+       )
+     },
++    errorBlock = { AuthResultDataModel.Failure(AuthError.RefreshFailed) },
+   )
+ 
+   override suspend fun getCurrentUser(token: String): UserDataModel? = null
+ 
++  private fun mockToken(prefix: String) =
++    AuthTokenDataModel(accessToken = "$prefix-${Clock.System.now().toEpochMilliseconds()}")
++
+   private companion object {
+     const val TAG = "KtorAuthRemoteDataSource"
+     const val MOCK_DELAY_MS = 1000L
+diff --git a/core/data/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/core/data/repository/AuthRepository.kt b/core/data/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/core/data/repository/StarterAuthRepository.kt
+similarity index 60%
+rename from core/data/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/core/data/repository/AuthRepository.kt
+rename to core/data/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/core/data/repository/StarterAuthRepository.kt
+index db20909..b7f7161 100644
+--- a/core/data/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/core/data/repository/AuthRepository.kt
++++ b/core/data/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/core/data/repository/StarterAuthRepository.kt
+@@ -3,7 +3,9 @@ package com.sermilion.kmpcomposestarter.core.data.repository
+ import com.sermilion.kmpcomposestarter.core.data.api.AuthApiService
+ import com.sermilion.kmpcomposestarter.core.data.api.AuthResponse
+ import com.sermilion.kmpcomposestarter.core.domain.di.UserComponentManager
++import com.sermilion.kmpcomposestarter.core.domain.model.LoginResult
+ import com.sermilion.kmpcomposestarter.core.domain.model.UserData
++import com.sermilion.kmpcomposestarter.core.domain.repository.AuthRepository
+ import kotlinx.coroutines.CoroutineScope
+ import kotlinx.coroutines.flow.SharingStarted
+ import kotlinx.coroutines.flow.StateFlow
+@@ -14,20 +16,6 @@ import software.amazon.lastmile.kotlin.inject.anvil.AppScope
+ import software.amazon.lastmile.kotlin.inject.anvil.ContributesBinding
+ import software.amazon.lastmile.kotlin.inject.anvil.SingleIn
+ 
+-interface AuthRepository {
+-  val isLoggedIn: StateFlow<Boolean>
+-  val currentUser: UserData?
+-
+-  suspend fun login(email: String, password: String): LoginResult
+-  suspend fun register(email: String, password: String, name: String): LoginResult
+-  suspend fun logout()
+-}
+-
+-sealed interface LoginResult {
+-  data class Success(val userData: UserData) : LoginResult
+-  data class Error(val message: String) : LoginResult
+-}
+-
+ @Inject
+ @SingleIn(AppScope::class)
+ @ContributesBinding(AppScope::class)
+@@ -49,25 +37,30 @@ class StarterAuthRepository(
+     get() = userComponentManager.userComponent?.userData
+ 
+   override suspend fun login(email: String, password: String): LoginResult =
+-    when (val response = authApiService.login(email, password)) {
+-      is AuthResponse.Success -> {
+-        userComponentManager.createComponent(response.userData)
+-        LoginResult.Success(response.userData)
+-      }
+-      is AuthResponse.Error -> LoginResult.Error(response.message)
+-    }
++    startSession(authApiService.login(email, password))
+ 
+   override suspend fun register(email: String, password: String, name: String): LoginResult =
+-    when (val response = authApiService.register(email, password, name)) {
+-      is AuthResponse.Success -> {
+-        userComponentManager.createComponent(response.userData)
+-        LoginResult.Success(response.userData)
+-      }
+-      is AuthResponse.Error -> LoginResult.Error(response.message)
+-    }
++    startSession(authApiService.register(email, password, name))
+ 
++  /**
++   * Signs out remotely, but tears the local session down whether or not that call succeeds: a
++   * failed or cancelled network sign-out must never leave an authenticated session alive. The
++   * network failure still surfaces, after teardown.
++   */
+   override suspend fun logout() {
+-    authApiService.logout()
+-    userComponentManager.destroyComponent()
++    try {
++      authApiService.logout()
++    } finally {
++      userComponentManager.destroyComponent()
++    }
++  }
++
++  private suspend fun startSession(response: AuthResponse): LoginResult = when (response) {
++    is AuthResponse.Success -> {
++      val session = userComponentManager.createComponent(response.userData)
++      session.tokenStore.save(response.token)
++      LoginResult.Success(response.userData)
++    }
++    is AuthResponse.Failure -> LoginResult.Failure(response.error)
+   }
+ }
+diff --git a/core/data/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/core/data/util/ErrorHandling.kt b/core/data/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/core/data/util/ErrorHandling.kt
+index 942c508..1dadc72 100644
+--- a/core/data/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/core/data/util/ErrorHandling.kt
++++ b/core/data/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/core/data/util/ErrorHandling.kt
+@@ -1,13 +1,21 @@
+ package com.sermilion.kmpcomposestarter.core.data.util
+ 
+ import co.touchlab.kermit.Logger
++import kotlin.coroutines.cancellation.CancellationException
+ 
++/**
++ * Wraps a REST call, converting failures via [errorBlock]. Cancellation is rethrown untouched: a
++ * cancelled request is not a failed request, and swallowing it would surface as a fake error and
++ * break structured concurrency.
++ */
+ suspend inline fun <T> withRestErrorHandling(
+   tag: String = "RestError",
+   crossinline block: suspend () -> T,
+   crossinline errorBlock: (Exception) -> T,
+ ): T = try {
+   block()
++} catch (e: CancellationException) {
++  throw e
+ } catch (e: Exception) {
+   Logger.e(tag, e) { "API error: ${e.message}" }
+   errorBlock(e)
+diff --git a/core/data/src/jvmTest/kotlin/com/sermilion/kmpcomposestarter/core/data/di/FakeUserComponent.kt b/core/data/src/jvmTest/kotlin/com/sermilion/kmpcomposestarter/core/data/di/FakeUserComponent.kt
+new file mode 100644
+index 0000000..a8db1e9
+--- /dev/null
++++ b/core/data/src/jvmTest/kotlin/com/sermilion/kmpcomposestarter/core/data/di/FakeUserComponent.kt
+@@ -0,0 +1,51 @@
++package com.sermilion.kmpcomposestarter.core.data.di
++
++import com.sermilion.kmpcomposestarter.core.data.auth.InMemoryTokenStore
++import com.sermilion.kmpcomposestarter.core.domain.auth.TokenStore
++import com.sermilion.kmpcomposestarter.core.domain.di.ScreenComponent
++import com.sermilion.kmpcomposestarter.core.domain.di.UserScopedCloseable
++import com.sermilion.kmpcomposestarter.core.domain.di.UserSessionScope
++import com.sermilion.kmpcomposestarter.core.domain.model.UserData
++import kotlinx.coroutines.CoroutineScope
++import kotlinx.coroutines.SupervisorJob
++import java.util.concurrent.atomic.AtomicInteger
++
++/** Stands in for the generated user subcomponent, recording how often teardown touched it. */
++class FakeUserComponent(override val userData: UserData) : UserComponent {
++
++  private val closeCounter = AtomicInteger(0)
++
++  val tokenStoreImpl = InMemoryTokenStore()
++
++  val closeCount: Int
++    get() = closeCounter.get()
++
++  override val tokenStore: TokenStore = tokenStoreImpl
++
++  override val userSessionScope: UserSessionScope =
++    UserSessionScope(CoroutineScope(SupervisorJob()))
++
++  override val userScopedCloseables: Set<UserScopedCloseable> = setOf(
++    UserScopedCloseable {
++      closeCounter.incrementAndGet()
++      tokenStoreImpl.close()
++    },
++  )
++
++  override val screenComponentFactory: ScreenComponent.Factory =
++    object : ScreenComponent.Factory {
++      override fun create(): ScreenComponent = error("screen components are out of scope here")
++    }
++}
++
++class RecordingUserComponentFactory : UserComponent.Factory {
++
++  private val createdComponents = mutableListOf<FakeUserComponent>()
++
++  val created: List<FakeUserComponent>
++    @Synchronized get() = createdComponents.toList()
++
++  @Synchronized
++  override fun create(userData: UserData): UserComponent =
++    FakeUserComponent(userData).also(createdComponents::add)
++}
+diff --git a/core/data/src/jvmTest/kotlin/com/sermilion/kmpcomposestarter/core/data/di/StarterUserComponentManagerTest.kt b/core/data/src/jvmTest/kotlin/com/sermilion/kmpcomposestarter/core/data/di/StarterUserComponentManagerTest.kt
+new file mode 100644
+index 0000000..30dea98
+--- /dev/null
++++ b/core/data/src/jvmTest/kotlin/com/sermilion/kmpcomposestarter/core/data/di/StarterUserComponentManagerTest.kt
+@@ -0,0 +1,89 @@
++package com.sermilion.kmpcomposestarter.core.data.di
++
++import com.sermilion.kmpcomposestarter.core.domain.model.UserData
++import io.kotest.core.spec.style.FunSpec
++import io.kotest.matchers.collections.shouldHaveSize
++import io.kotest.matchers.shouldBe
++import kotlinx.coroutines.Dispatchers
++import kotlinx.coroutines.async
++import kotlinx.coroutines.awaitAll
++import kotlinx.coroutines.isActive
++import kotlinx.coroutines.runBlocking
++import java.util.concurrent.CyclicBarrier
++
++private fun user(index: Int) = UserData("id-$index", "user$index@test.com", "User $index")
++
++class StarterUserComponentManagerTest :
++  FunSpec({
++
++    test("a second login for a different user replaces and tears down the first session") {
++      val factory = RecordingUserComponentFactory()
++      val manager = StarterUserComponentManager(factory)
++
++      val first = manager.createComponent(user(1)) as FakeUserComponent
++      val second = manager.createComponent(user(2)) as FakeUserComponent
++
++      manager.userComponent shouldBe second
++      manager.userComponent?.userData shouldBe user(2)
++      factory.created shouldHaveSize 2
++
++      first.closeCount shouldBe 1
++      first.userSessionScope.isActive shouldBe false
++      second.closeCount shouldBe 0
++      second.userSessionScope.isActive shouldBe true
++    }
++
++    test("creating a session for the already signed-in user is a no-op") {
++      val factory = RecordingUserComponentFactory()
++      val manager = StarterUserComponentManager(factory)
++
++      val first = manager.createComponent(user(1))
++      val again = manager.createComponent(user(1))
++
++      again shouldBe first
++      factory.created shouldHaveSize 1
++      (first as FakeUserComponent).closeCount shouldBe 0
++    }
++
++    test("concurrent creates leave exactly one live session and close every loser once") {
++      val factory = RecordingUserComponentFactory()
++      val manager = StarterUserComponentManager(factory)
++      val userCount = 8
++      val barrier = CyclicBarrier(userCount)
++
++      runBlocking {
++        (0 until userCount)
++          .map { index ->
++            async(Dispatchers.Default) {
++              barrier.await()
++              manager.createComponent(user(index))
++            }
++          }
++          .awaitAll()
++      }
++
++      val live = manager.userComponent
++      live shouldBe factory.created.single { it.closeCount == 0 }
++      factory.created.filter { it !== live }.forEach { loser ->
++        loser.closeCount shouldBe 1
++        loser.userSessionScope.isActive shouldBe false
++      }
++    }
++
++    test("destroyComponent cancels the session scope and closes every user-scoped resource") {
++      val factory = RecordingUserComponentFactory()
++      val manager = StarterUserComponentManager(factory)
++      val component = manager.createComponent(user(1)) as FakeUserComponent
++
++      manager.destroyComponent()
++
++      manager.userComponent shouldBe null
++      manager.userComponentFlow.value shouldBe null
++      component.closeCount shouldBe 1
++      component.userSessionScope.isActive shouldBe false
++
++      // Repeated teardown must not close the same resource twice.
++      manager.destroyComponent()
++      component.closeCount shouldBe 1
++    }
++  })
+diff --git a/core/data/src/jvmTest/kotlin/com/sermilion/kmpcomposestarter/core/data/repository/StarterAuthRepositoryTest.kt b/core/data/src/jvmTest/kotlin/com/sermilion/kmpcomposestarter/core/data/repository/StarterAuthRepositoryTest.kt
+new file mode 100644
+index 0000000..cfcb3c5
+--- /dev/null
++++ b/core/data/src/jvmTest/kotlin/com/sermilion/kmpcomposestarter/core/data/repository/StarterAuthRepositoryTest.kt
+@@ -0,0 +1,71 @@
++package com.sermilion.kmpcomposestarter.core.data.repository
++
++import com.sermilion.kmpcomposestarter.core.data.api.AuthApiService
++import com.sermilion.kmpcomposestarter.core.data.api.AuthResponse
++import com.sermilion.kmpcomposestarter.core.data.di.FakeUserComponent
++import com.sermilion.kmpcomposestarter.core.data.di.RecordingUserComponentFactory
++import com.sermilion.kmpcomposestarter.core.data.di.StarterUserComponentManager
++import com.sermilion.kmpcomposestarter.core.domain.auth.AuthToken
++import com.sermilion.kmpcomposestarter.core.domain.model.LoginResult
++import com.sermilion.kmpcomposestarter.core.domain.model.UserData
++import io.kotest.assertions.throwables.shouldThrow
++import io.kotest.core.spec.style.FunSpec
++import io.kotest.matchers.shouldBe
++import kotlinx.coroutines.CoroutineScope
++import kotlinx.coroutines.SupervisorJob
++import kotlinx.coroutines.test.runTest
++
++private val testUser = UserData("id-1", "user@test.com", "User")
++private val testToken = AuthToken(accessToken = "access-token")
++
++private class StubAuthApiService(private val logoutFailure: Throwable? = null) : AuthApiService {
++  override suspend fun login(email: String, password: String): AuthResponse =
++    AuthResponse.Success(testUser, testToken)
++
++  override suspend fun register(email: String, password: String, name: String): AuthResponse =
++    AuthResponse.Success(testUser, testToken)
++
++  override suspend fun logout() {
++    logoutFailure?.let { throw it }
++  }
++}
++
++class StarterAuthRepositoryTest :
++  FunSpec({
++
++    test("login opens a session and stores the token in that session") {
++      runTest {
++        val manager = StarterUserComponentManager(RecordingUserComponentFactory())
++        val repository = StarterAuthRepository(
++          authApiService = StubAuthApiService(),
++          userComponentManager = manager,
++          externalScope = CoroutineScope(SupervisorJob() + coroutineContext),
++        )
++
++        repository.login("user@test.com", "password") shouldBe LoginResult.Success(testUser)
++
++        manager.userComponent?.userData shouldBe testUser
++        manager.userComponent?.tokenStore?.get() shouldBe testToken
++      }
++    }
++
++    test("a failing remote sign-out still tears down the session and clears the token") {
++      runTest {
++        val manager = StarterUserComponentManager(RecordingUserComponentFactory())
++        val repository = StarterAuthRepository(
++          authApiService = StubAuthApiService(logoutFailure = IllegalStateException("offline")),
++          userComponentManager = manager,
++          externalScope = CoroutineScope(SupervisorJob() + coroutineContext),
++        )
++
++        repository.login("user@test.com", "password")
++        val session = manager.userComponent as FakeUserComponent
++
++        shouldThrow<IllegalStateException> { repository.logout() }
++
++        manager.userComponent shouldBe null
++        session.closeCount shouldBe 1
++        session.tokenStoreImpl.get() shouldBe null
++      }
++    }
++  })
+diff --git a/core/data/src/jvmTest/kotlin/com/sermilion/kmpcomposestarter/core/data/util/ErrorHandlingTest.kt b/core/data/src/jvmTest/kotlin/com/sermilion/kmpcomposestarter/core/data/util/ErrorHandlingTest.kt
+new file mode 100644
+index 0000000..46dcabc
+--- /dev/null
++++ b/core/data/src/jvmTest/kotlin/com/sermilion/kmpcomposestarter/core/data/util/ErrorHandlingTest.kt
+@@ -0,0 +1,40 @@
++package com.sermilion.kmpcomposestarter.core.data.util
++
++import io.kotest.assertions.throwables.shouldThrow
++import io.kotest.core.spec.style.FunSpec
++import io.kotest.matchers.shouldBe
++import kotlinx.coroutines.test.runTest
++import kotlin.coroutines.cancellation.CancellationException
++
++class ErrorHandlingTest :
++  FunSpec({
++
++    test("cancellation is rethrown instead of being reported as a request failure") {
++      runTest {
++        var errorBlockRan = false
++
++        shouldThrow<CancellationException> {
++          withRestErrorHandling<String>(
++            block = { throw CancellationException("caller went away") },
++            errorBlock = {
++              errorBlockRan = true
++              "converted"
++            },
++          )
++        }
++
++        errorBlockRan shouldBe false
++      }
++    }
++
++    test("other failures are converted by the error block") {
++      runTest {
++        val result = withRestErrorHandling(
++          block = { throw IllegalStateException("boom") },
++          errorBlock = { "converted" },
++        )
++
++        result shouldBe "converted"
++      }
++    }
++  })
+diff --git a/core/domain/build.gradle.kts b/core/domain/build.gradle.kts
+index 7264d91..34cab3d 100644
+--- a/core/domain/build.gradle.kts
++++ b/core/domain/build.gradle.kts
+@@ -1,7 +1,6 @@
+ plugins {
+   alias(libs.plugins.kmp.library)
+   alias(libs.plugins.ksp)
+-  alias(libs.plugins.kotlin.serialization)
+ }
+ 
+ kotlin {
+@@ -23,16 +22,13 @@ kotlin {
+ 
+   sourceSets {
+     commonMain.dependencies {
++      // api: core:common types (scopes, ScreenComponentProvider) appear in this module's own
++      // public contracts, so consumers need them on the compile classpath.
+       api(projects.core.common)
+-      api(libs.paging.common)
+-      api(libs.serialization.json)
+-      api(libs.kotlin.inject.runtime)
+-      implementation(libs.kermit)
++      implementation(libs.kotlinx.coroutines.core)
+     }
+     androidMain.dependencies {
+       implementation(libs.kotlinx.coroutines.android)
+-      implementation(libs.paging.runtime)
+-      implementation(libs.paging.compose)
+     }
+   }
+ 
+diff --git a/core/domain/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/core/domain/auth/TokenStore.kt b/core/domain/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/core/domain/auth/TokenStore.kt
+new file mode 100644
+index 0000000..2e27946
+--- /dev/null
++++ b/core/domain/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/core/domain/auth/TokenStore.kt
+@@ -0,0 +1,17 @@
++package com.sermilion.kmpcomposestarter.core.domain.auth
++
++data class AuthToken(
++  val accessToken: String,
++  val refreshToken: String? = null,
++  val expiresAtEpochMillis: Long? = null,
++)
++
++/**
++ * Session-scoped holder for the credentials that authorize outgoing requests. Lives and dies with
++ * the user component, so a session swap can never leak the previous user's bearer token.
++ */
++interface TokenStore {
++  suspend fun get(): AuthToken?
++  suspend fun save(token: AuthToken)
++  suspend fun clear()
++}
+diff --git a/core/domain/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/core/domain/di/DIViewModelFactory.kt b/core/domain/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/core/domain/di/DIViewModelFactory.kt
+deleted file mode 100644
+index 082d9c1..0000000
+--- a/core/domain/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/core/domain/di/DIViewModelFactory.kt
++++ /dev/null
+@@ -1,78 +0,0 @@
+-package com.sermilion.kmpcomposestarter.core.domain.di
+-
+-import androidx.lifecycle.SavedStateHandle
+-import androidx.lifecycle.ViewModel
+-import androidx.lifecycle.ViewModelProvider
+-import androidx.lifecycle.createSavedStateHandle
+-import androidx.lifecycle.viewmodel.CreationExtras
+-import co.touchlab.kermit.Logger
+-import com.sermilion.kmpcomposestarter.common.di.AssistedArgs
+-import com.sermilion.kmpcomposestarter.common.di.EmptyAssistedArgs
+-import com.sermilion.kmpcomposestarter.common.di.ScreenScope
+-import com.sermilion.kmpcomposestarter.common.di.ViewModelEntry
+-import me.tatarka.inject.annotations.Inject
+-import software.amazon.lastmile.kotlin.inject.anvil.SingleIn
+-import kotlin.reflect.KClass
+-
+-@Inject
+-@SingleIn(ScreenScope::class)
+-class DIViewModelFactory(private val entries: Set<ViewModelEntry>) : ViewModelProvider.Factory {
+-
+-  @Suppress("UNCHECKED_CAST")
+-  override fun <T : ViewModel> create(modelClass: KClass<T>, extras: CreationExtras): T {
+-    val args = extras[AssistedArgsKey] ?: EmptyAssistedArgs
+-
+-    val savedStateHandle = try {
+-      extras.createSavedStateHandle()
+-    } catch (e: Exception) {
+-      Logger.w(TAG) { "SavedStateHandle not available: ${e.message}" }
+-      null
+-    }
+-
+-    val argsWithSavedState = if (savedStateHandle != null) {
+-      CombinedAssistedArgs(args, savedStateHandle)
+-    } else {
+-      args
+-    }
+-
+-    val entry = entries.firstOrNull { it.kclass == modelClass }
+-      ?: run {
+-        val availableViewModels = entries.joinToString { it.kclass.simpleName.orEmpty() }
+-        Logger.e(TAG) {
+-          "ViewModel not found: ${modelClass.simpleName}. Available: $availableViewModels"
+-        }
+-        throw IllegalArgumentException(
+-          "ViewModel ${modelClass.simpleName} not found. " +
+-            "Did you forget to add @Inject annotation? " +
+-            "Available: $availableViewModels",
+-        )
+-      }
+-
+-    return try {
+-      entry.create(argsWithSavedState) as T
+-    } catch (e: Exception) {
+-      Logger.e(TAG, e) { "Failed to create ViewModel: ${modelClass.simpleName}" }
+-      throw IllegalStateException(
+-        "Failed to create ViewModel ${modelClass.simpleName}: ${e.message}",
+-        e,
+-      )
+-    }
+-  }
+-
+-  companion object {
+-    private const val TAG = "DIViewModelFactory"
+-    val AssistedArgsKey = object : CreationExtras.Key<AssistedArgs> {}
+-  }
+-}
+-
+-private class CombinedAssistedArgs(
+-  private val original: AssistedArgs,
+-  private val savedStateHandle: SavedStateHandle,
+-) : AssistedArgs {
+-  @Suppress("UNCHECKED_CAST")
+-  override fun <T> get(name: String): T? = if (name == "savedStateHandle") {
+-    savedStateHandle as T
+-  } else {
+-    original[name]
+-  }
+-}
+diff --git a/core/domain/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/core/domain/di/ScreenComponent.kt b/core/domain/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/core/domain/di/ScreenComponent.kt
+index 8fe5e0d..86bcadd 100644
+--- a/core/domain/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/core/domain/di/ScreenComponent.kt
++++ b/core/domain/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/core/domain/di/ScreenComponent.kt
+@@ -1,15 +1,17 @@
+ package com.sermilion.kmpcomposestarter.core.domain.di
+ 
++import com.sermilion.kmpcomposestarter.common.di.ScreenComponentProvider
+ import com.sermilion.kmpcomposestarter.common.di.ScreenScope
++import com.sermilion.kmpcomposestarter.common.di.StarterViewModelFactory
+ import com.sermilion.kmpcomposestarter.common.di.UserScope
+ import software.amazon.lastmile.kotlin.inject.anvil.ContributesSubcomponent
+ import software.amazon.lastmile.kotlin.inject.anvil.SingleIn
+ 
+ @ContributesSubcomponent(ScreenScope::class)
+ @SingleIn(ScreenScope::class)
+-interface ScreenComponent {
++interface ScreenComponent : ScreenComponentProvider {
+ 
+-  val diViewModelFactory: DIViewModelFactory
++  override val viewModelFactory: StarterViewModelFactory
+ 
+   @ContributesSubcomponent.Factory(UserScope::class)
+   interface Factory {
+diff --git a/core/domain/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/core/domain/di/UserComponentManager.kt b/core/domain/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/core/domain/di/UserComponentManager.kt
+index 51c1f85..5a92371 100644
+--- a/core/domain/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/core/domain/di/UserComponentManager.kt
++++ b/core/domain/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/core/domain/di/UserComponentManager.kt
+@@ -7,6 +7,11 @@ interface UserComponentManager {
+   val userComponent: UserDependencies?
+   val userComponentFlow: StateFlow<UserDependencies?>
+ 
+-  fun createComponent(userData: UserData)
++  /**
++   * Returns the live session for [userData]. Creating a session for a different user replaces and
++   * tears down the previous one; creating it for the current user is a no-op.
++   */
++  fun createComponent(userData: UserData): UserDependencies
++
+   fun destroyComponent()
+ }
+diff --git a/core/domain/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/core/domain/di/UserDependencies.kt b/core/domain/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/core/domain/di/UserDependencies.kt
+index d4396bb..8d36f2b 100644
+--- a/core/domain/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/core/domain/di/UserDependencies.kt
++++ b/core/domain/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/core/domain/di/UserDependencies.kt
+@@ -1,8 +1,12 @@
+ package com.sermilion.kmpcomposestarter.core.domain.di
+ 
++import com.sermilion.kmpcomposestarter.core.domain.auth.TokenStore
+ import com.sermilion.kmpcomposestarter.core.domain.model.UserData
+ 
+ interface UserDependencies {
+   val userData: UserData
++  val tokenStore: TokenStore
++  val userSessionScope: UserSessionScope
++  val userScopedCloseables: Set<UserScopedCloseable>
+   val screenComponentFactory: ScreenComponent.Factory
+ }
+diff --git a/core/domain/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/core/domain/di/UserScopedCloseable.kt b/core/domain/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/core/domain/di/UserScopedCloseable.kt
+new file mode 100644
+index 0000000..0d82971
+--- /dev/null
++++ b/core/domain/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/core/domain/di/UserScopedCloseable.kt
+@@ -0,0 +1,10 @@
++package com.sermilion.kmpcomposestarter.core.domain.di
++
++/**
++ * A user-scoped resource that must be released when the session ends. Implementations are
++ * multibound into [UserDependencies.userScopedCloseables] and closed exactly once, by the
++ * component manager that swapped the session out.
++ */
++fun interface UserScopedCloseable {
++  fun close()
++}
+diff --git a/core/domain/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/core/domain/di/UserSessionScope.kt b/core/domain/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/core/domain/di/UserSessionScope.kt
+new file mode 100644
+index 0000000..67a7302
+--- /dev/null
++++ b/core/domain/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/core/domain/di/UserSessionScope.kt
+@@ -0,0 +1,10 @@
++package com.sermilion.kmpcomposestarter.core.domain.di
++
++import kotlinx.coroutines.CoroutineScope
++
++/**
++ * CoroutineScope that lives exactly as long as the signed-in session. A dedicated type rather
++ * than a bare [CoroutineScope] so it can never be confused with the app-wide scope at an
++ * injection site.
++ */
++class UserSessionScope(delegate: CoroutineScope) : CoroutineScope by delegate
+diff --git a/core/domain/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/core/domain/model/AuthError.kt b/core/domain/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/core/domain/model/AuthError.kt
+new file mode 100644
+index 0000000..758473e
+--- /dev/null
++++ b/core/domain/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/core/domain/model/AuthError.kt
+@@ -0,0 +1,15 @@
++package com.sermilion.kmpcomposestarter.core.domain.model
++
++/**
++ * The single authentication error hierarchy. Data sources classify failures into these reasons;
++ * only ViewModels turn a reason into something a user reads.
++ */
++sealed interface AuthError {
++  data object InvalidCredentials : AuthError
++
++  data object Network : AuthError
++
++  data object RefreshFailed : AuthError
++
++  data class Unexpected(val cause: Throwable?) : AuthError
++}
+diff --git a/core/domain/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/core/domain/model/DemoCredentials.kt b/core/domain/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/core/domain/model/DemoCredentials.kt
+new file mode 100644
+index 0000000..318a631
+--- /dev/null
++++ b/core/domain/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/core/domain/model/DemoCredentials.kt
+@@ -0,0 +1,12 @@
++package com.sermilion.kmpcomposestarter.core.domain.model
++
++/**
++ * Mock-only credentials the demo buttons prefill. Injected so presentation code never reaches
++ * into the data layer's mock configuration.
++ */
++data class DemoCredentials(
++  val loginEmail: String,
++  val password: String,
++  val newUserEmail: String,
++  val newUserName: String,
++)
+diff --git a/core/domain/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/core/domain/model/LoginResult.kt b/core/domain/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/core/domain/model/LoginResult.kt
+new file mode 100644
+index 0000000..b2b56d4
+--- /dev/null
++++ b/core/domain/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/core/domain/model/LoginResult.kt
+@@ -0,0 +1,7 @@
++package com.sermilion.kmpcomposestarter.core.domain.model
++
++sealed interface LoginResult {
++  data class Success(val userData: UserData) : LoginResult
++
++  data class Failure(val error: AuthError) : LoginResult
++}
+diff --git a/core/domain/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/core/domain/model/UserData.kt b/core/domain/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/core/domain/model/UserData.kt
+index db65942..790c0c9 100644
+--- a/core/domain/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/core/domain/model/UserData.kt
++++ b/core/domain/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/core/domain/model/UserData.kt
+@@ -1,6 +1,3 @@
+ package com.sermilion.kmpcomposestarter.core.domain.model
+ 
+-import kotlinx.serialization.Serializable
+-
+-@Serializable
+-data class UserData(val id: String, val email: String, val name: String, val token: String)
++data class UserData(val id: String, val email: String, val name: String)
+diff --git a/core/domain/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/core/domain/repository/AuthRepository.kt b/core/domain/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/core/domain/repository/AuthRepository.kt
+new file mode 100644
+index 0000000..6b4beae
+--- /dev/null
++++ b/core/domain/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/core/domain/repository/AuthRepository.kt
+@@ -0,0 +1,14 @@
++package com.sermilion.kmpcomposestarter.core.domain.repository
++
++import com.sermilion.kmpcomposestarter.core.domain.model.LoginResult
++import com.sermilion.kmpcomposestarter.core.domain.model.UserData
++import kotlinx.coroutines.flow.StateFlow
++
++interface AuthRepository {
++  val isLoggedIn: StateFlow<Boolean>
++  val currentUser: UserData?
++
++  suspend fun login(email: String, password: String): LoginResult
++  suspend fun register(email: String, password: String, name: String): LoginResult
++  suspend fun logout()
++}
+diff --git a/core/ui/build.gradle.kts b/core/ui/build.gradle.kts
+index fbd7312..647d6ac 100644
+--- a/core/ui/build.gradle.kts
++++ b/core/ui/build.gradle.kts
+@@ -52,9 +52,20 @@ kotlin {
+       implementation(libs.jetbrains.lifecycle.viewmodel.compose)
+       implementation(libs.kotlin.inject.runtime)
+     }
++
++    jvmTest.dependencies {
++      implementation(libs.kotest.framework.engine)
++      implementation(libs.kotest.assertions.core)
++      implementation(libs.kotest.runner.junit5.jvm)
++      implementation(libs.kotlinx.coroutines.test)
++    }
+   }
+ }
+ 
++tasks.named<Test>("jvmTest") {
++  useJUnitPlatform()
++}
++
+ dependencies {
+   add("kspAndroid", libs.kotlin.inject.compiler)
+   add("kspIosArm64", libs.kotlin.inject.compiler)
+diff --git a/core/ui/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/core/ui/di/ProvideScreenComponentFactory.kt b/core/ui/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/core/ui/di/ProvideScreenComponentFactory.kt
+index e4e388b..c76af60 100644
+--- a/core/ui/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/core/ui/di/ProvideScreenComponentFactory.kt
++++ b/core/ui/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/core/ui/di/ProvideScreenComponentFactory.kt
+@@ -13,15 +13,8 @@ fun ProvideScreenComponentFactory(content: @Composable () -> Unit) {
+   val userComponentManager = LocalUserComponentManager.current
+   val userComponent by userComponentManager.userComponentFlow.collectAsState()
+ 
+-  val factory = remember(userComponent) {
+-    userComponent?.let { component ->
+-      {
+-        object : ScreenComponentProvider {
+-          override val diViewModelFactory =
+-            component.screenComponentFactory.create().diViewModelFactory
+-        }
+-      }
+-    }
++  val factory: (() -> ScreenComponentProvider)? = remember(userComponent) {
++    userComponent?.let { component -> { component.screenComponentFactory.create() } }
+   }
+ 
+   CompositionLocalProvider(LocalScreenComponentFactory provides factory) {
+diff --git a/core/ui/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/core/ui/di/ScreenComponentHolder.kt b/core/ui/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/core/ui/di/ScreenComponentHolder.kt
+new file mode 100644
+index 0000000..75b64b2
+--- /dev/null
++++ b/core/ui/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/core/ui/di/ScreenComponentHolder.kt
+@@ -0,0 +1,13 @@
++package com.sermilion.kmpcomposestarter.core.ui.di
++
++import androidx.lifecycle.ViewModel
++import com.sermilion.kmpcomposestarter.common.di.ScreenComponentProvider
++
++/**
++ * Keeps one screen component per nav entry.
++ *
++ * Storing it in the entry's [androidx.lifecycle.ViewModelStore] gives the component exactly the
++ * entry's lifetime: every `@SingleIn(ScreenScope)` binding resolved on that screen comes from the
++ * same component instance, and the component is dropped when the entry leaves the back stack.
++ */
++class ScreenComponentHolder(val provider: ScreenComponentProvider) : ViewModel()
+diff --git a/core/ui/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/core/ui/navigation/InjectViewModel.kt b/core/ui/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/core/ui/navigation/InjectViewModel.kt
+index 4636e5c..81ee764 100644
+--- a/core/ui/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/core/ui/navigation/InjectViewModel.kt
++++ b/core/ui/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/core/ui/navigation/InjectViewModel.kt
+@@ -1,26 +1,30 @@
+ package com.sermilion.kmpcomposestarter.core.ui.navigation
+ 
+ import androidx.compose.runtime.Composable
+-import androidx.compose.runtime.remember
+ import androidx.lifecycle.HasDefaultViewModelProviderFactory
+ import androidx.lifecycle.ViewModel
+-import androidx.lifecycle.ViewModelProvider
+ import androidx.lifecycle.viewmodel.CreationExtras
+ import androidx.lifecycle.viewmodel.MutableCreationExtras
+ import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
+ import androidx.lifecycle.viewmodel.compose.viewModel
+ import co.touchlab.kermit.Logger
+ import com.sermilion.kmpcomposestarter.common.di.LocalScreenComponentFactory
+-import com.sermilion.kmpcomposestarter.common.di.LocalViewModelProvider
++import com.sermilion.kmpcomposestarter.common.di.LocalViewModelFactory
++import com.sermilion.kmpcomposestarter.common.di.StarterViewModelFactory
+ import com.sermilion.kmpcomposestarter.common.di.mapToAssistedArgs
+-import com.sermilion.kmpcomposestarter.core.domain.di.DIViewModelFactory
+-import kotlinx.collections.immutable.persistentMapOf
++import com.sermilion.kmpcomposestarter.core.ui.di.ScreenComponentHolder
+ 
++/**
++ * Resolves [VM] from the DI graph.
++ *
++ * [assisted] is keyed by the ViewModel's constructor parameter names — the same keys the
++ * generated entry reads.
++ */
+ @Composable
+ inline fun <reified VM : ViewModel> injectViewModel(
+   scope: ViewModelScope = ViewModelScope.Feature,
+   key: String? = null,
+-  assisted: Any? = null,
++  assisted: Map<String, Any?> = emptyMap(),
+ ): VM = when (scope) {
+   ViewModelScope.Feature -> injectFeatureScopedViewModel(key, assisted)
+   ViewModelScope.PreAuth -> injectPreAuthScopedViewModel()
+@@ -30,7 +34,7 @@ inline fun <reified VM : ViewModel> injectViewModel(
+ @PublishedApi
+ internal inline fun <reified VM : ViewModel> injectFeatureScopedViewModel(
+   key: String? = null,
+-  assisted: Any? = null,
++  assisted: Map<String, Any?> = emptyMap(),
+ ): VM {
+   val screenComponentFactory = LocalScreenComponentFactory.current
+ 
+@@ -48,28 +52,26 @@ internal inline fun <reified VM : ViewModel> injectFeatureScopedViewModel(
+   val viewModelStoreOwner = LocalViewModelStoreOwner.current
+     ?: error("ViewModelStoreOwner not found")
+ 
+-  val screenComponent = remember(screenComponentFactory, key) { screenComponentFactory() }
++  // Deliberately unkeyed: every ViewModel on this nav entry must share one screen component.
++  val holder = viewModel<ScreenComponentHolder>(viewModelStoreOwner = viewModelStoreOwner) {
++    ScreenComponentHolder(screenComponentFactory())
++  }
++
+   val defaultCreationExtras = if (viewModelStoreOwner is HasDefaultViewModelProviderFactory) {
+     viewModelStoreOwner.defaultViewModelCreationExtras
+   } else {
+     CreationExtras.Empty
+   }
+ 
+-  val assistedMap = if (assisted != null) {
+-    persistentMapOf("arguments" to assisted)
+-  } else {
+-    persistentMapOf()
+-  }
+-
+   val extras = MutableCreationExtras(defaultCreationExtras).apply {
+-    set(DIViewModelFactory.AssistedArgsKey, mapToAssistedArgs(assistedMap))
++    set(StarterViewModelFactory.AssistedArgsKey, mapToAssistedArgs(assisted))
+   }
+ 
+   return viewModel(
+     viewModelStoreOwner = viewModelStoreOwner,
+     modelClass = VM::class,
+     key = key,
+-    factory = screenComponent.diViewModelFactory,
++    factory = holder.provider.viewModelFactory,
+     extras = extras,
+   )
+ }
+@@ -77,30 +79,13 @@ internal inline fun <reified VM : ViewModel> injectFeatureScopedViewModel(
+ @Composable
+ @PublishedApi
+ internal inline fun <reified VM : ViewModel> injectPreAuthScopedViewModel(): VM {
+-  val provider = LocalViewModelProvider.current
+   val viewModelStoreOwner = LocalViewModelStoreOwner.current
+     ?: error("ViewModelStoreOwner not found")
+ 
+-  val factory = remember(provider) {
+-    object : ViewModelProvider.Factory {
+-      override fun <T : ViewModel> create(
+-        modelClass: kotlin.reflect.KClass<T>,
+-        extras: CreationExtras,
+-      ): T {
+-        val viewModel = provider.provide(modelClass)
+-        check(modelClass.isInstance(viewModel)) {
+-          "ViewModelProvider returned ${viewModel::class.simpleName} but expected ${modelClass.simpleName}"
+-        }
+-        @Suppress("UNCHECKED_CAST")
+-        return viewModel as T
+-      }
+-    }
+-  }
+-
+   return viewModel(
+     viewModelStoreOwner = viewModelStoreOwner,
+     modelClass = VM::class,
+-    factory = factory,
++    factory = LocalViewModelFactory.current,
+   )
+ }
+ 
+diff --git a/core/ui/src/jvmTest/kotlin/com/sermilion/kmpcomposestarter/core/ui/di/ScreenComponentHolderTest.kt b/core/ui/src/jvmTest/kotlin/com/sermilion/kmpcomposestarter/core/ui/di/ScreenComponentHolderTest.kt
+new file mode 100644
+index 0000000..da69b27
+--- /dev/null
++++ b/core/ui/src/jvmTest/kotlin/com/sermilion/kmpcomposestarter/core/ui/di/ScreenComponentHolderTest.kt
+@@ -0,0 +1,48 @@
++package com.sermilion.kmpcomposestarter.core.ui.di
++
++import androidx.lifecycle.ViewModel
++import androidx.lifecycle.ViewModelProvider
++import androidx.lifecycle.ViewModelStore
++import androidx.lifecycle.viewmodel.CreationExtras
++import androidx.lifecycle.viewmodel.initializer
++import androidx.lifecycle.viewmodel.viewModelFactory
++import com.sermilion.kmpcomposestarter.common.di.ScreenComponentProvider
++import io.kotest.core.spec.style.FunSpec
++import io.kotest.matchers.shouldBe
++import io.kotest.matchers.shouldNotBe
++import kotlin.reflect.KClass
++
++private class FakeScreenComponent : ScreenComponentProvider {
++  override val viewModelFactory: ViewModelProvider.Factory = object : ViewModelProvider.Factory {
++    override fun <T : ViewModel> create(modelClass: KClass<T>, extras: CreationExtras): T =
++      error("not used")
++  }
++}
++
++class ScreenComponentHolderTest :
++  FunSpec({
++
++    test("one screen component per nav entry, dropped when the entry leaves the back stack") {
++      var created = 0
++      val store = ViewModelStore()
++      val factory = viewModelFactory {
++        initializer { ScreenComponentHolder(FakeScreenComponent().also { created++ }) }
++      }
++
++      fun holder() = ViewModelProvider.create(store, factory)[ScreenComponentHolder::class]
++
++      val first = holder().provider
++      val second = holder().provider
++
++      // Every @SingleIn(ScreenScope) binding on this screen resolves through this one component.
++      second shouldBe first
++      created shouldBe 1
++
++      // The nav entry leaves the back stack: its ViewModelStore is cleared.
++      store.clear()
++
++      val afterDisposal = holder().provider
++      afterDisposal shouldNotBe first
++      created shouldBe 2
++    }
++  })
+diff --git a/docs/architecture/di-and-scoping.md b/docs/architecture/di-and-scoping.md
+index b430905..3df487e 100644
+--- a/docs/architecture/di-and-scoping.md
++++ b/docs/architecture/di-and-scoping.md
+@@ -22,15 +22,22 @@ Examples include:
+ - Room database provider infrastructure
+ - remote data sources and app-level repositories
+ 
+-Platform application components are merged in `composeApp` for Android, iOS, and JVM.
++Each platform merges its own component (`AndroidApplicationComponent` in `androidApp`,
++`IosApplicationComponent` and `JvmApplicationComponent` in `composeApp`) and exposes it through
++the shared `AppComponent` interface. Every host creates its graph once per process, outside
++composition, and hands it to `StarterRoot(component)`.
+ 
+ ## `UserScope`
+ 
+ `UserScope` represents a logged-in session.
+ 
+-Objects tied to a specific authenticated user should live here, including user-specific data access like `StarterUserDao`.
++Objects tied to a specific authenticated user should live here, including user-specific data
++access like `StarterUserDao`, the `TokenStore`, and the `UserSessionScope` coroutine scope.
+ 
+-The user component is created from the app scope and should be torn down on logout.
++`StarterUserComponentManager` owns the session: a `createComponent` for a different user replaces
++the previous session, and teardown cancels `UserSessionScope` then closes every
++`UserScopedCloseable` multibinding before the component reference is cleared. Anything holding a
++resource that must not outlive the session should be multibound as a `UserScopedCloseable`.
+ 
+ ## `ScreenScope`
+ 
+@@ -42,13 +49,16 @@ Use it for:
+ - screen-specific coordinators
+ - small state holders tied to one destination
+ 
+-The shared `ScreenComponent` lives in `core:domain`, and feature ViewModels use `@SingleIn(ScreenScope::class)`.
++The shared `ScreenComponent` lives in `core:domain`. `injectViewModel` creates it once per nav
++entry, in a `ScreenComponentHolder` stored in that entry's `ViewModelStore`, so every
++`@SingleIn(ScreenScope::class)` binding resolved on one screen shares an instance and the
++component dies with the entry.
+ 
+ ## Composition Wiring
+ 
+ At runtime the platform entry points install shared dependencies into composition via locals such as:
+ 
+-- `LocalViewModelProvider`
++- `LocalViewModelFactory` (pre-auth screens)
+ - `LocalUserComponentManager`
+ - `LocalScreenComponentFactory`
+ 
+@@ -59,4 +69,5 @@ This keeps platform hosts thin while still letting shared UI resolve screen-scop
+ - Default to the narrowest scope that matches the lifetime you need.
+ - Do not promote feature state to `AppScope` just to make wiring easier.
+ - Prefer injecting stable managers or IDs over passing around heavy graph objects manually.
+-- If a new feature needs screen-scoped ViewModels, follow the existing generated ViewModel wiring pattern rather than introducing a second DI style.
++- Register every ViewModel with `@ContributesViewModel(scope)`; the KSP processor generates its
++  `ViewModelEntry` multibinding. Do not hand-write a registration module or add a second factory.
+diff --git a/feature/auth/build.gradle.kts b/feature/auth/build.gradle.kts
+index d58381c..a912bcf 100644
+--- a/feature/auth/build.gradle.kts
++++ b/feature/auth/build.gradle.kts
+@@ -26,7 +26,6 @@ kotlin {
+     commonMain.dependencies {
+       implementation(projects.core.common)
+       implementation(projects.core.domain)
+-      implementation(projects.core.data)
+       implementation(projects.core.designsystem)
+       implementation(projects.core.ui)
+ 
+diff --git a/feature/auth/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/feature/auth/viewmodel/LoginContract.kt b/feature/auth/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/feature/auth/viewmodel/LoginContract.kt
+index 215d433..7fc3e45 100644
+--- a/feature/auth/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/feature/auth/viewmodel/LoginContract.kt
++++ b/feature/auth/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/feature/auth/viewmodel/LoginContract.kt
+@@ -11,7 +11,8 @@ object LoginContract {
+ 
+   sealed interface Error {
+     data object InvalidCredentials : Error
+-    data class Unknown(val message: String) : Error
++    data object Network : Error
++    data object Unknown : Error
+   }
+ 
+   sealed interface Event {
+diff --git a/feature/auth/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/feature/auth/viewmodel/LoginViewModel.kt b/feature/auth/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/feature/auth/viewmodel/LoginViewModel.kt
+index d91e726..5fec365 100644
+--- a/feature/auth/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/feature/auth/viewmodel/LoginViewModel.kt
++++ b/feature/auth/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/feature/auth/viewmodel/LoginViewModel.kt
+@@ -2,9 +2,11 @@ package com.sermilion.kmpcomposestarter.feature.auth.viewmodel
+ 
+ import androidx.lifecycle.ViewModel
+ import androidx.lifecycle.viewModelScope
+-import com.sermilion.kmpcomposestarter.core.data.config.MockConfig
+-import com.sermilion.kmpcomposestarter.core.data.repository.AuthRepository
+-import com.sermilion.kmpcomposestarter.core.data.repository.LoginResult
++import com.sermilion.kmpcomposestarter.common.di.ContributesViewModel
++import com.sermilion.kmpcomposestarter.core.domain.model.AuthError
++import com.sermilion.kmpcomposestarter.core.domain.model.DemoCredentials
++import com.sermilion.kmpcomposestarter.core.domain.model.LoginResult
++import com.sermilion.kmpcomposestarter.core.domain.repository.AuthRepository
+ import kotlinx.coroutines.flow.MutableSharedFlow
+ import kotlinx.coroutines.flow.MutableStateFlow
+ import kotlinx.coroutines.flow.SharedFlow
+@@ -14,9 +16,14 @@ import kotlinx.coroutines.flow.asStateFlow
+ import kotlinx.coroutines.flow.update
+ import kotlinx.coroutines.launch
+ import me.tatarka.inject.annotations.Inject
++import software.amazon.lastmile.kotlin.inject.anvil.AppScope
+ 
+ @Inject
+-class LoginViewModel(private val authRepository: AuthRepository) : ViewModel() {
++@ContributesViewModel(AppScope::class)
++class LoginViewModel(
++  private val authRepository: AuthRepository,
++  private val demoCredentials: DemoCredentials,
++) : ViewModel() {
+ 
+   private val _uiState = MutableStateFlow(LoginContract.UiState())
+   val uiState: StateFlow<LoginContract.UiState> = _uiState.asStateFlow()
+@@ -44,20 +51,17 @@ class LoginViewModel(private val authRepository: AuthRepository) : ViewModel() {
+           _uiState.update { it.copy(isLoading = false) }
+           _events.emit(LoginContract.Event.LoginSuccess)
+         }
+-        is LoginResult.Error -> {
+-          _uiState.update {
+-            it.copy(
+-              isLoading = false,
+-              error = LoginContract.Error.Unknown(result.message),
+-            )
+-          }
++        is LoginResult.Failure -> {
++          _uiState.update { it.copy(isLoading = false, error = result.error.toUiError()) }
+         }
+       }
+     }
+   }
+ 
+   fun loginDemo() {
+-    _uiState.update { it.copy(email = MockConfig.DEMO_EMAIL, password = MockConfig.DEMO_PASSWORD) }
++    _uiState.update {
++      it.copy(email = demoCredentials.loginEmail, password = demoCredentials.password)
++    }
+     login()
+   }
+ 
+@@ -66,4 +70,10 @@ class LoginViewModel(private val authRepository: AuthRepository) : ViewModel() {
+       _events.emit(LoginContract.Event.NavigateToRegister)
+     }
+   }
++
++  private fun AuthError.toUiError(): LoginContract.Error = when (this) {
++    AuthError.InvalidCredentials -> LoginContract.Error.InvalidCredentials
++    AuthError.Network -> LoginContract.Error.Network
++    AuthError.RefreshFailed, is AuthError.Unexpected -> LoginContract.Error.Unknown
++  }
+ }
+diff --git a/feature/auth/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/feature/auth/viewmodel/RegisterContract.kt b/feature/auth/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/feature/auth/viewmodel/RegisterContract.kt
+index 539c318..4790910 100644
+--- a/feature/auth/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/feature/auth/viewmodel/RegisterContract.kt
++++ b/feature/auth/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/feature/auth/viewmodel/RegisterContract.kt
+@@ -12,7 +12,8 @@ object RegisterContract {
+ 
+   sealed interface Error {
+     data object RegistrationFailed : Error
+-    data class Unknown(val message: String) : Error
++    data object Network : Error
++    data object Unknown : Error
+   }
+ 
+   sealed interface Event {
+diff --git a/feature/auth/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/feature/auth/viewmodel/RegisterViewModel.kt b/feature/auth/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/feature/auth/viewmodel/RegisterViewModel.kt
+index c90b046..efb6278 100644
+--- a/feature/auth/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/feature/auth/viewmodel/RegisterViewModel.kt
++++ b/feature/auth/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/feature/auth/viewmodel/RegisterViewModel.kt
+@@ -2,9 +2,11 @@ package com.sermilion.kmpcomposestarter.feature.auth.viewmodel
+ 
+ import androidx.lifecycle.ViewModel
+ import androidx.lifecycle.viewModelScope
+-import com.sermilion.kmpcomposestarter.core.data.config.MockConfig
+-import com.sermilion.kmpcomposestarter.core.data.repository.AuthRepository
+-import com.sermilion.kmpcomposestarter.core.data.repository.LoginResult
++import com.sermilion.kmpcomposestarter.common.di.ContributesViewModel
++import com.sermilion.kmpcomposestarter.core.domain.model.AuthError
++import com.sermilion.kmpcomposestarter.core.domain.model.DemoCredentials
++import com.sermilion.kmpcomposestarter.core.domain.model.LoginResult
++import com.sermilion.kmpcomposestarter.core.domain.repository.AuthRepository
+ import kotlinx.coroutines.flow.MutableSharedFlow
+ import kotlinx.coroutines.flow.MutableStateFlow
+ import kotlinx.coroutines.flow.SharedFlow
+@@ -14,9 +16,14 @@ import kotlinx.coroutines.flow.asStateFlow
+ import kotlinx.coroutines.flow.update
+ import kotlinx.coroutines.launch
+ import me.tatarka.inject.annotations.Inject
++import software.amazon.lastmile.kotlin.inject.anvil.AppScope
+ 
+ @Inject
+-class RegisterViewModel(private val authRepository: AuthRepository) : ViewModel() {
++@ContributesViewModel(AppScope::class)
++class RegisterViewModel(
++  private val authRepository: AuthRepository,
++  private val demoCredentials: DemoCredentials,
++) : ViewModel() {
+ 
+   private val _uiState = MutableStateFlow(RegisterContract.UiState())
+   val uiState: StateFlow<RegisterContract.UiState> = _uiState.asStateFlow()
+@@ -48,13 +55,8 @@ class RegisterViewModel(private val authRepository: AuthRepository) : ViewModel(
+           _uiState.update { it.copy(isLoading = false) }
+           _events.emit(RegisterContract.Event.RegisterSuccess)
+         }
+-        is LoginResult.Error -> {
+-          _uiState.update {
+-            it.copy(
+-              isLoading = false,
+-              error = RegisterContract.Error.Unknown(result.message),
+-            )
+-          }
++        is LoginResult.Failure -> {
++          _uiState.update { it.copy(isLoading = false, error = result.error.toUiError()) }
+         }
+       }
+     }
+@@ -62,7 +64,11 @@ class RegisterViewModel(private val authRepository: AuthRepository) : ViewModel(
+ 
+   fun registerDemo() {
+     _uiState.update {
+-      it.copy(name = "New User", email = "new@test.com", password = MockConfig.DEMO_PASSWORD)
++      it.copy(
++        name = demoCredentials.newUserName,
++        email = demoCredentials.newUserEmail,
++        password = demoCredentials.password,
++      )
+     }
+     register()
+   }
+@@ -72,4 +78,10 @@ class RegisterViewModel(private val authRepository: AuthRepository) : ViewModel(
+       _events.emit(RegisterContract.Event.NavigateBack)
+     }
+   }
++
++  private fun AuthError.toUiError(): RegisterContract.Error = when (this) {
++    AuthError.InvalidCredentials -> RegisterContract.Error.RegistrationFailed
++    AuthError.Network -> RegisterContract.Error.Network
++    AuthError.RefreshFailed, is AuthError.Unexpected -> RegisterContract.Error.Unknown
++  }
+ }
+diff --git a/feature/auth/src/jvmTest/kotlin/com/sermilion/kmpcomposestarter/feature/auth/viewmodel/LoginViewModelTest.kt b/feature/auth/src/jvmTest/kotlin/com/sermilion/kmpcomposestarter/feature/auth/viewmodel/LoginViewModelTest.kt
+index fe6b98e..7e5b2f3 100644
+--- a/feature/auth/src/jvmTest/kotlin/com/sermilion/kmpcomposestarter/feature/auth/viewmodel/LoginViewModelTest.kt
++++ b/feature/auth/src/jvmTest/kotlin/com/sermilion/kmpcomposestarter/feature/auth/viewmodel/LoginViewModelTest.kt
+@@ -1,9 +1,10 @@
+ package com.sermilion.kmpcomposestarter.feature.auth.viewmodel
+ 
+-import com.sermilion.kmpcomposestarter.core.data.config.MockConfig
+-import com.sermilion.kmpcomposestarter.core.data.repository.AuthRepository
+-import com.sermilion.kmpcomposestarter.core.data.repository.LoginResult
++import com.sermilion.kmpcomposestarter.core.domain.model.AuthError
++import com.sermilion.kmpcomposestarter.core.domain.model.DemoCredentials
++import com.sermilion.kmpcomposestarter.core.domain.model.LoginResult
+ import com.sermilion.kmpcomposestarter.core.domain.model.UserData
++import com.sermilion.kmpcomposestarter.core.domain.repository.AuthRepository
+ import io.kotest.core.spec.style.FunSpec
+ import io.kotest.matchers.shouldBe
+ import io.mockk.coEvery
+@@ -18,6 +19,16 @@ import kotlinx.coroutines.test.resetMain
+ import kotlinx.coroutines.test.runTest
+ import kotlinx.coroutines.test.setMain
+ 
++private val demoCredentials = DemoCredentials(
++  loginEmail = "demo@example.com",
++  password = "demo-password",
++  newUserEmail = "new@example.com",
++  newUserName = "New User",
++)
++
++private fun viewModelWith(authRepository: AuthRepository) =
++  LoginViewModel(authRepository, demoCredentials)
++
+ @OptIn(ExperimentalCoroutinesApi::class)
+ class LoginViewModelTest :
+   FunSpec({
+@@ -33,8 +44,7 @@ class LoginViewModelTest :
+     }
+ 
+     test("initial state should have empty email and password") {
+-      val authRepository = mockk<AuthRepository>()
+-      val viewModel = LoginViewModel(authRepository)
++      val viewModel = viewModelWith(mockk())
+ 
+       val state = viewModel.uiState.value
+ 
+@@ -45,8 +55,7 @@ class LoginViewModelTest :
+     }
+ 
+     test("onEmailChange updates email in state") {
+-      val authRepository = mockk<AuthRepository>()
+-      val viewModel = LoginViewModel(authRepository)
++      val viewModel = viewModelWith(mockk())
+ 
+       viewModel.onEmailChange("test@email.com")
+ 
+@@ -54,8 +63,7 @@ class LoginViewModelTest :
+     }
+ 
+     test("onPasswordChange updates password in state") {
+-      val authRepository = mockk<AuthRepository>()
+-      val viewModel = LoginViewModel(authRepository)
++      val viewModel = viewModelWith(mockk())
+ 
+       viewModel.onPasswordChange("secret123")
+ 
+@@ -64,9 +72,10 @@ class LoginViewModelTest :
+ 
+     test("onEmailChange clears error") {
+       val authRepository = mockk<AuthRepository>()
+-      coEvery { authRepository.login(any(), any()) } returns LoginResult.Error("Invalid")
++      coEvery { authRepository.login(any(), any()) } returns
++        LoginResult.Failure(AuthError.InvalidCredentials)
+ 
+-      val viewModel = LoginViewModel(authRepository)
++      val viewModel = viewModelWith(authRepository)
+       viewModel.onEmailChange("test@email.com")
+       viewModel.onPasswordChange("wrong")
+ 
+@@ -75,7 +84,7 @@ class LoginViewModelTest :
+         advanceUntilIdle()
+       }
+ 
+-      viewModel.uiState.value.error shouldBe LoginContract.Error.Unknown("Invalid")
++      viewModel.uiState.value.error shouldBe LoginContract.Error.InvalidCredentials
+ 
+       viewModel.onEmailChange("new@email.com")
+ 
+@@ -83,17 +92,12 @@ class LoginViewModelTest :
+     }
+ 
+     test("login with valid credentials emits LoginSuccess event") {
+-      val userData = UserData(
+-        id = "123",
+-        email = "test@email.com",
+-        name = "Test User",
+-        token = "token",
+-      )
++      val userData = UserData(id = "123", email = "test@email.com", name = "Test User")
+       val authRepository = mockk<AuthRepository>()
+       coEvery { authRepository.login("test@email.com", "password123") } returns
+         LoginResult.Success(userData)
+ 
+-      val viewModel = LoginViewModel(authRepository)
++      val viewModel = viewModelWith(authRepository)
+       viewModel.onEmailChange("test@email.com")
+       viewModel.onPasswordChange("password123")
+ 
+@@ -113,12 +117,12 @@ class LoginViewModelTest :
+       coVerify { authRepository.login("test@email.com", "password123") }
+     }
+ 
+-    test("login with invalid credentials sets error") {
++    test("wrong credentials surface the InvalidCredentials reason, not a generic error") {
+       val authRepository = mockk<AuthRepository>()
+       coEvery { authRepository.login(any(), any()) } returns
+-        LoginResult.Error("Invalid credentials")
++        LoginResult.Failure(AuthError.InvalidCredentials)
+ 
+-      val viewModel = LoginViewModel(authRepository)
++      val viewModel = viewModelWith(authRepository)
+       viewModel.onEmailChange("wrong@email.com")
+       viewModel.onPasswordChange("wrongpassword")
+ 
+@@ -127,18 +131,34 @@ class LoginViewModelTest :
+         advanceUntilIdle()
+       }
+ 
+-      viewModel.uiState.value.error shouldBe LoginContract.Error.Unknown("Invalid credentials")
++      viewModel.uiState.value.error shouldBe LoginContract.Error.InvalidCredentials
+       viewModel.uiState.value.isLoading shouldBe false
+     }
+ 
++    test("a transport failure maps to the Network reason") {
++      val authRepository = mockk<AuthRepository>()
++      coEvery { authRepository.login(any(), any()) } returns LoginResult.Failure(AuthError.Network)
++
++      val viewModel = viewModelWith(authRepository)
++      viewModel.onEmailChange("test@email.com")
++      viewModel.onPasswordChange("password")
++
++      runTest(testDispatcher) {
++        viewModel.login()
++        advanceUntilIdle()
++      }
++
++      viewModel.uiState.value.error shouldBe LoginContract.Error.Network
++    }
++
+     test("login sets isLoading true during request") {
+       val authRepository = mockk<AuthRepository>()
+       coEvery { authRepository.login(any(), any()) } coAnswers {
+         kotlinx.coroutines.delay(100)
+-        LoginResult.Success(UserData("1", "test@email.com", "Test", "token"))
++        LoginResult.Success(UserData("1", "test@email.com", "Test"))
+       }
+ 
+-      val viewModel = LoginViewModel(authRepository)
++      val viewModel = viewModelWith(authRepository)
+       viewModel.onEmailChange("test@email.com")
+       viewModel.onPasswordChange("password")
+ 
+@@ -158,10 +178,10 @@ class LoginViewModelTest :
+       val authRepository = mockk<AuthRepository>()
+       coEvery { authRepository.login(any(), any()) } coAnswers {
+         kotlinx.coroutines.delay(1000)
+-        LoginResult.Success(UserData("1", "test@email.com", "Test", "token"))
++        LoginResult.Success(UserData("1", "test@email.com", "Test"))
+       }
+ 
+-      val viewModel = LoginViewModel(authRepository)
++      val viewModel = viewModelWith(authRepository)
+       viewModel.onEmailChange("test@email.com")
+       viewModel.onPasswordChange("password")
+ 
+@@ -175,33 +195,27 @@ class LoginViewModelTest :
+       }
+     }
+ 
+-    test("loginDemo sets demo credentials and calls login") {
+-      val userData = UserData(
+-        id = "123",
+-        email = MockConfig.DEMO_EMAIL,
+-        name = MockConfig.DEMO_USER_NAME,
+-        token = "token",
+-      )
++    test("loginDemo uses the injected demo credentials") {
++      val userData = UserData(id = "123", email = demoCredentials.loginEmail, name = "Test User")
+       val authRepository = mockk<AuthRepository>()
+       coEvery {
+-        authRepository.login(MockConfig.DEMO_EMAIL, MockConfig.DEMO_PASSWORD)
++        authRepository.login(demoCredentials.loginEmail, demoCredentials.password)
+       } returns LoginResult.Success(userData)
+ 
+-      val viewModel = LoginViewModel(authRepository)
++      val viewModel = viewModelWith(authRepository)
+ 
+       runTest(testDispatcher) {
+         viewModel.loginDemo()
+         advanceUntilIdle()
+       }
+ 
+-      viewModel.uiState.value.email shouldBe MockConfig.DEMO_EMAIL
+-      viewModel.uiState.value.password shouldBe MockConfig.DEMO_PASSWORD
+-      coVerify { authRepository.login(MockConfig.DEMO_EMAIL, MockConfig.DEMO_PASSWORD) }
++      viewModel.uiState.value.email shouldBe demoCredentials.loginEmail
++      viewModel.uiState.value.password shouldBe demoCredentials.password
++      coVerify { authRepository.login(demoCredentials.loginEmail, demoCredentials.password) }
+     }
+ 
+     test("navigateToRegister emits NavigateToRegister event") {
+-      val authRepository = mockk<AuthRepository>()
+-      val viewModel = LoginViewModel(authRepository)
++      val viewModel = viewModelWith(mockk())
+ 
+       runTest(testDispatcher) {
+         val events = mutableListOf<LoginContract.Event>()
+diff --git a/feature/home/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/feature/home/viewmodel/HomeViewModel.kt b/feature/home/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/feature/home/viewmodel/HomeViewModel.kt
+index fb00aab..16debfd 100644
+--- a/feature/home/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/feature/home/viewmodel/HomeViewModel.kt
++++ b/feature/home/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/feature/home/viewmodel/HomeViewModel.kt
+@@ -2,6 +2,7 @@ package com.sermilion.kmpcomposestarter.feature.home.viewmodel
+ 
+ import androidx.lifecycle.ViewModel
+ import androidx.lifecycle.viewModelScope
++import com.sermilion.kmpcomposestarter.common.di.ContributesViewModel
+ import com.sermilion.kmpcomposestarter.common.di.ScreenScope
+ import com.sermilion.kmpcomposestarter.core.domain.model.UserData
+ import kotlinx.coroutines.flow.MutableSharedFlow
+@@ -12,10 +13,9 @@ import kotlinx.coroutines.flow.asSharedFlow
+ import kotlinx.coroutines.flow.asStateFlow
+ import kotlinx.coroutines.launch
+ import me.tatarka.inject.annotations.Inject
+-import software.amazon.lastmile.kotlin.inject.anvil.SingleIn
+ 
+ @Inject
+-@SingleIn(ScreenScope::class)
++@ContributesViewModel(ScreenScope::class)
+ class HomeViewModel(private val userData: UserData) : ViewModel() {
+ 
+   private val _uiState = MutableStateFlow(
+diff --git a/feature/profile/build.gradle.kts b/feature/profile/build.gradle.kts
+index d799bd9..6d56cfd 100644
+--- a/feature/profile/build.gradle.kts
++++ b/feature/profile/build.gradle.kts
+@@ -26,7 +26,6 @@ kotlin {
+     commonMain.dependencies {
+       implementation(projects.core.common)
+       implementation(projects.core.domain)
+-      implementation(projects.core.data)
+       implementation(projects.core.designsystem)
+       implementation(projects.core.ui)
+ 
+diff --git a/feature/profile/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/feature/profile/viewmodel/ProfileViewModel.kt b/feature/profile/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/feature/profile/viewmodel/ProfileViewModel.kt
+index f657eeb..4456034 100644
+--- a/feature/profile/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/feature/profile/viewmodel/ProfileViewModel.kt
++++ b/feature/profile/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/feature/profile/viewmodel/ProfileViewModel.kt
+@@ -2,9 +2,10 @@ package com.sermilion.kmpcomposestarter.feature.profile.viewmodel
+ 
+ import androidx.lifecycle.ViewModel
+ import androidx.lifecycle.viewModelScope
++import com.sermilion.kmpcomposestarter.common.di.ContributesViewModel
+ import com.sermilion.kmpcomposestarter.common.di.ScreenScope
+-import com.sermilion.kmpcomposestarter.core.data.repository.AuthRepository
+ import com.sermilion.kmpcomposestarter.core.domain.model.UserData
++import com.sermilion.kmpcomposestarter.core.domain.repository.AuthRepository
+ import kotlinx.coroutines.flow.MutableSharedFlow
+ import kotlinx.coroutines.flow.MutableStateFlow
+ import kotlinx.coroutines.flow.SharedFlow
+@@ -14,10 +15,9 @@ import kotlinx.coroutines.flow.asStateFlow
+ import kotlinx.coroutines.flow.update
+ import kotlinx.coroutines.launch
+ import me.tatarka.inject.annotations.Inject
+-import software.amazon.lastmile.kotlin.inject.anvil.SingleIn
+ 
+ @Inject
+-@SingleIn(ScreenScope::class)
++@ContributesViewModel(ScreenScope::class)
+ class ProfileViewModel(private val userData: UserData, private val authRepository: AuthRepository) :
+   ViewModel() {
+ 
+diff --git a/feature/settings/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/feature/settings/viewmodel/SettingsViewModel.kt b/feature/settings/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/feature/settings/viewmodel/SettingsViewModel.kt
+index ef584bd..c619292 100644
+--- a/feature/settings/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/feature/settings/viewmodel/SettingsViewModel.kt
++++ b/feature/settings/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/feature/settings/viewmodel/SettingsViewModel.kt
+@@ -1,16 +1,16 @@
+ package com.sermilion.kmpcomposestarter.feature.settings.viewmodel
+ 
+ import androidx.lifecycle.ViewModel
++import com.sermilion.kmpcomposestarter.common.di.ContributesViewModel
+ import com.sermilion.kmpcomposestarter.common.di.ScreenScope
+ import com.sermilion.kmpcomposestarter.core.domain.model.UserData
+ import kotlinx.coroutines.flow.MutableStateFlow
+ import kotlinx.coroutines.flow.StateFlow
+ import kotlinx.coroutines.flow.asStateFlow
+ import me.tatarka.inject.annotations.Inject
+-import software.amazon.lastmile.kotlin.inject.anvil.SingleIn
+ 
+ @Inject
+-@SingleIn(ScreenScope::class)
++@ContributesViewModel(ScreenScope::class)
+ class SettingsViewModel(private val userData: UserData) : ViewModel() {
+ 
+   private val _uiState = MutableStateFlow(
+diff --git a/gradle/libs.versions.toml b/gradle/libs.versions.toml
+index fc8ba7c..e8f8562 100644
+--- a/gradle/libs.versions.toml
++++ b/gradle/libs.versions.toml
+@@ -17,6 +17,7 @@ detekt = "1.23.8"
+ detektCompose = "0.4.22"
+ ksoup = "0.2.5"
+ kotlin = "2.3.10"
++kotlinCompileTesting = "0.12.1"
+ okio = "3.17.0"
+ kotlinxCoroutines = "1.10.2"
+ kotlinxCoroutinesTest = "1.10.2"
+@@ -129,6 +130,8 @@ compose-components-resources = { module = "org.jetbrains.compose.components:comp
+ compose-components-uiToolingPreview = { module = "org.jetbrains.compose.components:components-ui-tooling-preview", version.ref = "composeMultiplatform" }
+ compose-materialIconsCore = { module = "org.jetbrains.compose.material:material-icons-core", version.ref = "composeMaterialIcons" }
+ 
++kotlin-compile-testing = { module = "dev.zacsweers.kctfork:core", version.ref = "kotlinCompileTesting" }
++kotlin-compile-testing-ksp = { module = "dev.zacsweers.kctfork:ksp", version.ref = "kotlinCompileTesting" }
+ kotlinpoet = { module = "com.squareup:kotlinpoet", version.ref = "kotlinpoet" }
+ kotlinpoet-ksp = { module = "com.squareup:kotlinpoet-ksp", version.ref = "kotlinpoet" }
+ ksp-symbol-processing-api = { module = "com.google.devtools.ksp:symbol-processing-api", version.ref = "ksp" }

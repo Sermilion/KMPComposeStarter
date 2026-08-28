@@ -9,6 +9,7 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.ui.Modifier
@@ -18,6 +19,7 @@ import androidx.navigation3.runtime.NavEntry
 import androidx.navigation3.runtime.NavEntryDecorator
 import androidx.navigation3.ui.NavDisplay
 import com.sermilion.kmpcomposestarter.common.navigation.Route
+import com.sermilion.kmpcomposestarter.core.ui.di.rememberNavEntryViewModelStoreOwner
 import com.sermilion.kmpcomposestarter.feature.home.navigation.HomeRoute
 import com.sermilion.kmpcomposestarter.feature.profile.navigation.ProfileRoute
 import com.sermilion.kmpcomposestarter.feature.settings.navigation.SettingsRoute
@@ -29,9 +31,6 @@ fun StarterNavDisplay(
   isLoggedIn: Boolean,
   modifier: Modifier = Modifier,
 ) {
-  val savedStateDecorator = rememberSaveableStateHolderNavEntryDecorator<Route>()
-  val viewModelDecorator = rememberViewModelStoreNavEntryDecorator<Route>()
-
   val backStack = navigationState.getBackStack(isLoggedIn)
   val currentRoute = backStack.lastOrNull()
   val isRootScreen = remember(currentRoute) {
@@ -40,36 +39,48 @@ fun StarterNavDisplay(
 
   val isTabSwitching = isRootScreen && backStack.size == 1
 
-  NavDisplay(
-    backStack = backStack,
-    modifier = modifier,
-    entryProvider = createStarterEntryProvider(
-      navigator = navigator,
-      isLoggedIn = isLoggedIn,
-    ),
-    entryDecorators = listOf(savedStateDecorator, viewModelDecorator),
-    transitionSpec = {
-      when {
-        isTabSwitching -> fadeIn(fadeAnimationSpec) togetherWith fadeOut(fadeAnimationSpec)
-        else -> slideInHorizontally(
-          initialOffsetX = { it },
+  // Nav-entry state is keyed by route, so without a session-scoped owner the next user's Home
+  // entry would inherit the previous session's screen component, ViewModels and saved UI state.
+  // The owner changes only when a session ends; keying on it discards the entries with it.
+  val entryStoreOwner = rememberNavEntryViewModelStoreOwner()
+
+  key(entryStoreOwner) {
+    val savedStateDecorator = rememberSaveableStateHolderNavEntryDecorator<Route>()
+    val viewModelDecorator = rememberViewModelStoreNavEntryDecorator<Route>(
+      viewModelStoreOwner = entryStoreOwner,
+    )
+
+    NavDisplay(
+      backStack = backStack,
+      modifier = modifier,
+      entryProvider = createStarterEntryProvider(
+        navigator = navigator,
+        isLoggedIn = isLoggedIn,
+      ),
+      entryDecorators = listOf(savedStateDecorator, viewModelDecorator),
+      transitionSpec = {
+        when {
+          isTabSwitching -> fadeIn(fadeAnimationSpec) togetherWith fadeOut(fadeAnimationSpec)
+          else -> slideInHorizontally(
+            initialOffsetX = { it },
+            animationSpec = slideAnimationSpec,
+          ) togetherWith slideOutHorizontally(
+            targetOffsetX = { -it / 3 },
+            animationSpec = slideAnimationSpec,
+          )
+        }
+      },
+      popTransitionSpec = {
+        slideInHorizontally(
+          initialOffsetX = { -it / 3 },
           animationSpec = slideAnimationSpec,
         ) togetherWith slideOutHorizontally(
-          targetOffsetX = { -it / 3 },
+          targetOffsetX = { it },
           animationSpec = slideAnimationSpec,
         )
-      }
-    },
-    popTransitionSpec = {
-      slideInHorizontally(
-        initialOffsetX = { -it / 3 },
-        animationSpec = slideAnimationSpec,
-      ) togetherWith slideOutHorizontally(
-        targetOffsetX = { it },
-        animationSpec = slideAnimationSpec,
-      )
-    },
-  )
+      },
+    )
+  }
 }
 
 val Route.isTabRoot: Boolean
