@@ -85,7 +85,6 @@ kotlin {
     }
 
     jvmMain.dependencies {
-      implementation(libs.sqlite.jdbc)
       implementation(libs.ktor.client.okhttp)
     }
 
@@ -134,4 +133,48 @@ configure<Lint> {
 
 tasks.withType<Test>().configureEach {
   useJUnitPlatform()
+  // Keeps the desktop data directory (databases and the preferences file) inside the build
+  // directory, so running tests never writes into the developer's home directory.
+  systemProperty(
+    "starter.dataDir",
+    layout.buildDirectory
+      .dir("test-data")
+      .get()
+      .asFile.absolutePath,
+  )
+}
+
+// The base URL is a build input, not a hard-coded string: a fork points its own backend at
+// `starter.api.baseUrl` in gradle.properties or on the command line. The default host is
+// deliberately fake — this template ships no real backend.
+val apiBaseUrl: Provider<String> =
+  providers.gradleProperty("starter.api.baseUrl").orElse("https://api.example.com/")
+
+val generateNetworkConfig by tasks.registering {
+  val baseUrl = apiBaseUrl
+  val outputDirectory = layout.buildDirectory.dir("generated/network/kotlin")
+  inputs.property("baseUrl", baseUrl)
+  outputs.dir(outputDirectory)
+
+  doLast {
+    val target = outputDirectory
+      .get()
+      .asFile
+      .resolve("com/sermilion/kmpcomposestarter/core/data/network/NetworkConfig.kt")
+    target.parentFile.mkdirs()
+    target.writeText(
+      """
+      package com.sermilion.kmpcomposestarter.core.data.network
+
+      /** Generated from the `starter.api.baseUrl` Gradle property. Do not edit. */
+      internal object NetworkConfig {
+        const val BASE_URL: String = "${baseUrl.get()}"
+      }
+      """.trimIndent() + "\n",
+    )
+  }
+}
+
+kotlin.sourceSets.commonMain {
+  kotlin.srcDir(generateNetworkConfig)
 }

@@ -44,9 +44,21 @@ Adapted from the kinds of practices that scale well in larger Compose apps:
 - Use DataStore for small preference-style settings.
 - Treat DataStore file renames as migrations, not cosmetic refactors.
 - Commit Room schema exports when the schema changes.
+- Key user-scoped storage by the signed-in user's ID, and release it in a `UserScopedCloseable`.
+- Check the result of a deletion. Reporting success while user data is still on disk is worse than
+  reporting failure.
 
-**Not wired yet — wired in KMP-1.** Both the per-user Room database and `core:datastore` are declared but unconsumed;
-these rules describe the intended boundary, not current runtime behavior.
+## Networking Guidance
+
+- There is one process-wide `HttpClient`, configured in `core:data`'s `HttpClientModule`.
+- It reads the bearer token through `UserComponentManager` on every request rather than capturing a
+  `TokenStore`, so a signed-out session cannot keep authorizing requests.
+- The base URL comes from the `starter.api.baseUrl` Gradle property, defaulting to the deliberately
+  fake `https://api.example.com/`. Never commit a real endpoint or secret to this template.
+- Keep credentials out of logs: the `Logging` plugin sanitizes the `Authorization` header, and any
+  new sensitive header must be added there too.
+- Repositories talk to data-source interfaces, never to `HttpClient` directly. The starter ships one
+  `@ContributesBinding` implementation, `MockAuthRemoteDataSource`; a fork swaps that single binding.
 
 ## Documentation Workflow
 

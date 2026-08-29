@@ -3,6 +3,7 @@ package com.sermilion.kmpcomposestarter
 import android.app.Application
 import com.sermilion.kmpcomposestarter.common.di.StarterViewModelFactory
 import com.sermilion.kmpcomposestarter.core.data.di.UserComponent
+import com.sermilion.kmpcomposestarter.core.data.session.SessionRestorer
 import com.sermilion.kmpcomposestarter.core.domain.di.UserComponentManager
 import com.sermilion.kmpcomposestarter.core.domain.repository.AuthRepository
 import com.sermilion.kmpcomposestarter.di.AppComponent
@@ -18,6 +19,7 @@ abstract class AndroidApplicationComponent(@get:Provides val application: Applic
 
   abstract override val userComponentManager: UserComponentManager
   abstract override val viewModelFactory: StarterViewModelFactory
+  abstract override val sessionRestorer: SessionRestorer
 
   abstract val userComponentFactory: UserComponent.Factory
   abstract val authRepository: AuthRepository

@@ -4,7 +4,7 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.lifecycle.ViewModelProvider
 
 /** Factory for ViewModels that must resolve before a user session exists (login, register). */
-val LocalViewModelFactory = staticCompositionLocalOf<ViewModelProvider.Factory> {
+val LocalPreAuthViewModelFactory = staticCompositionLocalOf<ViewModelProvider.Factory> {
   error("ViewModel factory not provided")
 }
 

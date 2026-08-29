@@ -60,7 +60,8 @@ Read: `docs/architecture/navigation.md`
 - Room 3 database layout
 - Per-user database lifetime
 - Platform-specific database builders
-- Schema export expectations
+- Schema export and migration expectations
+- Session and preference persistence through `core:datastore`
 
 Read: `docs/architecture/persistence.md`
 
@@ -78,6 +79,7 @@ Read: `docs/architecture/build-and-tooling.md`
 - Reusable starter-safe contribution rules
 - State hoisting and preview guidance
 - Repository and source-of-truth rules
+- Networking, base URL, and credential-handling rules
 - Documentation update expectations
 
 Read: `docs/architecture/conventions.md`

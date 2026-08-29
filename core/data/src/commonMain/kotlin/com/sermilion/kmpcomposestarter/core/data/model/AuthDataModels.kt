@@ -10,7 +10,7 @@ data class UserDataModel(val id: String, val email: String, val name: String)
 data class AuthTokenDataModel(
   val accessToken: String,
   val refreshToken: String? = null,
-  val expiresIn: Long? = null,
+  val expiresAtEpochMillis: Long? = null,
 )
 
 sealed interface AuthResultDataModel {
@@ -18,3 +18,6 @@ sealed interface AuthResultDataModel {
 
   data class Failure(val error: AuthError) : AuthResultDataModel
 }
+
+/** A signed-in session as it is persisted: who is signed in, and what authorizes their requests. */
+data class StoredSession(val user: UserDataModel, val token: AuthTokenDataModel)

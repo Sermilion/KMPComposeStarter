@@ -8,8 +8,8 @@ import androidx.lifecycle.viewmodel.MutableCreationExtras
 import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
 import co.touchlab.kermit.Logger
+import com.sermilion.kmpcomposestarter.common.di.LocalPreAuthViewModelFactory
 import com.sermilion.kmpcomposestarter.common.di.LocalScreenComponentFactory
-import com.sermilion.kmpcomposestarter.common.di.LocalViewModelFactory
 import com.sermilion.kmpcomposestarter.common.di.StarterViewModelFactory
 import com.sermilion.kmpcomposestarter.common.di.mapToAssistedArgs
 import com.sermilion.kmpcomposestarter.core.ui.di.ScreenComponentHolder
@@ -85,7 +85,7 @@ internal inline fun <reified VM : ViewModel> injectPreAuthScopedViewModel(): VM 
   return viewModel(
     viewModelStoreOwner = viewModelStoreOwner,
     modelClass = VM::class,
-    factory = LocalViewModelFactory.current,
+    factory = LocalPreAuthViewModelFactory.current,
   )
 }
 

@@ -2,9 +2,13 @@ package com.sermilion.kmpcomposestarter
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import com.sermilion.kmpcomposestarter.common.di.LocalPreAuthViewModelFactory
 import com.sermilion.kmpcomposestarter.common.di.LocalScreenComponentFactory
-import com.sermilion.kmpcomposestarter.common.di.LocalViewModelFactory
 import com.sermilion.kmpcomposestarter.core.designsystem.theme.StarterTheme
+import com.sermilion.kmpcomposestarter.core.domain.session.SessionState
 import com.sermilion.kmpcomposestarter.core.ui.di.LocalUserComponentManager
 import com.sermilion.kmpcomposestarter.core.ui.di.ProvideScreenComponentFactory
 import com.sermilion.kmpcomposestarter.di.AppComponent
@@ -13,22 +17,33 @@ import com.sermilion.kmpcomposestarter.ui.rememberStarterAppState
 /** The single host wiring block. Android, iOS and desktop all render through this. */
 @Composable
 fun StarterRoot(component: AppComponent) {
+  val sessionState by component.sessionRestorer.state.collectAsState()
+
+  LaunchedEffect(Unit) {
+    component.sessionRestorer.restore()
+  }
+
   CompositionLocalProvider(
-    LocalViewModelFactory provides component.viewModelFactory,
+    LocalPreAuthViewModelFactory provides component.viewModelFactory,
     LocalUserComponentManager provides component.userComponentManager,
   ) {
     ProvideScreenComponentFactory {
       StarterTheme {
-        val screenComponentFactory = LocalScreenComponentFactory.current
-        val appState = rememberStarterAppState(
-          userComponentManager = component.userComponentManager,
-          screenComponentFactory = screenComponentFactory,
-        )
-        StarterApp(
-          appState = appState,
-          isLoggedIn = appState.isAuthenticated,
-          screenComponentFactory = screenComponentFactory,
-        )
+        // Nothing is drawn until the stored session has been read. Rendering the auth stack
+        // first and correcting it a frame later is exactly the login flash this avoids; the
+        // read is a local file, so the blank frame is not a perceptible delay.
+        if (sessionState !is SessionState.Loading) {
+          val screenComponentFactory = LocalScreenComponentFactory.current
+          val appState = rememberStarterAppState(
+            userComponentManager = component.userComponentManager,
+            screenComponentFactory = screenComponentFactory,
+          )
+          StarterApp(
+            appState = appState,
+            isLoggedIn = appState.isAuthenticated,
+            screenComponentFactory = screenComponentFactory,
+          )
+        }
       }
     }
   }

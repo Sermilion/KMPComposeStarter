@@ -20,6 +20,9 @@ Examples include:
 - app coroutine scope
 - session management helpers
 - Room database provider infrastructure
+- the `UserPreferences` DataStore and the `AuthLocalDataSource` over it
+- the single `HttpClient`, which reads the current bearer token through `UserComponentManager`
+- `SessionRestorer`, which rebuilds a stored session once per process at launch
 - remote data sources and app-level repositories
 
 Each platform merges its own component (`AndroidApplicationComponent` in `androidApp`,
@@ -31,8 +34,9 @@ composition, and hands it to `StarterRoot(component)`.
 
 `UserScope` represents a logged-in session.
 
-Objects tied to a specific authenticated user should live here, including user-specific data
-access like `StarterUserDao`, the `TokenStore`, and the `UserSessionScope` coroutine scope.
+Objects tied to a specific authenticated user should live here, including the session's
+`UserDatabase`, `StarterUserDao`, `StarterUserRepository`, the `TokenStore`, and the
+`UserSessionScope` coroutine scope.
 
 `StarterUserComponentManager` owns the session: a `createComponent` for a different user replaces
 the previous session, and teardown cancels `UserSessionScope` then closes every
@@ -65,7 +69,7 @@ them, and clearing them would cancel the ViewModel coroutine completing the sign
 
 At runtime the platform entry points install shared dependencies into composition via locals such as:
 
-- `LocalViewModelFactory` (pre-auth screens)
+- `LocalPreAuthViewModelFactory` (pre-auth screens)
 - `LocalUserComponentManager`
 - `LocalScreenComponentFactory`
 

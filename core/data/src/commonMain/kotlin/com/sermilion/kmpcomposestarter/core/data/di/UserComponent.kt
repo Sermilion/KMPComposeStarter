@@ -7,6 +7,7 @@ import com.sermilion.kmpcomposestarter.core.domain.di.UserDependencies
 import com.sermilion.kmpcomposestarter.core.domain.di.UserScopedCloseable
 import com.sermilion.kmpcomposestarter.core.domain.di.UserSessionScope
 import com.sermilion.kmpcomposestarter.core.domain.model.UserData
+import com.sermilion.kmpcomposestarter.core.domain.repository.UserRepository
 import software.amazon.lastmile.kotlin.inject.anvil.AppScope
 import software.amazon.lastmile.kotlin.inject.anvil.ContributesSubcomponent
 import software.amazon.lastmile.kotlin.inject.anvil.SingleIn
@@ -17,6 +18,7 @@ interface UserComponent : UserDependencies {
 
   override val userData: UserData
   override val tokenStore: TokenStore
+  override val userRepository: UserRepository
   override val userSessionScope: UserSessionScope
   override val userScopedCloseables: Set<UserScopedCloseable>
   override val screenComponentFactory: ScreenComponent.Factory

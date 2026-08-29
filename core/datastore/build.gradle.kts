@@ -25,13 +25,14 @@ kotlin {
     commonMain.dependencies {
       implementation(projects.core.domain)
       implementation(projects.core.common)
-      implementation(libs.androidx.datastore.core)
+      // api: DataStore<UserPreferences> and okio Path are part of this module's own contract.
+      api(libs.androidx.datastore.core)
+      api(libs.okio)
       implementation(libs.androidx.datastore.core.okio)
       implementation(libs.serialization.json)
       implementation(libs.kermit)
       implementation(libs.kotlin.inject.runtime)
       implementation(libs.kotlin.inject.anvil.runtime)
-      implementation(libs.okio)
     }
 
     androidMain.dependencies {

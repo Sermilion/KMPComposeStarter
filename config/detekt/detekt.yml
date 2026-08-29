@@ -367,7 +367,7 @@ TwitterCompose:
   CompositionLocalAllowlist:
     active: true
     allowedCompositionLocals:
-      - LocalViewModelProvider
+      - LocalPreAuthViewModelFactory
       - LocalScreenComponentFactory
       - LocalUserComponentManager
 

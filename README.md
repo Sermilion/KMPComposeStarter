@@ -15,7 +15,9 @@ This repository gives you a modern baseline for app development with Compose Mul
 - Multi-module app architecture with clear `core` and `feature` boundaries
 - Compile-time dependency injection with `kotlin-inject` + Anvil
 - Navigation 3 with typed routes and explicit back stack ownership
-- Room 3 persistence with shared schemas and platform-specific database builders
+- Room 3 persistence with shared schemas, a per-user database, and platform-specific builders
+- Session persistence in DataStore, restored at launch so returning users skip the login screen
+- One shared Ktor client with bearer auth, sanitized logging, and a build-configurable base URL
 - Shared Gradle convention plugins in `build-logic/`
 - Kotest, MockK, Detekt, Spotless, and GitHub automation
 
@@ -109,6 +111,17 @@ The project is updated to AGP 9.1.0 and Gradle 9.4.0.
 Android now lives in a dedicated `androidApp` module, while shared multiplatform modules use the Android KMP library plugin.
 
 `core:data` intentionally disables the `RestrictedApi` lint check because Room 3 `alpha01` currently reports false positives for both generated KSP code and `RoomDatabase` usage in KMP lint tasks. See `docs/architecture/build-and-tooling.md` for details.
+
+### Configuration properties
+
+| Property | Default | Purpose |
+| --- | --- | --- |
+| `starter.api.baseUrl` | `https://api.example.com/` | Base URL for the shared Ktor client. The default host is deliberately fake: this template ships no backend. Override it in `gradle.properties` or with `-Pstarter.api.baseUrl=...`. |
+| `-Dstarter.dataDir` | `~/.kmpcomposestarter` | Desktop data directory for the per-user databases and the preferences file. The Gradle test tasks point it at a build directory. |
+
+The starter authenticates against `MockAuthRemoteDataSource`, an in-process fake. It persists the
+session token as plain JSON, which is fine for a template and not for a shipping app — see
+`docs/architecture/persistence.md` before pointing this at a real backend.
 
 ## Demo Credentials
 

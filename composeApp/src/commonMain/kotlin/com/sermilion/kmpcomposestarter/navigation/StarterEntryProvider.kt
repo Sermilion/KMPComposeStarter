@@ -105,6 +105,7 @@ fun createStarterEntryProvider(navigator: StarterNavigator, isLoggedIn: Boolean)
           uiState = uiState,
           onNavigateBack = viewModel::navigateBack,
           onLogout = viewModel::logout,
+          onDeleteMyData = viewModel::deleteMyData,
         )
       }
 

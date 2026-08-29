@@ -6,4 +6,6 @@
   <string name="profile_id_label">ID: %1$s</string>
   <string name="profile_button_back_to_home">Back to Home</string>
   <string name="profile_button_logout">Logout</string>
+  <string name="profile_button_delete_my_data">Delete my data</string>
+  <string name="profile_delete_failed">Some of your data could not be deleted. Please try again.</string>
 </resources>

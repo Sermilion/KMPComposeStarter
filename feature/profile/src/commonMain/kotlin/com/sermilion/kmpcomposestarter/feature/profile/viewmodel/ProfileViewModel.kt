@@ -6,6 +6,7 @@ import com.sermilion.kmpcomposestarter.common.di.ContributesViewModel
 import com.sermilion.kmpcomposestarter.common.di.ScreenScope
 import com.sermilion.kmpcomposestarter.core.domain.model.UserData
 import com.sermilion.kmpcomposestarter.core.domain.repository.AuthRepository
+import com.sermilion.kmpcomposestarter.core.domain.repository.UserRepository
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -18,8 +19,11 @@ import me.tatarka.inject.annotations.Inject
 
 @Inject
 @ContributesViewModel(ScreenScope::class)
-class ProfileViewModel(private val userData: UserData, private val authRepository: AuthRepository) :
-  ViewModel() {
+class ProfileViewModel(
+  userData: UserData,
+  private val authRepository: AuthRepository,
+  private val userRepository: UserRepository,
+) : ViewModel() {
 
   private val _uiState = MutableStateFlow(
     ProfileContract.UiState(
@@ -33,6 +37,20 @@ class ProfileViewModel(private val userData: UserData, private val authRepositor
   private val _events = MutableSharedFlow<ProfileContract.Event>()
   val events: SharedFlow<ProfileContract.Event> = _events.asSharedFlow()
 
+  init {
+    // The sign-in response seeds the screen so it is never blank, but the stored row is what it
+    // follows: a profile edited elsewhere in the session shows up here without a re-login.
+    viewModelScope.launch {
+      userRepository.observeCurrentUser().collect { stored ->
+        if (stored != null) {
+          _uiState.update {
+            it.copy(userName = stored.name, userEmail = stored.email, userId = stored.id)
+          }
+        }
+      }
+    }
+  }
+
   fun navigateBack() {
     viewModelScope.launch {
       _events.emit(ProfileContract.Event.NavigateBack)
@@ -40,12 +58,33 @@ class ProfileViewModel(private val userData: UserData, private val authRepositor
   }
 
   fun logout() {
-    if (_uiState.value.isLoggingOut) return
+    if (_uiState.value.isBusy) return
 
     viewModelScope.launch {
       _uiState.update { it.copy(isLoggingOut = true) }
       authRepository.logout()
       _events.emit(ProfileContract.Event.LogoutSuccess)
+    }
+  }
+
+  /**
+   * Erases this user's local database, then signs out — the session's database handle is gone,
+   * so staying signed in would leave the screen reading a file that no longer exists.
+   *
+   * A failed deletion does not sign out. Reporting success while the data is still on disk is
+   * the one outcome a delete-my-data control must never produce.
+   */
+  fun deleteMyData() {
+    if (_uiState.value.isBusy) return
+
+    viewModelScope.launch {
+      _uiState.update { it.copy(isDeletingData = true, dataDeletionFailed = false) }
+      if (userRepository.deleteMyData()) {
+        authRepository.logout()
+        _events.emit(ProfileContract.Event.LogoutSuccess)
+      } else {
+        _uiState.update { it.copy(isDeletingData = false, dataDeletionFailed = true) }
+      }
     }
   }
 }

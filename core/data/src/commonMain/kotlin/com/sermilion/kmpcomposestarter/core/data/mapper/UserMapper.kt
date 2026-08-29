@@ -2,24 +2,22 @@ package com.sermilion.kmpcomposestarter.core.data.mapper
 
 import com.sermilion.kmpcomposestarter.core.data.model.UserLocalDataModel
 import com.sermilion.kmpcomposestarter.core.domain.model.UserData
-import kotlinx.datetime.Clock
-import kotlin.uuid.ExperimentalUuidApi
-import kotlin.uuid.Uuid
+import kotlinx.datetime.Instant
 
-@OptIn(ExperimentalUuidApi::class)
-fun UserData.toLocalDataModel(): UserLocalDataModel = UserLocalDataModel(
-  id = Uuid.parse(id),
+/**
+ * [createdAt] is a parameter, not a `Clock.System.now()` call inside the mapper: a mapping that
+ * reads the clock is not a mapping, and it makes the same input produce a different row every
+ * time it runs — including on every re-login.
+ */
+fun UserData.toLocalDataModel(createdAt: Instant): UserLocalDataModel = UserLocalDataModel(
+  id = id,
   name = name,
   email = email,
-  createdAt = Clock.System.now(),
+  createdAt = createdAt,
 )
 
-@OptIn(ExperimentalUuidApi::class)
 fun UserLocalDataModel.toDomainModel(): UserData = UserData(
-  id = id.toString(),
+  id = id,
   email = email.orEmpty(),
   name = name,
 )
-
-@OptIn(ExperimentalUuidApi::class)
-fun List<UserLocalDataModel>.toDomainModels(): List<UserData> = map { it.toDomainModel() }

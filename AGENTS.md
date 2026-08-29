@@ -51,6 +51,23 @@ The repository is organized as a Kotlin Multiplatform application starter:
 - Keep Android app bootstrap in `androidApp` and shared Kotlin Multiplatform code in modules that use the Android KMP library plugin.
 - If build logic changes, re-run `./gradlew check` from the repository root.
 
+## Networking and Session Guidance
+
+- There is one process-wide `HttpClient` (`core:data`'s `HttpClientModule`). It reads the bearer
+  token through `UserComponentManager` on every request; do not capture a `TokenStore` in it.
+- The base URL comes from the `starter.api.baseUrl` Gradle property and defaults to the fake
+  `https://api.example.com/`. Never commit a real endpoint or secret to this template.
+- Keep credentials out of logs. The `Logging` plugin sanitizes `Authorization`; add any new
+  sensitive header there too.
+- Repositories depend on data-source interfaces, not on `HttpClient`. The starter binds exactly one
+  implementation, `MockAuthRemoteDataSource`; a fork replaces that single `@ContributesBinding`.
+- The signed-in session persists as plain JSON via `core:datastore`. Before pointing the template at
+  a real backend, move the token to the Keychain/Keystore/OS keyring.
+- Anything keyed to the signed-in user belongs in `UserScope` and must be released through a
+  `UserScopedCloseable`. Never let a stale session reference reach the next user's data.
+- Desktop file locations honour `-Dstarter.dataDir`; keep tests pointed at a build directory rather
+  than the developer's home directory.
+
 ## Testing and Quality Standards
 
 - `./gradlew check` is the default release gate for this starter.
@@ -61,6 +78,8 @@ The repository is organized as a Kotlin Multiplatform application starter:
 - When adding repository APIs, prefer both single-item and bulk write operations instead of forcing callers into item-by-item loops.
 - Treat DataStore file renames as migrations. Renaming a file without a migration path can strand existing user data.
 - Commit Room schema exports when Room schemas change.
+- Check the result of a deletion. Reporting success while user data is still on disk is worse
+  than reporting failure.
 
 ## Documentation Workflow Expectations
 

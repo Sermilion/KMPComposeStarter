@@ -25,7 +25,12 @@ fun rememberStarterAppState(
   val isLoggedIn = userComponent != null
   val canShowAuthenticated = isLoggedIn && screenComponentFactory != null
 
-  val navigationState = remember { mutableStateOf(StarterNavigationState()) }
+  // Seeded from the restored session rather than defaulting to signed out: the effect below
+  // only runs after the first composition, so a `false` seed would render the login stack for
+  // one frame to a user who is already signed in.
+  val navigationState = remember {
+    mutableStateOf(StarterNavigationState(isAuthenticated = canShowAuthenticated))
+  }
   val navigator = remember { StarterNavigator(navigationState) }
 
   val currentIsAuthenticated = navigationState.value.isAuthenticated

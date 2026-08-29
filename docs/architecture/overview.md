@@ -50,9 +50,11 @@ That keeps auth gating, top-level tab resets, and back behavior visible in code.
 
 Room 3 is the shared persistence layer.
 
-The starter defines one user-specific database per active user, with platform-specific builders handling file locations and driver details.
+The starter opens one user-specific database per active user, with platform-specific builders handling file locations and deletion details.
 
-**Not wired yet — wired in KMP-1.** No code path opens a user database yet; `StarterUserDao` and the per-user builders exist but are unconsumed.
+`UserScope` owns that database: opening a session opens it, and signing out closes it through a
+`UserScopedCloseable`. Session identity and the bearer token persist separately, in `core:datastore`,
+so a returning user is restored at launch rather than sent back to the login screen.
 
 ## Current Build Shape
 

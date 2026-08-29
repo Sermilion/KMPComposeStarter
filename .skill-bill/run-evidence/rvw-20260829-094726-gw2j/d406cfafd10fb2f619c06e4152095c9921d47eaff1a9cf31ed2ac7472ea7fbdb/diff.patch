@@ -1,0 +1,61 @@
+24
+shared-review-evidence/1
+2735
+diff --git a/config/detekt/detekt.yml b/config/detekt/detekt.yml
+index 5fc7de3..74ca86e 100644
+--- a/config/detekt/detekt.yml
++++ b/config/detekt/detekt.yml
+@@ -367,7 +367,7 @@ TwitterCompose:
+   CompositionLocalAllowlist:
+     active: true
+     allowedCompositionLocals:
+-      - LocalViewModelProvider
++      - LocalPreAuthViewModelFactory
+       - LocalScreenComponentFactory
+       - LocalUserComponentManager
+ 
+diff --git a/core/common/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/common/di/CompositionLocals.kt b/core/common/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/common/di/CompositionLocals.kt
+index 740a325..5710898 100644
+--- a/core/common/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/common/di/CompositionLocals.kt
++++ b/core/common/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/common/di/CompositionLocals.kt
+@@ -4,7 +4,7 @@ import androidx.compose.runtime.staticCompositionLocalOf
+ import androidx.lifecycle.ViewModelProvider
+ 
+ /** Factory for ViewModels that must resolve before a user session exists (login, register). */
+-val LocalViewModelFactory = staticCompositionLocalOf<ViewModelProvider.Factory> {
++val LocalPreAuthViewModelFactory = staticCompositionLocalOf<ViewModelProvider.Factory> {
+   error("ViewModel factory not provided")
+ }
+ 
+diff --git a/core/ui/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/core/ui/navigation/InjectViewModel.kt b/core/ui/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/core/ui/navigation/InjectViewModel.kt
+index 81ee764..8cdc341 100644
+--- a/core/ui/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/core/ui/navigation/InjectViewModel.kt
++++ b/core/ui/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/core/ui/navigation/InjectViewModel.kt
+@@ -8,8 +8,8 @@ import androidx.lifecycle.viewmodel.MutableCreationExtras
+ import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
+ import androidx.lifecycle.viewmodel.compose.viewModel
+ import co.touchlab.kermit.Logger
++import com.sermilion.kmpcomposestarter.common.di.LocalPreAuthViewModelFactory
+ import com.sermilion.kmpcomposestarter.common.di.LocalScreenComponentFactory
+-import com.sermilion.kmpcomposestarter.common.di.LocalViewModelFactory
+ import com.sermilion.kmpcomposestarter.common.di.StarterViewModelFactory
+ import com.sermilion.kmpcomposestarter.common.di.mapToAssistedArgs
+ import com.sermilion.kmpcomposestarter.core.ui.di.ScreenComponentHolder
+@@ -85,7 +85,7 @@ internal inline fun <reified VM : ViewModel> injectPreAuthScopedViewModel(): VM
+   return viewModel(
+     viewModelStoreOwner = viewModelStoreOwner,
+     modelClass = VM::class,
+-    factory = LocalViewModelFactory.current,
++    factory = LocalPreAuthViewModelFactory.current,
+   )
+ }
+40
+824879e810034e109f95df374eb9519b51a4301c
+40
+737d12b967bffbb6422770f2aeeba0e5eec8b5d8
+23
+SYNTHETIC_SUPPLIED_DIFF
+23
+non-commit review scope
+1
+0

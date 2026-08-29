@@ -1,6 +1,7 @@
 package com.sermilion.kmpcomposestarter.di
 
 import com.sermilion.kmpcomposestarter.common.di.StarterViewModelFactory
+import com.sermilion.kmpcomposestarter.core.data.session.SessionRestorer
 import com.sermilion.kmpcomposestarter.core.domain.di.UserComponentManager
 
 /**
@@ -12,4 +13,5 @@ import com.sermilion.kmpcomposestarter.core.domain.di.UserComponentManager
 interface AppComponent {
   val userComponentManager: UserComponentManager
   val viewModelFactory: StarterViewModelFactory
+  val sessionRestorer: SessionRestorer
 }

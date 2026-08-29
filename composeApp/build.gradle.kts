@@ -62,6 +62,7 @@ kotlin {
       implementation(compose.desktop.currentOs)
       implementation(libs.kotlinx.coroutines.core)
       implementation(libs.androidx.datastore)
+      implementation(libs.ktor.client.core)
     }
 
     jvmTest.dependencies {

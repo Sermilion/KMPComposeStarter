@@ -6,7 +6,6 @@ import com.sermilion.kmpcomposestarter.core.data.model.AuthTokenDataModel
 import com.sermilion.kmpcomposestarter.core.data.model.UserDataModel
 import com.sermilion.kmpcomposestarter.core.data.util.withRestErrorHandling
 import com.sermilion.kmpcomposestarter.core.domain.model.AuthError
-import io.ktor.client.HttpClient
 import kotlinx.coroutines.delay
 import kotlinx.datetime.Clock
 import me.tatarka.inject.annotations.Inject
@@ -14,11 +13,17 @@ import software.amazon.lastmile.kotlin.inject.anvil.AppScope
 import software.amazon.lastmile.kotlin.inject.anvil.ContributesBinding
 import software.amazon.lastmile.kotlin.inject.anvil.SingleIn
 
+/**
+ * The starter's only bound [AuthRemoteDataSource]: an in-process fake that accepts the demo
+ * credentials and rejects everything else.
+ *
+ * It is the default binding rather than a parallel stack, so a fork replaces it by swapping this
+ * one `@ContributesBinding` for an implementation that talks to the injected `HttpClient`.
+ */
 @Inject
 @SingleIn(AppScope::class)
 @ContributesBinding(AppScope::class)
-class KtorAuthRemoteDataSource(@Suppress("unused") private val httpClient: HttpClient) :
-  AuthRemoteDataSource {
+class MockAuthRemoteDataSource : AuthRemoteDataSource {
 
   override suspend fun login(email: String, password: String): AuthResultDataModel =
     withRestErrorHandling(
@@ -32,13 +37,13 @@ class KtorAuthRemoteDataSource(@Suppress("unused") private val httpClient: HttpC
               email = email,
               name = MockConfig.DEMO_USER_NAME,
             ),
-            token = mockToken("mock-token"),
+            token = issuedToken(),
           )
         } else {
           AuthResultDataModel.Failure(AuthError.InvalidCredentials)
         }
       },
-      errorBlock = { AuthResultDataModel.Failure(AuthError.Network) },
+      errorBlock = { AuthResultDataModel.Failure(AuthError.Unexpected(it)) },
     )
 
   override suspend fun register(
@@ -55,39 +60,22 @@ class KtorAuthRemoteDataSource(@Suppress("unused") private val httpClient: HttpC
           email = email,
           name = name,
         ),
-        token = mockToken("mock-token"),
+        token = issuedToken(),
       )
     },
-    errorBlock = { AuthResultDataModel.Failure(AuthError.Network) },
+    errorBlock = { AuthResultDataModel.Failure(AuthError.Unexpected(it)) },
   )
 
   override suspend fun logout() {
     delay(MOCK_LOGOUT_DELAY_MS)
   }
 
-  override suspend fun refreshToken(token: String): AuthResultDataModel = withRestErrorHandling(
-    tag = TAG,
-    block = {
-      delay(MOCK_LOGOUT_DELAY_MS)
-      AuthResultDataModel.Success(
-        user = UserDataModel(
-          id = MockConfig.DEMO_USER_ID,
-          email = MockConfig.DEMO_EMAIL,
-          name = MockConfig.DEMO_USER_NAME,
-        ),
-        token = mockToken("refreshed-token"),
-      )
-    },
-    errorBlock = { AuthResultDataModel.Failure(AuthError.RefreshFailed) },
+  private fun issuedToken() = AuthTokenDataModel(
+    accessToken = "mock-access-${Clock.System.now().toEpochMilliseconds()}",
   )
 
-  override suspend fun getCurrentUser(token: String): UserDataModel? = null
-
-  private fun mockToken(prefix: String) =
-    AuthTokenDataModel(accessToken = "$prefix-${Clock.System.now().toEpochMilliseconds()}")
-
   private companion object {
-    const val TAG = "KtorAuthRemoteDataSource"
+    const val TAG = "MockAuthRemoteDataSource"
     const val MOCK_DELAY_MS = 1000L
     const val MOCK_LOGOUT_DELAY_MS = 500L
   }
