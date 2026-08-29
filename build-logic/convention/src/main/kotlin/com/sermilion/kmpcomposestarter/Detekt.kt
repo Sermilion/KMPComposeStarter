@@ -3,13 +3,13 @@ package com.sermilion.kmpcomposestarter
 import io.gitlab.arturbosch.detekt.Detekt
 import io.gitlab.arturbosch.detekt.extensions.DetektExtension
 import io.gitlab.arturbosch.detekt.report.ReportMergeTask
-import java.io.File
 import org.gradle.api.JavaVersion
 import org.gradle.api.Project
 import org.gradle.api.tasks.TaskProvider
 import org.gradle.kotlin.dsl.configure
 import org.gradle.kotlin.dsl.withType
 import org.gradle.language.base.plugins.LifecycleBasePlugin
+import java.io.File
 
 internal fun Project.configureDetekt() {
   val reportMerge: TaskProvider<ReportMergeTask> =

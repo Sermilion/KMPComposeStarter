@@ -32,9 +32,10 @@ fun rememberStarterAppState(
   // over it. Seeded from the restored session rather than defaulting to signed out: the effect
   // below only runs after the first composition, so a `false` seed would render the login stack
   // for one frame to a user who is already signed in.
-  val navigationState = rememberSaveable(stateSaver = StarterNavigationStateSaver) {
-    mutableStateOf(StarterNavigationState(isAuthenticated = canShowAuthenticated))
-  }
+  val navigationState =
+    rememberSaveable(stateSaver = StarterNavigationStateSaver) {
+      mutableStateOf(StarterNavigationState(isAuthenticated = canShowAuthenticated))
+    }
   val navigator = remember { StarterNavigator(navigationState) }
 
   // The one auth-transition mechanism in the app: the session flow above drives it, and nothing

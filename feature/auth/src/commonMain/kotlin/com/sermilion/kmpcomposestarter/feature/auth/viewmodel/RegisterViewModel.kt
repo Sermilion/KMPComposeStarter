@@ -23,7 +23,6 @@ class RegisterViewModel(
   private val authRepository: AuthRepository,
   private val demoCredentials: DemoCredentials,
 ) : ViewModel() {
-
   private val _uiState = MutableStateFlow(RegisterContract.UiState())
   val uiState: StateFlow<RegisterContract.UiState> = _uiState.asStateFlow()
 
@@ -77,9 +76,10 @@ class RegisterViewModel(
     }
   }
 
-  private fun AuthError.toUiError(): RegisterContract.Error = when (this) {
-    AuthError.InvalidCredentials -> RegisterContract.Error.RegistrationFailed
-    AuthError.Network -> RegisterContract.Error.Network
-    AuthError.RefreshFailed, is AuthError.Unexpected -> RegisterContract.Error.Unknown
-  }
+  private fun AuthError.toUiError(): RegisterContract.Error =
+    when (this) {
+      AuthError.InvalidCredentials -> RegisterContract.Error.RegistrationFailed
+      AuthError.Network -> RegisterContract.Error.Network
+      AuthError.RefreshFailed, is AuthError.Unexpected -> RegisterContract.Error.Unknown
+    }
 }

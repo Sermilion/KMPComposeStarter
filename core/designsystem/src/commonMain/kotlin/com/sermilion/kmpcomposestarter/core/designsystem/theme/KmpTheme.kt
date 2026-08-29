@@ -18,8 +18,9 @@ fun StarterTheme(
   content: @Composable () -> Unit,
 ) {
   val dynamicScheme = if (dynamicColor) dynamicColorSchemeOrNull(darkTheme) else null
-  val colorScheme = dynamicScheme
-    ?: if (darkTheme) KmpDarkColorScheme else KmpLightColorScheme
+  val colorScheme =
+    dynamicScheme
+      ?: if (darkTheme) KmpDarkColorScheme else KmpLightColorScheme
 
   MaterialTheme(
     colorScheme = colorScheme,

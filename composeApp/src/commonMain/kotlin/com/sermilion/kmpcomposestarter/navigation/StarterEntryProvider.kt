@@ -90,9 +90,10 @@ fun createStarterEntryProvider(navigator: StarterNavigator) =
       LaunchedEffect(Unit) {
         viewModel.effects.collect { event ->
           when (event) {
-            HomeContract.Event.NavigateToProfile -> navigator.navigateToTopLevel(
-              TopLevelTab.PROFILE,
-            )
+            HomeContract.Event.NavigateToProfile ->
+              navigator.navigateToTopLevel(
+                TopLevelTab.PROFILE,
+              )
             is HomeContract.Event.NavigateToDetail -> navigator.navigate(DetailRoute(event.id))
           }
         }

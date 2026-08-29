@@ -11,13 +11,15 @@ import me.tatarka.inject.annotations.Inject
 
 @Inject
 @ContributesViewModel(ScreenScope::class)
-class SettingsViewModel(private val userData: UserData) : ViewModel() {
-
-  private val _uiState = MutableStateFlow(
-    SettingsContract.UiState(
-      userName = userData.name,
-      userEmail = userData.email,
-    ),
-  )
+class SettingsViewModel(
+  private val userData: UserData,
+) : ViewModel() {
+  private val _uiState =
+    MutableStateFlow(
+      SettingsContract.UiState(
+        userName = userData.name,
+        userEmail = userData.email,
+      ),
+    )
   val uiState: StateFlow<SettingsContract.UiState> = _uiState.asStateFlow()
 }

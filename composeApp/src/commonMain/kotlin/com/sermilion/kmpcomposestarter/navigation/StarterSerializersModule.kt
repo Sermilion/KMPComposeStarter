@@ -20,34 +20,35 @@ import kotlinx.serialization.modules.subclass
  * Every route the entry provider can render must appear here, or restoring after process death
  * throws on it. `StarterRouteSerializationTest` fails when the two lists drift apart.
  */
-val starterSerializersModule = SerializersModule {
-  polymorphic(NavKey::class) {
-    subclass(LoginRoute::class, LoginRoute.serializer())
-    subclass(RegisterRoute::class, RegisterRoute.serializer())
-    subclass(HomeRoute::class, HomeRoute.serializer())
-    subclass(DetailRoute::class, DetailRoute.serializer())
-    subclass(ProfileRoute::class, ProfileRoute.serializer())
-    subclass(SettingsRoute::class, SettingsRoute.serializer())
-  }
+val starterSerializersModule =
+  SerializersModule {
+    polymorphic(NavKey::class) {
+      subclass(LoginRoute::class, LoginRoute.serializer())
+      subclass(RegisterRoute::class, RegisterRoute.serializer())
+      subclass(HomeRoute::class, HomeRoute.serializer())
+      subclass(DetailRoute::class, DetailRoute.serializer())
+      subclass(ProfileRoute::class, ProfileRoute.serializer())
+      subclass(SettingsRoute::class, SettingsRoute.serializer())
+    }
 
-  polymorphic(Route::class) {
-    subclass(LoginRoute::class, LoginRoute.serializer())
-    subclass(RegisterRoute::class, RegisterRoute.serializer())
-    subclass(HomeRoute::class, HomeRoute.serializer())
-    subclass(DetailRoute::class, DetailRoute.serializer())
-    subclass(ProfileRoute::class, ProfileRoute.serializer())
-    subclass(SettingsRoute::class, SettingsRoute.serializer())
-  }
+    polymorphic(Route::class) {
+      subclass(LoginRoute::class, LoginRoute.serializer())
+      subclass(RegisterRoute::class, RegisterRoute.serializer())
+      subclass(HomeRoute::class, HomeRoute.serializer())
+      subclass(DetailRoute::class, DetailRoute.serializer())
+      subclass(ProfileRoute::class, ProfileRoute.serializer())
+      subclass(SettingsRoute::class, SettingsRoute.serializer())
+    }
 
-  polymorphic(AuthFlowRoute::class) {
-    subclass(LoginRoute::class, LoginRoute.serializer())
-    subclass(RegisterRoute::class, RegisterRoute.serializer())
-  }
+    polymorphic(AuthFlowRoute::class) {
+      subclass(LoginRoute::class, LoginRoute.serializer())
+      subclass(RegisterRoute::class, RegisterRoute.serializer())
+    }
 
-  polymorphic(TopLevelRoute::class) {
-    subclass(HomeRoute::class, HomeRoute.serializer())
-    subclass(DetailRoute::class, DetailRoute.serializer())
-    subclass(ProfileRoute::class, ProfileRoute.serializer())
-    subclass(SettingsRoute::class, SettingsRoute.serializer())
+    polymorphic(TopLevelRoute::class) {
+      subclass(HomeRoute::class, HomeRoute.serializer())
+      subclass(DetailRoute::class, DetailRoute.serializer())
+      subclass(ProfileRoute::class, ProfileRoute.serializer())
+      subclass(SettingsRoute::class, SettingsRoute.serializer())
+    }
   }
-}

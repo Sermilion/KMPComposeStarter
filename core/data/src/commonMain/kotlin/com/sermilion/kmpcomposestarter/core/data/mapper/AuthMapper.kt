@@ -9,14 +9,16 @@ fun UserDataModel.toDomainModel(): UserData = UserData(id = id, email = email, n
 
 fun UserData.toDataModel(): UserDataModel = UserDataModel(id = id, email = email, name = name)
 
-fun AuthTokenDataModel.toDomainModel(): AuthToken = AuthToken(
-  accessToken = accessToken,
-  refreshToken = refreshToken,
-  expiresAtEpochMillis = expiresAtEpochMillis,
-)
+fun AuthTokenDataModel.toDomainModel(): AuthToken =
+  AuthToken(
+    accessToken = accessToken,
+    refreshToken = refreshToken,
+    expiresAtEpochMillis = expiresAtEpochMillis,
+  )
 
-fun AuthToken.toDataModel(): AuthTokenDataModel = AuthTokenDataModel(
-  accessToken = accessToken,
-  refreshToken = refreshToken,
-  expiresAtEpochMillis = expiresAtEpochMillis,
-)
+fun AuthToken.toDataModel(): AuthTokenDataModel =
+  AuthTokenDataModel(
+    accessToken = accessToken,
+    refreshToken = refreshToken,
+    expiresAtEpochMillis = expiresAtEpochMillis,
+  )

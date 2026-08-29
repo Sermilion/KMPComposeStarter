@@ -6,7 +6,6 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 
 class MainActivity : ComponentActivity() {
-
   private val component: AndroidApplicationComponent by lazy {
     (application as StarterApplication).component
   }

@@ -7,4 +7,6 @@ import kotlinx.coroutines.CoroutineScope
  * than a bare [CoroutineScope] so it can never be confused with the app-wide scope at an
  * injection site.
  */
-class UserSessionScope(delegate: CoroutineScope) : CoroutineScope by delegate
+class UserSessionScope(
+  delegate: CoroutineScope,
+) : CoroutineScope by delegate

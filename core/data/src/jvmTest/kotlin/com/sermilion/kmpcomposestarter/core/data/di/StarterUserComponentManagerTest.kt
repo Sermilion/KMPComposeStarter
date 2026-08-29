@@ -58,8 +58,7 @@ class StarterUserComponentManagerTest :
               barrier.await()
               manager.createComponent(user(index))
             }
-          }
-          .awaitAll()
+          }.awaitAll()
       }
 
       val live = manager.userComponent
@@ -104,8 +103,7 @@ class StarterUserComponentManagerTest :
                 manager.destroyComponent()
               }
             }
-          }
-          .awaitAll()
+          }.awaitAll()
       }
 
       // Whatever survived the interleaving is usable, and every component that did not survive

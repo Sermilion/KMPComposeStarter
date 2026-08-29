@@ -15,18 +15,20 @@ import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
  * extension, because that is the only level that also reaches the native compilations — setting
  * them on [KotlinCompile] would silently skip the iOS targets.
  */
-private val SHARED_COMPILER_ARGS = listOf(
-  "-opt-in=kotlin.RequiresOptIn",
-  "-opt-in=kotlinx.coroutines.ExperimentalCoroutinesApi",
-  "-opt-in=kotlinx.coroutines.FlowPreview",
-  "-opt-in=kotlin.ExperimentalMultiplatform",
-  "-Xexpect-actual-classes",
-)
+private val SHARED_COMPILER_ARGS =
+  listOf(
+    "-opt-in=kotlin.RequiresOptIn",
+    "-opt-in=kotlinx.coroutines.ExperimentalCoroutinesApi",
+    "-opt-in=kotlinx.coroutines.FlowPreview",
+    "-opt-in=kotlin.ExperimentalMultiplatform",
+    "-Xexpect-actual-classes",
+  )
 
 /** Opt-ins that only make sense where the Compose Multiplatform UI dependencies are present. */
-private val COMPOSE_COMPILER_ARGS = listOf(
-  "-opt-in=androidx.compose.material3.ExperimentalMaterial3Api",
-)
+private val COMPOSE_COMPILER_ARGS =
+  listOf(
+    "-opt-in=androidx.compose.material3.ExperimentalMaterial3Api",
+  )
 
 /**
  * Root package the Android namespaces are derived from. Deriving them keeps the Android target
@@ -36,6 +38,12 @@ private val COMPOSE_COMPILER_ARGS = listOf(
  * build types and packaging rules that cannot be shared, so it sets its own namespace.
  */
 private const val ANDROID_NAMESPACE_PREFIX = "com.sermilion.kmpcomposestarter"
+
+/**
+ * The JDK the build itself compiles against. Kept separate from the Android and JVM bytecode
+ * targets, which stay on Java 11 so the template keeps its lower runtime baseline.
+ */
+private const val BUILD_JVM_TOOLCHAIN = 17
 
 internal fun Project.configureKotlinMultiplatform(extension: KotlinMultiplatformExtension) {
   configureShared(extension)
@@ -77,7 +85,7 @@ internal fun Project.configureKotlinMultiplatformApplication(
 
 /** The single Android target declaration plus the Kotlin settings every KMP module inherits. */
 private fun Project.configureShared(extension: KotlinMultiplatformExtension) {
-  extension.jvmToolchain(17)
+  extension.jvmToolchain(BUILD_JVM_TOOLCHAIN)
 
   extension.compilerOptions {
     freeCompilerArgs.addAll(SHARED_COMPILER_ARGS)
@@ -85,8 +93,18 @@ private fun Project.configureShared(extension: KotlinMultiplatformExtension) {
 
   extension.extensions.configure<KotlinMultiplatformAndroidLibraryExtension> {
     namespace = androidNamespace
-    compileSdk = libs.findVersion("compileSdk").get().requiredVersion.toInt()
-    minSdk = libs.findVersion("minSdk").get().requiredVersion.toInt()
+    compileSdk =
+      libs
+        .findVersion("compileSdk")
+        .get()
+        .requiredVersion
+        .toInt()
+    minSdk =
+      libs
+        .findVersion("minSdk")
+        .get()
+        .requiredVersion
+        .toInt()
     withHostTestBuilder {}
     androidResources {
       enable = true
@@ -98,9 +116,10 @@ private fun Project.configureShared(extension: KotlinMultiplatformExtension) {
 }
 
 private val Project.androidNamespace: String
-  get() = (
-    listOf(ANDROID_NAMESPACE_PREFIX) +
-      path.split(":").filter(String::isNotEmpty).map(String::toPackageSegment)
+  get() =
+    (
+      listOf(ANDROID_NAMESPACE_PREFIX) +
+        path.split(":").filter(String::isNotEmpty).map(String::toPackageSegment)
     ).joinToString(".")
 
 /**

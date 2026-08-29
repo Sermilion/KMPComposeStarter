@@ -16,16 +16,16 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 
-private val storedSession = StoredSession(
-  user = UserDataModel("id-1", "user@test.com", "User"),
-  token = AuthTokenDataModel("access-token"),
-)
+private val storedSession =
+  StoredSession(
+    user = UserDataModel("id-1", "user@test.com", "User"),
+    token = AuthTokenDataModel("access-token"),
+  )
 
 private class StubAuthLocalDataSource(
   private val session: StoredSession?,
   private val readFailure: Throwable? = null,
 ) : AuthLocalDataSource {
-
   override suspend fun getSession(): StoredSession? {
     readFailure?.let { throw it }
     return session
@@ -49,16 +49,18 @@ class SessionRestorerTest :
         // on: if Authenticated were published first, the shell would render an authenticated
         // back stack with no component behind it.
         val observed = mutableListOf<Pair<SessionState, Boolean>>()
-        val collector = backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
-          restorer.state.collect { observed += it to (manager.userComponent != null) }
-        }
+        val collector =
+          backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
+            restorer.state.collect { observed += it to (manager.userComponent != null) }
+          }
 
         restorer.restore()
 
-        observed shouldBe listOf(
-          SessionState.Loading to false,
-          SessionState.Authenticated to true,
-        )
+        observed shouldBe
+          listOf(
+            SessionState.Loading to false,
+            SessionState.Authenticated to true,
+          )
         manager.userComponent?.userData shouldBe UserData("id-1", "user@test.com", "User")
 
         collector.cancel()
@@ -81,10 +83,11 @@ class SessionRestorerTest :
     test("an unreadable store ends signed out instead of stranding the shell on Loading") {
       runTest {
         val manager = StarterUserComponentManager(RecordingUserComponentFactory())
-        val restorer = SessionRestorer(
-          StubAuthLocalDataSource(session = null, readFailure = IllegalStateException("corrupt")),
-          manager,
-        )
+        val restorer =
+          SessionRestorer(
+            StubAuthLocalDataSource(session = null, readFailure = IllegalStateException("corrupt")),
+            manager,
+          )
 
         restorer.restore()
 

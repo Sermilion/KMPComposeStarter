@@ -23,7 +23,6 @@ class StarterUserRepository(
   private val databaseProvider: DatabaseProvider,
   private val dispatcherProvider: DispatcherProvider,
 ) : UserRepository {
-
   override fun observeCurrentUser(): Flow<UserData?> =
     userDao.observeUser(userData.id).map { it?.toDomainModel() }
 
@@ -43,7 +42,8 @@ class StarterUserRepository(
    * handle is never reopened, so a `false` leaves the user signed in with data still on disk that
    * this session can no longer read. Callers report that failure; they must not sign out on it.
    */
-  override suspend fun deleteMyData(): Boolean = withContext(dispatcherProvider.io) {
-    databaseProvider.deleteDatabaseForUser(userData.id)
-  }
+  override suspend fun deleteMyData(): Boolean =
+    withContext(dispatcherProvider.io) {
+      databaseProvider.deleteDatabaseForUser(userData.id)
+    }
 }

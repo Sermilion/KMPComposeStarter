@@ -56,15 +56,16 @@ fun StarterApp(
       if (canRenderAuthenticatedScreens && shouldShowBottomNavigation(navigationState)) {
         StarterBottomBar(
           currentTab = appState.currentTab,
-          onTabSelected = appState::navigateToTab,
+          onTabSelect = appState::navigateToTab,
         )
       }
     },
   ) { innerPadding ->
     Box(
-      modifier = Modifier
-        .fillMaxSize()
-        .padding(innerPadding),
+      modifier =
+        Modifier
+          .fillMaxSize()
+          .padding(innerPadding),
       contentAlignment = Alignment.Center,
     ) {
       if (canRenderAuthenticatedScreens) {

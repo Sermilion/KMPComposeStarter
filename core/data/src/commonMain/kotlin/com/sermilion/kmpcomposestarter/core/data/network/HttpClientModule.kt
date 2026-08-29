@@ -9,7 +9,6 @@ import software.amazon.lastmile.kotlin.inject.anvil.SingleIn
 
 @ContributesTo(AppScope::class)
 interface HttpClientModule {
-
   /**
    * One client per process. It outlives any single session, so it reads the bearer token through
    * the component manager on every request instead of capturing a `TokenStore`: capturing one

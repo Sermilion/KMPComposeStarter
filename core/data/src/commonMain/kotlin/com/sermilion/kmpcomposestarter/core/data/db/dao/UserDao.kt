@@ -5,10 +5,16 @@ import kotlinx.coroutines.flow.Flow
 
 interface UserDao {
   fun observeUsers(): Flow<List<UserLocalDataModel>>
+
   fun observeUser(userId: String): Flow<UserLocalDataModel?>
+
   suspend fun findUser(userId: String): UserLocalDataModel?
+
   suspend fun insertUser(user: UserLocalDataModel)
+
   suspend fun insertUsers(users: List<UserLocalDataModel>)
+
   suspend fun deleteUser(userId: String)
+
   suspend fun deleteAllUsers()
 }

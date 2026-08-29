@@ -24,13 +24,17 @@ object EmptyAssistedArgs : AssistedArgs {
   override fun <T> get(name: String): T? = null
 }
 
-fun mapToAssistedArgs(map: Map<String, Any?>): AssistedArgs = object : AssistedArgs {
-  @Suppress("UNCHECKED_CAST")
-  override fun <T> get(name: String): T? = map[name] as T?
-}
+fun mapToAssistedArgs(map: Map<String, Any?>): AssistedArgs =
+  object : AssistedArgs {
+    @Suppress("UNCHECKED_CAST")
+    override fun <T> get(name: String): T? = map[name] as T?
+  }
 
 /** Returns [AssistedArgs] that resolves [key] to [value] and delegates every other name. */
-fun AssistedArgs.withArg(key: String, value: Any?): AssistedArgs {
+fun AssistedArgs.withArg(
+  key: String,
+  value: Any?,
+): AssistedArgs {
   val delegate = this
   return object : AssistedArgs {
     @Suppress("UNCHECKED_CAST")

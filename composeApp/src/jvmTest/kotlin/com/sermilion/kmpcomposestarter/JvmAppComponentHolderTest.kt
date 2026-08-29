@@ -15,16 +15,16 @@ class JvmAppComponentHolderTest :
       val accessorCount = 8
       val barrier = CyclicBarrier(accessorCount)
 
-      val components = runBlocking {
-        (0 until accessorCount)
-          .map {
-            async(Dispatchers.Default) {
-              barrier.await()
-              JvmAppComponentHolder.component
-            }
-          }
-          .awaitAll()
-      }
+      val components =
+        runBlocking {
+          (0 until accessorCount)
+            .map {
+              async(Dispatchers.Default) {
+                barrier.await()
+                JvmAppComponentHolder.component
+              }
+            }.awaitAll()
+        }
 
       components.distinct().size shouldBe 1
       JvmAppComponentHolder.component shouldBe components.first()

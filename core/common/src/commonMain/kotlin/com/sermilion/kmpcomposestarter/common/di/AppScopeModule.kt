@@ -13,7 +13,6 @@ import software.amazon.lastmile.kotlin.inject.anvil.SingleIn
 
 @ContributesTo(AppScope::class)
 interface AppScopeModule {
-
   @Provides
   @SingleIn(AppScope::class)
   fun provideDispatcherProvider(): DispatcherProvider = KmpDispatcherProvider()
@@ -30,9 +29,10 @@ interface AppScopeModule {
   fun provideAppCoroutineScope(
     dispatcherProvider: DispatcherProvider,
     reporter: UnhandledErrorReporter,
-  ): CoroutineScope = CoroutineScope(
-    SupervisorJob() +
-      dispatcherProvider.default +
-      CoroutineExceptionHandler { _, throwable -> reporter.report(throwable) },
-  )
+  ): CoroutineScope =
+    CoroutineScope(
+      SupervisorJob() +
+        dispatcherProvider.default +
+        CoroutineExceptionHandler { _, throwable -> reporter.report(throwable) },
+    )
 }

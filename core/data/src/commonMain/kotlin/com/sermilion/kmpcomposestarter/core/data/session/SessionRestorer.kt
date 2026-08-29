@@ -28,7 +28,6 @@ class SessionRestorer(
   private val localDataSource: AuthLocalDataSource,
   private val userComponentManager: UserComponentManager,
 ) {
-
   private val started = atomic(false)
 
   private val mutableState = MutableStateFlow<SessionState>(SessionState.Loading)
@@ -40,25 +39,27 @@ class SessionRestorer(
     if (!started.compareAndSet(expect = false, update = true)) return
 
     val session = readStoredSession()
-    mutableState.value = if (session == null) {
-      SessionState.Unauthenticated
-    } else {
-      // Publishing Authenticated only after the component exists means the first composition
-      // that observes it already has a session to render.
-      userComponentManager.createComponent(session.user.toDomainModel())
-      SessionState.Authenticated
-    }
+    mutableState.value =
+      if (session == null) {
+        SessionState.Unauthenticated
+      } else {
+        // Publishing Authenticated only after the component exists means the first composition
+        // that observes it already has a session to render.
+        userComponentManager.createComponent(session.user.toDomainModel())
+        SessionState.Authenticated
+      }
   }
 
-  private suspend fun readStoredSession(): StoredSession? = try {
-    localDataSource.getSession()
-  } catch (e: CancellationException) {
-    started.value = false
-    throw e
-  } catch (e: Exception) {
-    Logger.e(TAG, e) { "Could not read the stored session; starting signed out." }
-    null
-  }
+  private suspend fun readStoredSession(): StoredSession? =
+    try {
+      localDataSource.getSession()
+    } catch (e: CancellationException) {
+      started.value = false
+      throw e
+    } catch (e: Exception) {
+      Logger.e(TAG, e) { "Could not read the stored session; starting signed out." }
+      null
+    }
 
   private companion object {
     const val TAG = "SessionRestorer"

@@ -38,8 +38,10 @@ private val userA = UserDataModel("integration-user-a", "a@test.com", "Ada")
 private val userB = UserDataModel("integration-user-b", "b@test.com", "Brendan")
 
 private class StubAuthRemoteDataSource : AuthRemoteDataSource {
-
-  override suspend fun login(email: String, password: String): AuthResultDataModel {
+  override suspend fun login(
+    email: String,
+    password: String,
+  ): AuthResultDataModel {
     val user = if (email == userA.email) userA else userB
     return AuthResultDataModel.Success(user, AuthTokenDataModel("token-for-${user.id}"))
   }
@@ -62,24 +64,25 @@ private class TestUserComponent(
   localDataSource: AuthLocalDataSource,
   databaseProvider: DatabaseProvider,
 ) : UserComponent {
-
   val userDao: UserDao = StarterUserDao(databaseProvider.provideUserDatabase(userData.id))
 
   override val tokenStore: TokenStore = DataStoreTokenStore(localDataSource, userData)
 
-  override val userRepository: UserRepository = StarterUserRepository(
-    userDao = userDao,
-    userData = userData,
-    databaseProvider = databaseProvider,
-    dispatcherProvider = RealDispatcherProvider,
-  )
+  override val userRepository: UserRepository =
+    StarterUserRepository(
+      userDao = userDao,
+      userData = userData,
+      databaseProvider = databaseProvider,
+      dispatcherProvider = RealDispatcherProvider,
+    )
 
   override val userSessionScope: UserSessionScope =
     UserSessionScope(CoroutineScope(SupervisorJob()))
 
-  override val userScopedCloseables: Set<UserScopedCloseable> = setOf(
-    UserScopedCloseable { databaseProvider.closeDatabaseForUser(userData.id) },
-  )
+  override val userScopedCloseables: Set<UserScopedCloseable> =
+    setOf(
+      UserScopedCloseable { databaseProvider.closeDatabaseForUser(userData.id) },
+    )
 
   override val screenComponentFactory: ScreenComponent.Factory =
     object : ScreenComponent.Factory {
@@ -94,31 +97,35 @@ class SecondLoginIntegrationTest :
       runTest {
         val preferencesDirectory = Files.createTempDirectory("second-login-prefs").toFile()
         val dataStoreScope = CoroutineScope(SupervisorJob() + RealDispatcherProvider.io)
-        val localDataSource = DataStoreAuthLocalDataSource(
-          createUserPreferencesDataStore(dataStoreScope) {
-            preferencesDirectory.resolve("user_preferences.json").toOkioPath()
-          },
-        )
-        val databaseProvider = StarterRoomDatabaseProvider(
-          builderFactory = PlatformRoomDatabaseBuilderFactory(),
-          dispatcherProvider = RealDispatcherProvider,
-        )
+        val localDataSource =
+          DataStoreAuthLocalDataSource(
+            createUserPreferencesDataStore(dataStoreScope) {
+              preferencesDirectory.resolve("user_preferences.json").toOkioPath()
+            },
+          )
+        val databaseProvider =
+          StarterRoomDatabaseProvider(
+            builderFactory = PlatformRoomDatabaseBuilderFactory(),
+            dispatcherProvider = RealDispatcherProvider,
+          )
         // Databases live in a directory shared with the rest of the suite, so start from a
         // known-empty state rather than inheriting a previous run's rows.
         databaseProvider.deleteDatabaseForUser(userA.id)
         databaseProvider.deleteDatabaseForUser(userB.id)
 
-        val manager = StarterUserComponentManager(
-          object : UserComponent.Factory {
-            override fun create(userData: UserData): UserComponent =
-              TestUserComponent(userData, localDataSource, databaseProvider)
-          },
-        )
-        val repository = StarterAuthRepository(
-          remoteDataSource = StubAuthRemoteDataSource(),
-          userComponentManager = manager,
-          externalScope = backgroundScope,
-        )
+        val manager =
+          StarterUserComponentManager(
+            object : UserComponent.Factory {
+              override fun create(userData: UserData): UserComponent =
+                TestUserComponent(userData, localDataSource, databaseProvider)
+            },
+          )
+        val repository =
+          StarterAuthRepository(
+            remoteDataSource = StubAuthRemoteDataSource(),
+            userComponentManager = manager,
+            externalScope = backgroundScope,
+          )
 
         try {
           repository.login(userA.email, "password")

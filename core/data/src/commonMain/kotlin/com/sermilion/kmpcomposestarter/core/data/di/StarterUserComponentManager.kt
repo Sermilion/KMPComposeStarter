@@ -26,9 +26,9 @@ import software.amazon.lastmile.kotlin.inject.anvil.SingleIn
 @Inject
 @SingleIn(AppScope::class)
 @ContributesBinding(AppScope::class)
-class StarterUserComponentManager(private val userComponentFactory: UserComponent.Factory) :
-  UserComponentManager {
-
+class StarterUserComponentManager(
+  private val userComponentFactory: UserComponent.Factory,
+) : UserComponentManager {
   private val transitionLock = SynchronizedObject()
 
   private val state = MutableStateFlow<UserDependencies?>(null)

@@ -11,7 +11,16 @@ import com.sermilion.kmpcomposestarter.core.data.model.AuthResultDataModel
  * a missing method. A fork with a real backend adds them alongside a real implementation.
  */
 interface AuthRemoteDataSource {
-  suspend fun login(email: String, password: String): AuthResultDataModel
-  suspend fun register(email: String, password: String, name: String): AuthResultDataModel
+  suspend fun login(
+    email: String,
+    password: String,
+  ): AuthResultDataModel
+
+  suspend fun register(
+    email: String,
+    password: String,
+    name: String,
+  ): AuthResultDataModel
+
   suspend fun logout()
 }

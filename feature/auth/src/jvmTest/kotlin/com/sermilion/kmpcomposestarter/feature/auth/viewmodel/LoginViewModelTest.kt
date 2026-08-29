@@ -19,12 +19,16 @@ import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 
-private val demoCredentials = DemoCredentials(
-  loginEmail = "demo@example.com",
-  password = "demo-password",
-  newUserEmail = "new@example.com",
-  newUserName = "New User",
-)
+/** Virtual time the faked call stays in flight, long enough for the second tap to land. */
+private const val IN_FLIGHT_MILLIS = 1_000L
+
+private val demoCredentials =
+  DemoCredentials(
+    loginEmail = "demo@example.com",
+    password = "demo-password",
+    newUserEmail = "new@example.com",
+    newUserName = "New User",
+  )
 
 private fun viewModelWith(authRepository: AuthRepository) =
   LoginViewModel(authRepository, demoCredentials)
@@ -80,12 +84,13 @@ class LoginViewModelTest :
     }
 
     test("each failure reason surfaces as its own error, not one generic message") {
-      val expected = mapOf(
-        AuthError.InvalidCredentials to LoginContract.Error.InvalidCredentials,
-        AuthError.Network to LoginContract.Error.Network,
-        AuthError.RefreshFailed to LoginContract.Error.Unknown,
-        AuthError.Unexpected(cause = null) to LoginContract.Error.Unknown,
-      )
+      val expected =
+        mapOf(
+          AuthError.InvalidCredentials to LoginContract.Error.InvalidCredentials,
+          AuthError.Network to LoginContract.Error.Network,
+          AuthError.RefreshFailed to LoginContract.Error.Unknown,
+          AuthError.Unexpected(cause = null) to LoginContract.Error.Unknown,
+        )
 
       runTest(testDispatcher) {
         expected.forEach { (repositoryError, uiError) ->
@@ -109,7 +114,7 @@ class LoginViewModelTest :
       runTest(testDispatcher) {
         val authRepository = mockk<AuthRepository>()
         coEvery { authRepository.login(any(), any()) } coAnswers {
-          delay(1000)
+          delay(IN_FLIGHT_MILLIS)
           LoginResult.Success(UserData("1", "test@email.com", "Test"))
         }
 

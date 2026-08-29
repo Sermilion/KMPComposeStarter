@@ -10,12 +10,13 @@ fun createUserDatabaseBuilder(
   databaseFileName: String,
   queryContext: CoroutineContext,
   path: String = defaultDatabasePath(databaseFileName),
-): RoomDatabase.Builder<UserDatabase> = Room.databaseBuilder<UserDatabase>(
-  name = path,
-  factory = UserDatabaseConstructor::initialize,
-)
-  .setDriver(BundledSQLiteDriver())
-  .setQueryCoroutineContext(queryContext)
+): RoomDatabase.Builder<UserDatabase> =
+  Room
+    .databaseBuilder<UserDatabase>(
+      name = path,
+      factory = UserDatabaseConstructor::initialize,
+    ).setDriver(BundledSQLiteDriver())
+    .setQueryCoroutineContext(queryContext)
 
 internal fun defaultDatabasePath(databaseFileName: String): String =
   File(desktopDataDirectory(), databaseFileName).absolutePath
@@ -27,9 +28,11 @@ internal fun defaultDatabasePath(databaseFileName: String): String =
  * developer's home directory.
  */
 private fun desktopDataDirectory(): File {
-  val directory = System.getProperty("starter.dataDir")
-    ?.let(::File)
-    ?: File(System.getProperty("user.home"), ".kmpcomposestarter")
+  val directory =
+    System
+      .getProperty("starter.dataDir")
+      ?.let(::File)
+      ?: File(System.getProperty("user.home"), ".kmpcomposestarter")
   directory.mkdirs()
   return directory
 }

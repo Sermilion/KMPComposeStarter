@@ -14,15 +14,15 @@ import software.amazon.lastmile.kotlin.inject.anvil.SingleIn
 @Inject
 @SingleIn(AppScope::class)
 actual class UserPreferencesPathProvider {
-
   actual fun userPreferencesPath(): Path {
-    val documentDirectory = NSFileManager.defaultManager.URLForDirectory(
-      directory = NSDocumentDirectory,
-      inDomain = NSUserDomainMask,
-      appropriateForURL = null,
-      create = true,
-      error = null,
-    )
+    val documentDirectory =
+      NSFileManager.defaultManager.URLForDirectory(
+        directory = NSDocumentDirectory,
+        inDomain = NSUserDomainMask,
+        appropriateForURL = null,
+        create = true,
+        error = null,
+      )
 
     return "${requireNotNull(documentDirectory?.path)}/$USER_PREFERENCES_FILE_NAME".toPath()
   }

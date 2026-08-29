@@ -19,7 +19,6 @@ class StarterNavigator(
   private val onRejectedNavigation: (Route, StarterNavigationState) -> Unit =
     ::logRejectedNavigation,
 ) {
-
   /**
    * Pushes [route] onto the stack it belongs to and returns whether it was accepted.
    *
@@ -58,7 +57,10 @@ class StarterNavigator(
     }
   }
 
-  private fun reject(route: Route, currentState: StarterNavigationState): Boolean {
+  private fun reject(
+    route: Route,
+    currentState: StarterNavigationState,
+  ): Boolean {
     onRejectedNavigation(route, currentState)
     return false
   }
@@ -121,23 +123,25 @@ class StarterNavigator(
    */
   fun onLoginStateChanged(isLoggedIn: Boolean) {
     val currentState = state.value
-    val freshTabStacks = TopLevelTab.entries.associateWith {
-      listOf(it.startRoute).toSnapshotStateList()
-    }
-    state.value = if (isLoggedIn) {
-      currentState.copy(
-        isAuthenticated = true,
-        tabBackStacks = freshTabStacks,
-        currentTab = TopLevelTab.HOME,
-      )
-    } else {
-      currentState.copy(
-        isAuthenticated = false,
-        authBackStack = listOf<AuthFlowRoute>(LoginRoute).toSnapshotStateList(),
-        tabBackStacks = freshTabStacks,
-        currentTab = TopLevelTab.HOME,
-      )
-    }
+    val freshTabStacks =
+      TopLevelTab.entries.associateWith {
+        listOf(it.startRoute).toSnapshotStateList()
+      }
+    state.value =
+      if (isLoggedIn) {
+        currentState.copy(
+          isAuthenticated = true,
+          tabBackStacks = freshTabStacks,
+          currentTab = TopLevelTab.HOME,
+        )
+      } else {
+        currentState.copy(
+          isAuthenticated = false,
+          authBackStack = listOf<AuthFlowRoute>(LoginRoute).toSnapshotStateList(),
+          tabBackStacks = freshTabStacks,
+          currentTab = TopLevelTab.HOME,
+        )
+      }
   }
 }
 
@@ -148,7 +152,10 @@ class StarterNavigator(
  * on, and crashing a release build over a mis-wired navigation call is worse than the log. Tests
  * assert on [StarterNavigator.navigate]'s return value and on an injected handler instead.
  */
-private fun logRejectedNavigation(route: Route, state: StarterNavigationState) {
+private fun logRejectedNavigation(
+  route: Route,
+  state: StarterNavigationState,
+) {
   Logger.e("StarterNavigator") {
     "Rejected navigate(${route::class.simpleName}): isAuthenticated=${state.isAuthenticated}, " +
       "currentTab=${state.currentTab}. Tab roots move through navigateToTopLevel(); auth-flow " +

@@ -116,9 +116,10 @@ class StarterNavigatorTest :
     test("navigate to another tab's root is rejected and leaves the stack untouched") {
       val state = mutableStateOf(StarterNavigationState())
       val rejections = mutableListOf<Pair<Route, Boolean>>()
-      val navigator = StarterNavigator(state) { route, rejectedIn ->
-        rejections += route to rejectedIn.isAuthenticated
-      }
+      val navigator =
+        StarterNavigator(state) { route, rejectedIn ->
+          rejections += route to rejectedIn.isAuthenticated
+        }
       navigator.onLoginStateChanged(true)
       val homeStackBefore = state.value.tabBackStacks.getValue(TopLevelTab.HOME)
 
@@ -128,7 +129,9 @@ class StarterNavigatorTest :
 
       rejections shouldBe listOf<Pair<Route, Boolean>>(ProfileRoute to true)
       state.value.tabBackStacks.getValue(TopLevelTab.HOME) shouldBeSameInstanceAs homeStackBefore
-      state.value.tabBackStacks.getValue(TopLevelTab.HOME).size shouldBe 1
+      state.value.tabBackStacks
+        .getValue(TopLevelTab.HOME)
+        .size shouldBe 1
     }
 
     test("navigate to an auth route while signed in is rejected") {
@@ -140,7 +143,9 @@ class StarterNavigatorTest :
       navigator.navigate(RegisterRoute) shouldBe false
 
       rejections shouldBe listOf<Route>(RegisterRoute)
-      state.value.tabBackStacks.getValue(TopLevelTab.HOME).size shouldBe 1
+      state.value.tabBackStacks
+        .getValue(TopLevelTab.HOME)
+        .size shouldBe 1
       state.value.currentRoute.shouldBeInstanceOf<HomeRoute>()
     }
 
@@ -179,7 +184,9 @@ class StarterNavigatorTest :
       // The next user must not sign in onto the previous user's tab, showing their pushed route.
       state.value.currentTab shouldBe TopLevelTab.HOME
       TopLevelTab.entries.forEach { tab ->
-        state.value.tabBackStacks.getValue(tab).size shouldBe 1
+        state.value.tabBackStacks
+          .getValue(tab)
+          .size shouldBe 1
       }
     }
 

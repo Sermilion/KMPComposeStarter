@@ -14,20 +14,23 @@ class StarterNavigationStateSaverTest :
   FunSpec({
 
     test("a signed-in state survives save and restore with every field intact") {
-      val state = StarterNavigationState(
-        isAuthenticated = true,
-        authBackStack = SnapshotStateList<AuthFlowRoute>().apply {
-          add(LoginRoute)
-          add(RegisterRoute)
-        },
-        tabBackStacks = TopLevelTab.entries.associateWith { tab ->
-          SnapshotStateList<TopLevelRoute>().apply {
-            add(tab.startRoute)
-            if (tab == TopLevelTab.HOME) add(DetailRoute("item-1"))
-          }
-        },
-        currentTab = TopLevelTab.SETTINGS,
-      )
+      val state =
+        StarterNavigationState(
+          isAuthenticated = true,
+          authBackStack =
+            SnapshotStateList<AuthFlowRoute>().apply {
+              add(LoginRoute)
+              add(RegisterRoute)
+            },
+          tabBackStacks =
+            TopLevelTab.entries.associateWith { tab ->
+              SnapshotStateList<TopLevelRoute>().apply {
+                add(tab.startRoute)
+                if (tab == TopLevelTab.HOME) add(DetailRoute("item-1"))
+              }
+            },
+          currentTab = TopLevelTab.SETTINGS,
+        )
 
       val restored = decodeNavigationState(encodeNavigationState(state))
 

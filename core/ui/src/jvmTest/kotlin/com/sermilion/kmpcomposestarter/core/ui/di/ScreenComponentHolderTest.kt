@@ -13,10 +13,13 @@ import io.kotest.matchers.shouldNotBe
 import kotlin.reflect.KClass
 
 private class FakeScreenComponent : ScreenComponentProvider {
-  override val viewModelFactory: ViewModelProvider.Factory = object : ViewModelProvider.Factory {
-    override fun <T : ViewModel> create(modelClass: KClass<T>, extras: CreationExtras): T =
-      error("not used")
-  }
+  override val viewModelFactory: ViewModelProvider.Factory =
+    object : ViewModelProvider.Factory {
+      override fun <T : ViewModel> create(
+        modelClass: KClass<T>,
+        extras: CreationExtras,
+      ): T = error("not used")
+    }
 }
 
 class ScreenComponentHolderTest :
@@ -25,9 +28,10 @@ class ScreenComponentHolderTest :
     test("one screen component per nav entry, dropped when the entry leaves the back stack") {
       var created = 0
       val store = ViewModelStore()
-      val factory = viewModelFactory {
-        initializer { ScreenComponentHolder(FakeScreenComponent().also { created++ }) }
-      }
+      val factory =
+        viewModelFactory {
+          initializer { ScreenComponentHolder(FakeScreenComponent().also { created++ }) }
+        }
 
       fun holder() = ViewModelProvider.create(store, factory)[ScreenComponentHolder::class]
 

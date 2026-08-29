@@ -11,10 +11,11 @@ fun createUserDatabaseBuilder(
   databaseFileName: String,
   queryContext: CoroutineContext,
   path: String = context.applicationContext.getDatabasePath(databaseFileName).absolutePath,
-): RoomDatabase.Builder<UserDatabase> = Room.databaseBuilder<UserDatabase>(
-  context = context.applicationContext,
-  name = path,
-  factory = UserDatabaseConstructor::initialize,
-)
-  .setDriver(BundledSQLiteDriver())
-  .setQueryCoroutineContext(queryContext)
+): RoomDatabase.Builder<UserDatabase> =
+  Room
+    .databaseBuilder<UserDatabase>(
+      context = context.applicationContext,
+      name = path,
+      factory = UserDatabaseConstructor::initialize,
+    ).setDriver(BundledSQLiteDriver())
+    .setQueryCoroutineContext(queryContext)

@@ -25,10 +25,10 @@ class DetailViewModel(
   @Assisted private val id: String,
   @Assisted private val savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
-
-  private val _uiState = MutableStateFlow(
-    DetailContract.UiState(id = id, note = savedStateHandle[NOTE_KEY] ?: ""),
-  )
+  private val _uiState =
+    MutableStateFlow(
+      DetailContract.UiState(id = id, note = savedStateHandle[NOTE_KEY] ?: ""),
+    )
   val uiState: StateFlow<DetailContract.UiState> = _uiState.asStateFlow()
 
   /** The note goes through the handle, so it survives process death and not just recomposition. */

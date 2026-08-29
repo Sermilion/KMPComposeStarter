@@ -22,12 +22,16 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 @Composable
 fun rememberNavEntryViewModelStoreOwner(): ViewModelStoreOwner {
   val session by LocalUserComponentManager.current.userComponentFlow.collectAsState()
-  val host = viewModel<NavEntryViewModelStoreHost> { NavEntryViewModelStoreHost() }
+  val host = rememberNavEntryStoreHost()
   return remember(host, session) { host.ownerFor(session) }
 }
 
-internal class NavEntryViewModelStoreHost : ViewModel() {
+/** The host that owns every nav-entry store, kept alive across configuration changes. */
+@Composable
+private fun rememberNavEntryStoreHost(): NavEntryViewModelStoreHost =
+  viewModel { NavEntryViewModelStoreHost() }
 
+internal class NavEntryViewModelStoreHost : ViewModel() {
   private var current: SessionStores? = null
 
   /**
@@ -40,14 +44,12 @@ internal class NavEntryViewModelStoreHost : ViewModel() {
    */
   fun ownerFor(session: Any?): ViewModelStoreOwner {
     val existing = current
-    if (existing != null) {
-      if (existing.session === session) return existing
-      if (existing.session == null) {
-        existing.session = session
-        return existing
-      }
-      existing.viewModelStore.clear()
+    if (existing != null && existing.canServe(session)) {
+      // Adopting the session on a pre-auth owner is what keeps the sign-in ViewModel alive.
+      existing.session = session
+      return existing
     }
+    existing?.viewModelStore?.clear()
     return SessionStores(session).also { current = it }
   }
 
@@ -56,7 +58,12 @@ internal class NavEntryViewModelStoreHost : ViewModel() {
     current = null
   }
 
-  private class SessionStores(var session: Any?) : ViewModelStoreOwner {
+  private class SessionStores(
+    var session: Any?,
+  ) : ViewModelStoreOwner {
     override val viewModelStore = ViewModelStore()
+
+    /** True while this owner already belongs to [candidate], and while it is still pre-auth. */
+    fun canServe(candidate: Any?): Boolean = session === candidate || session == null
   }
 }

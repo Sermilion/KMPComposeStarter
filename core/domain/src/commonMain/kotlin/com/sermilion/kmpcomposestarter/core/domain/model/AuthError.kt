@@ -11,5 +11,7 @@ sealed interface AuthError {
 
   data object RefreshFailed : AuthError
 
-  data class Unexpected(val cause: Throwable?) : AuthError
+  data class Unexpected(
+    val cause: Throwable?,
+  ) : AuthError
 }

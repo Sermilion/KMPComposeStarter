@@ -26,7 +26,10 @@ class KmpLintConventionPlugin : Plugin<Project> {
   }
 }
 
-private fun Lint.configure(project: Project, checkDependencies: Boolean) {
+private fun Lint.configure(
+  project: Project,
+  checkDependencies: Boolean,
+) {
   xmlReport = true
   this.checkDependencies = checkDependencies
   checkGeneratedSources = false

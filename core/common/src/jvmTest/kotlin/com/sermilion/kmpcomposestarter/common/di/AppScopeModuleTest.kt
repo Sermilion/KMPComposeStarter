@@ -10,7 +10,9 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 
-private class SingleDispatcherProvider(dispatcher: CoroutineDispatcher) : DispatcherProvider {
+private class SingleDispatcherProvider(
+  dispatcher: CoroutineDispatcher,
+) : DispatcherProvider {
   override val io: CoroutineDispatcher = dispatcher
   override val main: CoroutineDispatcher = dispatcher
   override val default: CoroutineDispatcher = dispatcher
@@ -24,10 +26,11 @@ class AppScopeModuleTest :
       runTest {
         val reported = mutableListOf<Throwable>()
         val module = object : AppScopeModule {}
-        val scope: CoroutineScope = module.provideAppCoroutineScope(
-          dispatcherProvider = SingleDispatcherProvider(UnconfinedTestDispatcher(testScheduler)),
-          reporter = { throwable -> reported += throwable },
-        )
+        val scope: CoroutineScope =
+          module.provideAppCoroutineScope(
+            dispatcherProvider = SingleDispatcherProvider(UnconfinedTestDispatcher(testScheduler)),
+            reporter = { throwable -> reported += throwable },
+          )
 
         scope.launch { throw IllegalStateException("background work blew up") }
 

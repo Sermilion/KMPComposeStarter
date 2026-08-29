@@ -11,4 +11,6 @@ import kotlin.reflect.KClass
  */
 @Target(AnnotationTarget.CLASS)
 @Retention(AnnotationRetention.BINARY)
-annotation class ContributesViewModel(val scope: KClass<*>)
+annotation class ContributesViewModel(
+  val scope: KClass<*>,
+)

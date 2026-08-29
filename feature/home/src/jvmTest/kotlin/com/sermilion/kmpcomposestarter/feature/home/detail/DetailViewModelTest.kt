@@ -24,9 +24,10 @@ class DetailViewModelTest :
   FunSpec({
 
     test("the route id arrives as an assisted argument and reaches the ui state") {
-      val viewModel = detailViewModelFrom(
-        mapToAssistedArgs(mapOf("id" to "item-1", "savedStateHandle" to SavedStateHandle())),
-      )
+      val viewModel =
+        detailViewModelFrom(
+          mapToAssistedArgs(mapOf("id" to "item-1", "savedStateHandle" to SavedStateHandle())),
+        )
 
       viewModel.uiState.value.id shouldBe "item-1"
     }
@@ -39,9 +40,10 @@ class DetailViewModelTest :
 
       // A ViewModel rebuilt against the same handle — what process-death recreation does — must
       // still see the note.
-      val recreated = detailViewModelFrom(
-        mapToAssistedArgs(mapOf("id" to "item-1", "savedStateHandle" to handle)),
-      )
+      val recreated =
+        detailViewModelFrom(
+          mapToAssistedArgs(mapOf("id" to "item-1", "savedStateHandle" to handle)),
+        )
 
       recreated.uiState.value.note shouldBe "remember this"
     }

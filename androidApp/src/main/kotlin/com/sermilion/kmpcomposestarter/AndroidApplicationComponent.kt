@@ -14,9 +14,9 @@ import software.amazon.lastmile.kotlin.inject.anvil.SingleIn
 
 @MergeComponent(AppScope::class)
 @SingleIn(AppScope::class)
-abstract class AndroidApplicationComponent(@get:Provides val application: Application) :
-  AppComponent {
-
+abstract class AndroidApplicationComponent(
+  @get:Provides val application: Application,
+) : AppComponent {
   abstract override val userComponentManager: UserComponentManager
   abstract override val viewModelFactory: StarterViewModelFactory
   abstract override val sessionRestorer: SessionRestorer

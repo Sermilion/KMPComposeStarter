@@ -26,14 +26,14 @@ class ProfileViewModel(
   private val authRepository: AuthRepository,
   private val userRepository: UserRepository,
 ) : ViewModel() {
-
-  private val _uiState = MutableStateFlow(
-    ProfileContract.UiState(
-      userName = userData.name,
-      userEmail = userData.email,
-      userId = userData.id,
-    ),
-  )
+  private val _uiState =
+    MutableStateFlow(
+      ProfileContract.UiState(
+        userName = userData.name,
+        userEmail = userData.email,
+        userId = userData.id,
+      ),
+    )
   val uiState: StateFlow<ProfileContract.UiState> = _uiState.asStateFlow()
 
   private val _effects = Effect<ProfileContract.Event>()
@@ -43,15 +43,15 @@ class ProfileViewModel(
     // The sign-in response seeds the screen so it is never blank, but the stored row is what it
     // follows: a profile edited elsewhere in the session shows up here without a re-login.
     viewModelScope.launch {
-      userRepository.observeCurrentUser()
+      userRepository
+        .observeCurrentUser()
         .catch { error ->
           // Delete-my-data closes this session's database before it touches the files, so a
           // failed deletion leaves the row unreadable for the rest of the session. Stop
           // following it and keep what is already on screen: a stale profile is a better
           // answer than taking the session down with an unhandled read failure.
           Logger.w(TAG, error) { "Stopped following the stored user row." }
-        }
-        .collect { stored ->
+        }.collect { stored ->
           if (stored != null) {
             _uiState.update {
               it.copy(userName = stored.name, userEmail = stored.email, userId = stored.id)

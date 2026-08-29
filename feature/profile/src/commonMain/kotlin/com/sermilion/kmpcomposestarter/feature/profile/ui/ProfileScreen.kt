@@ -44,9 +44,10 @@ fun ProfileScreen(
   modifier: Modifier = Modifier,
 ) {
   Column(
-    modifier = modifier
-      .fillMaxSize()
-      .padding(24.dp),
+    modifier =
+      modifier
+        .fillMaxSize()
+        .padding(24.dp),
     horizontalAlignment = Alignment.CenterHorizontally,
     verticalArrangement = Arrangement.Center,
   ) {
@@ -112,6 +113,7 @@ private fun SessionActions(
     ) {
       if (uiState.isLoggingOut) {
         ButtonBusyIndicator(
+          label = stringResource(Res.string.profile_button_logout),
           stateDescription = stringResource(Res.string.profile_logout_busy_description),
         )
       } else {
@@ -128,6 +130,7 @@ private fun SessionActions(
     ) {
       if (uiState.isDeletingData) {
         ButtonBusyIndicator(
+          label = stringResource(Res.string.profile_button_delete_my_data),
           stateDescription = stringResource(Res.string.profile_delete_busy_description),
         )
       } else {
@@ -150,14 +153,18 @@ private fun SessionActions(
   }
 }
 
-private val sampleProfileState = ProfileContract.UiState(
-  userName = "Ada Lovelace",
-  userEmail = "ada@example.com",
-  userId = "user-1",
-)
+private val sampleProfileState =
+  ProfileContract.UiState(
+    userName = "Ada Lovelace",
+    userEmail = "ada@example.com",
+    userId = "user-1",
+  )
 
 @Composable
-private fun ProfileScreenPreviewHost(darkTheme: Boolean, uiState: ProfileContract.UiState) {
+private fun ProfileScreenPreviewHost(
+  darkTheme: Boolean,
+  uiState: ProfileContract.UiState,
+) {
   StarterTheme(darkTheme = darkTheme) {
     ProfileScreen(
       uiState = uiState,
@@ -170,31 +177,34 @@ private fun ProfileScreenPreviewHost(darkTheme: Boolean, uiState: ProfileContrac
 
 @Preview
 @Composable
-private fun ProfileScreenLightPreview() =
+internal fun ProfileScreenLightPreview() =
   ProfileScreenPreviewHost(darkTheme = false, uiState = sampleProfileState)
 
 @Preview
 @Composable
-private fun ProfileScreenDarkPreview() =
+internal fun ProfileScreenDarkPreview() =
   ProfileScreenPreviewHost(darkTheme = true, uiState = sampleProfileState)
 
 @Preview
 @Composable
-private fun ProfileScreenLoggingOutPreview() = ProfileScreenPreviewHost(
-  darkTheme = false,
-  uiState = sampleProfileState.copy(isLoggingOut = true),
-)
+internal fun ProfileScreenLoggingOutPreview() =
+  ProfileScreenPreviewHost(
+    darkTheme = false,
+    uiState = sampleProfileState.copy(isLoggingOut = true),
+  )
 
 @Preview
 @Composable
-private fun ProfileScreenDeletionFailedPreview() = ProfileScreenPreviewHost(
-  darkTheme = true,
-  uiState = sampleProfileState.copy(dataDeletionFailed = true),
-)
+internal fun ProfileScreenDeletionFailedPreview() =
+  ProfileScreenPreviewHost(
+    darkTheme = true,
+    uiState = sampleProfileState.copy(dataDeletionFailed = true),
+  )
 
 @Preview
 @Composable
-private fun ProfileScreenLogoutFailedPreview() = ProfileScreenPreviewHost(
-  darkTheme = false,
-  uiState = sampleProfileState.copy(logoutFailed = true),
-)
+internal fun ProfileScreenLogoutFailedPreview() =
+  ProfileScreenPreviewHost(
+    darkTheme = false,
+    uiState = sampleProfileState.copy(logoutFailed = true),
+  )

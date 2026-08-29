@@ -1,6 +1,15 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <lint>
+  <!--
+    Room 3 alpha01 emits KSP code that calls its own @RestrictTo APIs, so lint reports
+    RestrictedApi against generated files this module does not author. Scoped by path so the rule
+    stays live on hand-written sources; see the matching note in build.gradle.kts and revisit both
+    when the Room pin moves off alpha.
+
+    The regexp is matched against the project-relative path, not an absolute one — an absolute
+    pattern here matches nothing and the ignore silently does nothing.
+  -->
   <issue id="RestrictedApi">
-    <ignore regexp=".*/core/data/build/generated/ksp/.*" />
+    <ignore regexp="^build/generated/ksp/" />
   </issue>
 </lint>

@@ -12,6 +12,8 @@ data class AuthToken(
  */
 interface TokenStore {
   suspend fun get(): AuthToken?
+
   suspend fun save(token: AuthToken)
+
   suspend fun clear()
 }

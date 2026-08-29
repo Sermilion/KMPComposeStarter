@@ -19,10 +19,13 @@ private val testUserModel = UserDataModel("id-1", "user@test.com", "User")
 private val testUser = UserData("id-1", "user@test.com", "User")
 private val testToken = AuthToken(accessToken = "access-token")
 
-private class StubAuthRemoteDataSource(private val logoutFailure: Throwable? = null) :
-  AuthRemoteDataSource {
-
-  override suspend fun login(email: String, password: String): AuthResultDataModel =
+private class StubAuthRemoteDataSource(
+  private val logoutFailure: Throwable? = null,
+) : AuthRemoteDataSource {
+  override suspend fun login(
+    email: String,
+    password: String,
+  ): AuthResultDataModel =
     AuthResultDataModel.Success(testUserModel, AuthTokenDataModel(testToken.accessToken))
 
   override suspend fun register(
@@ -43,11 +46,12 @@ class StarterAuthRepositoryTest :
     test("login opens a session, then stores the token and the user row inside it") {
       runTest {
         val manager = StarterUserComponentManager(RecordingUserComponentFactory())
-        val repository = StarterAuthRepository(
-          remoteDataSource = StubAuthRemoteDataSource(),
-          userComponentManager = manager,
-          externalScope = backgroundScope,
-        )
+        val repository =
+          StarterAuthRepository(
+            remoteDataSource = StubAuthRemoteDataSource(),
+            userComponentManager = manager,
+            externalScope = backgroundScope,
+          )
 
         repository.login("user@test.com", "password") shouldBe LoginResult.Success(testUser)
 
@@ -63,11 +67,12 @@ class StarterAuthRepositoryTest :
     test("a failing remote sign-out still tears down the session and clears the token") {
       runTest {
         val manager = StarterUserComponentManager(RecordingUserComponentFactory())
-        val repository = StarterAuthRepository(
-          remoteDataSource = StubAuthRemoteDataSource(IllegalStateException("offline")),
-          userComponentManager = manager,
-          externalScope = backgroundScope,
-        )
+        val repository =
+          StarterAuthRepository(
+            remoteDataSource = StubAuthRemoteDataSource(IllegalStateException("offline")),
+            userComponentManager = manager,
+            externalScope = backgroundScope,
+          )
 
         repository.login("user@test.com", "password")
         val session = manager.userComponent as FakeUserComponent

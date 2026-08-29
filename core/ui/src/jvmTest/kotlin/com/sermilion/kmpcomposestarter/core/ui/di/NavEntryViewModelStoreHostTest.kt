@@ -20,11 +20,13 @@ private class TrackingViewModel : ViewModel() {
 class NavEntryViewModelStoreHostTest :
   FunSpec({
 
-    fun trackedViewModel(host: NavEntryViewModelStoreHost, session: Any?) =
-      ViewModelProvider.create(
-        store = host.ownerFor(session).viewModelStore,
-        factory = viewModelFactory { initializer { TrackingViewModel() } },
-      )[TrackingViewModel::class]
+    fun trackedViewModel(
+      host: NavEntryViewModelStoreHost,
+      session: Any?,
+    ) = ViewModelProvider.create(
+      store = host.ownerFor(session).viewModelStore,
+      factory = viewModelFactory { initializer { TrackingViewModel() } },
+    )[TrackingViewModel::class]
 
     test("leaving a session drops the nav-entry ViewModels with it") {
       val host = NavEntryViewModelStoreHost()

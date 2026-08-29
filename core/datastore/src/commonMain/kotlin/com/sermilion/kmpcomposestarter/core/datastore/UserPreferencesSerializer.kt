@@ -15,18 +15,21 @@ import okio.BufferedSource
  * failing every read for the rest of the process.
  */
 internal object UserPreferencesSerializer : OkioSerializer<UserPreferences> {
-
   private val json = Json { ignoreUnknownKeys = true }
 
   override val defaultValue: UserPreferences = UserPreferences()
 
-  override suspend fun readFrom(source: BufferedSource): UserPreferences = try {
-    json.decodeFromString(UserPreferences.serializer(), source.readUtf8())
-  } catch (e: SerializationException) {
-    throw CorruptionException("Stored user preferences could not be read", e)
-  }
+  override suspend fun readFrom(source: BufferedSource): UserPreferences =
+    try {
+      json.decodeFromString(UserPreferences.serializer(), source.readUtf8())
+    } catch (e: SerializationException) {
+      throw CorruptionException("Stored user preferences could not be read", e)
+    }
 
-  override suspend fun writeTo(t: UserPreferences, sink: BufferedSink) {
+  override suspend fun writeTo(
+    t: UserPreferences,
+    sink: BufferedSink,
+  ) {
     sink.writeUtf8(json.encodeToString(UserPreferences.serializer(), t))
   }
 }

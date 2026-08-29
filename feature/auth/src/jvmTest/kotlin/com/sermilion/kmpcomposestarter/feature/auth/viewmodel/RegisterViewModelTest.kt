@@ -19,12 +19,16 @@ import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 
-private val demoCredentials = DemoCredentials(
-  loginEmail = "demo@example.com",
-  password = "demo-password",
-  newUserEmail = "new@example.com",
-  newUserName = "New User",
-)
+/** Virtual time the faked call stays in flight, long enough for the second tap to land. */
+private const val IN_FLIGHT_MILLIS = 1_000L
+
+private val demoCredentials =
+  DemoCredentials(
+    loginEmail = "demo@example.com",
+    password = "demo-password",
+    newUserEmail = "new@example.com",
+    newUserName = "New User",
+  )
 
 private fun viewModelWith(authRepository: AuthRepository) =
   RegisterViewModel(authRepository, demoCredentials)
@@ -48,7 +52,7 @@ class RegisterViewModelTest :
       runTest(testDispatcher) {
         val authRepository = mockk<AuthRepository>()
         coEvery { authRepository.register(any(), any(), any()) } coAnswers {
-          delay(1000)
+          delay(IN_FLIGHT_MILLIS)
           LoginResult.Success(UserData("1", "ada@example.com", "Ada Lovelace"))
         }
 
@@ -70,12 +74,13 @@ class RegisterViewModelTest :
     // Login shipped exactly this defect: one message for every reason. This locks the Register
     // mapping so the same regression cannot land here.
     test("each failure reason maps to its own error variant") {
-      val expected = mapOf(
-        AuthError.InvalidCredentials to RegisterContract.Error.RegistrationFailed,
-        AuthError.Network to RegisterContract.Error.Network,
-        AuthError.RefreshFailed to RegisterContract.Error.Unknown,
-        AuthError.Unexpected(cause = null) to RegisterContract.Error.Unknown,
-      )
+      val expected =
+        mapOf(
+          AuthError.InvalidCredentials to RegisterContract.Error.RegistrationFailed,
+          AuthError.Network to RegisterContract.Error.Network,
+          AuthError.RefreshFailed to RegisterContract.Error.Unknown,
+          AuthError.Unexpected(cause = null) to RegisterContract.Error.Unknown,
+        )
 
       runTest(testDispatcher) {
         expected.forEach { (repositoryError, uiError) ->

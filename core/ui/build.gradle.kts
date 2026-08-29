@@ -48,12 +48,13 @@ kotlin {
 // before `Res` exists. Compose's generator tasks are `internal` to its Gradle plugin and cannot be
 // referenced by type from here, so they are matched by name. Mirrors the explicit ordering
 // core:data declares for its generated NetworkConfig.
-val composeResourceGenerators = tasks.matching {
-  it.name.startsWith("generateResourceAccessors") ||
-    it.name.startsWith("generateComposeResClass") ||
-    it.name.startsWith("generateExpectResourceCollectors") ||
-    it.name.startsWith("generateActualResourceCollectors")
-}
+val composeResourceGenerators =
+  tasks.matching {
+    it.name.startsWith("generateResourceAccessors") ||
+      it.name.startsWith("generateComposeResClass") ||
+      it.name.startsWith("generateExpectResourceCollectors") ||
+      it.name.startsWith("generateActualResourceCollectors")
+  }
 
 tasks.matching { it.name.startsWith("ksp") }.configureEach {
   dependsOn(composeResourceGenerators)

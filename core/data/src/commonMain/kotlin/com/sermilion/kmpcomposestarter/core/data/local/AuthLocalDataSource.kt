@@ -7,7 +7,6 @@ import com.sermilion.kmpcomposestarter.core.data.model.StoredSession
  * sync with it.
  */
 interface AuthLocalDataSource {
-
   suspend fun getSession(): StoredSession?
 
   /** Replaces whatever session is stored — identity and token together, in one write. */

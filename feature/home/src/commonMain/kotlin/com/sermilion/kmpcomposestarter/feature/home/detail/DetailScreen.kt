@@ -32,9 +32,10 @@ fun DetailScreen(
   modifier: Modifier = Modifier,
 ) {
   Column(
-    modifier = modifier
-      .fillMaxSize()
-      .padding(24.dp),
+    modifier =
+      modifier
+        .fillMaxSize()
+        .padding(24.dp),
     horizontalAlignment = Alignment.CenterHorizontally,
     verticalArrangement = Arrangement.Center,
   ) {
@@ -79,8 +80,8 @@ private fun DetailScreenPreviewHost(darkTheme: Boolean) {
 
 @Preview
 @Composable
-private fun DetailScreenLightPreview() = DetailScreenPreviewHost(darkTheme = false)
+internal fun DetailScreenLightPreview() = DetailScreenPreviewHost(darkTheme = false)
 
 @Preview
 @Composable
-private fun DetailScreenDarkPreview() = DetailScreenPreviewHost(darkTheme = true)
+internal fun DetailScreenDarkPreview() = DetailScreenPreviewHost(darkTheme = true)

@@ -37,9 +37,10 @@ internal fun AuthFormField(
     value = value,
     onValueChange = onValueChange,
     label = { Text(label) },
-    modifier = modifier
-      .fillMaxWidth()
-      .semantics { this.contentType = contentType },
+    modifier =
+      modifier
+        .fillMaxWidth()
+        .semantics { this.contentType = contentType },
     singleLine = true,
     enabled = enabled,
     visualTransformation = visualTransformation,

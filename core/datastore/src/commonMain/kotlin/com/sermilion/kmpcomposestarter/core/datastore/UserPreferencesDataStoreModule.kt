@@ -11,7 +11,6 @@ import software.amazon.lastmile.kotlin.inject.anvil.SingleIn
 
 @ContributesTo(AppScope::class)
 interface UserPreferencesDataStoreModule {
-
   /**
    * The store lives as long as the process. Its scope is deliberately not the app scope: DataStore
    * serializes every read and write through it, and that work belongs on the IO dispatcher.
@@ -21,8 +20,9 @@ interface UserPreferencesDataStoreModule {
   fun provideUserPreferencesDataStore(
     pathProvider: UserPreferencesPathProvider,
     dispatcherProvider: DispatcherProvider,
-  ): DataStore<UserPreferences> = createUserPreferencesDataStore(
-    scope = CoroutineScope(SupervisorJob() + dispatcherProvider.io),
-    producePath = pathProvider::userPreferencesPath,
-  )
+  ): DataStore<UserPreferences> =
+    createUserPreferencesDataStore(
+      scope = CoroutineScope(SupervisorJob() + dispatcherProvider.io),
+      producePath = pathProvider::userPreferencesPath,
+    )
 }

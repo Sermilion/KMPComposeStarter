@@ -12,7 +12,7 @@ import org.jetbrains.compose.resources.stringResource
 @Composable
 fun StarterBottomBar(
   currentTab: TopLevelTab,
-  onTabSelected: (TopLevelTab) -> Unit,
+  onTabSelect: (TopLevelTab) -> Unit,
   modifier: Modifier = Modifier,
 ) {
   NavigationBar(modifier = modifier) {
@@ -20,7 +20,7 @@ fun StarterBottomBar(
       val label = stringResource(tab.label)
       NavigationBarItem(
         selected = currentTab == tab,
-        onClick = { onTabSelected(tab) },
+        onClick = { onTabSelect(tab) },
         // Null on purpose: the visible label below is already the item's announcement, and a
         // matching contentDescription made every tab announce its name twice.
         icon = { Icon(imageVector = tab.icon, contentDescription = null) },

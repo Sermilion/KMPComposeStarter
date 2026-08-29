@@ -54,6 +54,11 @@ collector between leaving the composition and re-entering it. A navigation reque
 window was silently lost and the user simply stayed where they were. The channel buffers instead,
 and hands each value to exactly one collector.
 
+Buffering stops at the collector's lifetime: whatever is still queued when a collector goes away is
+dropped. A screen that queued two navigations and left on the first would otherwise replay the
+second the next time it entered composition, bouncing the user straight back out. Anything emitted
+*after* the collector is gone still waits for the next one, which is the point of the channel.
+
 The shape every feature ViewModel uses:
 
 ```kotlin

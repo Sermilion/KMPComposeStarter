@@ -14,9 +14,9 @@ import io.kotest.assertions.withClue
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.collections.shouldNotBeEmpty
 import io.kotest.matchers.shouldBe
+import kotlinx.serialization.json.Json
 import java.io.File
 import kotlin.reflect.KClass
-import kotlinx.serialization.json.Json
 
 /**
  * Sample instances of every route, for the round trip that needs real payloads.
@@ -25,14 +25,15 @@ import kotlinx.serialization.json.Json
  * first test below pins it to what `createStarterEntryProvider` actually registers. Nothing here
  * is trusted as the record of which routes exist.
  */
-private val routeSamples: List<Route> = listOf(
-  LoginRoute,
-  RegisterRoute,
-  HomeRoute,
-  DetailRoute("x"),
-  ProfileRoute,
-  SettingsRoute,
-)
+private val routeSamples: List<Route> =
+  listOf(
+    LoginRoute,
+    RegisterRoute,
+    HomeRoute,
+    DetailRoute("x"),
+    ProfileRoute,
+    SettingsRoute,
+  )
 
 /**
  * The routes `createStarterEntryProvider` registers, read out of its source.
@@ -41,20 +42,23 @@ private val routeSamples: List<Route> = listOf(
  * grows a route `starterSerializersModule` never learned about, which is precisely the drift that
  * throws on the first process-death restore, in production, on a screen nobody tested.
  */
-private val registeredRouteClasses: List<Class<*>> = run {
-  val source = entryProviderSource()
-  val importsBySimpleName = Regex("""^import (\S+)$""", RegexOption.MULTILINE)
-    .findAll(source)
-    .associateBy({ it.groupValues[1].substringAfterLast('.') }, { it.groupValues[1] })
-  Regex("""\bentry<(\w+)>""").findAll(source)
-    .map { it.groupValues[1] }
-    .map { simpleName ->
-      val qualifiedName = importsBySimpleName[simpleName]
-        ?: error("entry<$simpleName> in StarterEntryProvider.kt has no matching import")
-      Class.forName(qualifiedName)
-    }
-    .toList()
-}
+private val registeredRouteClasses: List<Class<*>> =
+  run {
+    val source = entryProviderSource()
+    val importsBySimpleName =
+      Regex("""^import (\S+)$""", RegexOption.MULTILINE)
+        .findAll(source)
+        .associateBy({ it.groupValues[1].substringAfterLast('.') }, { it.groupValues[1] })
+    Regex("""\bentry<(\w+)>""")
+      .findAll(source)
+      .map { it.groupValues[1] }
+      .map { simpleName ->
+        val qualifiedName =
+          importsBySimpleName[simpleName]
+            ?: error("entry<$simpleName> in StarterEntryProvider.kt has no matching import")
+        Class.forName(qualifiedName)
+      }.toList()
+  }
 
 /**
  * Whether [starterSerializersModule] can decode [serializedClassName] under [base].
@@ -63,19 +67,24 @@ private val registeredRouteClasses: List<Class<*>> = run {
  * by the class object passed in.
  */
 @Suppress("UNCHECKED_CAST")
-private fun isRegisteredUnder(base: KClass<*>, serializedClassName: String): Boolean =
+private fun isRegisteredUnder(
+  base: KClass<*>,
+  serializedClassName: String,
+): Boolean =
   starterSerializersModule.getPolymorphic(
     baseClass = base as KClass<Any>,
     serializedClassName = serializedClassName,
   ) != null
 
 private fun entryProviderSource(): String {
-  val relativePath = "composeApp/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/" +
-    "navigation/StarterEntryProvider.kt"
-  val file = generateSequence(File(".").absoluteFile) { it.parentFile }
-    .map { File(it, relativePath) }
-    .firstOrNull(File::isFile)
-    ?: error("Could not find $relativePath above ${File(".").absolutePath}")
+  val relativePath =
+    "composeApp/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/" +
+      "navigation/StarterEntryProvider.kt"
+  val file =
+    generateSequence(File(".").absoluteFile) { it.parentFile }
+      .map { File(it, relativePath) }
+      .firstOrNull(File::isFile)
+      ?: error("Could not find $relativePath above ${File(".").absolutePath}")
   return file.readText()
 }
 

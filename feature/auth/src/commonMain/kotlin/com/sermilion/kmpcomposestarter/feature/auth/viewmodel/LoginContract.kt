@@ -1,7 +1,6 @@
 package com.sermilion.kmpcomposestarter.feature.auth.viewmodel
 
 object LoginContract {
-
   data class UiState(
     val email: String = "",
     val password: String = "",
@@ -11,7 +10,9 @@ object LoginContract {
 
   sealed interface Error {
     data object InvalidCredentials : Error
+
     data object Network : Error
+
     data object Unknown : Error
   }
 

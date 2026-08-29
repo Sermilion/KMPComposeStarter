@@ -13,7 +13,6 @@ import software.amazon.lastmile.kotlin.inject.anvil.SingleIn
 @MergeComponent(AppScope::class)
 @SingleIn(AppScope::class)
 abstract class IosApplicationComponent : AppComponent {
-
   abstract override val userComponentManager: UserComponentManager
   abstract override val viewModelFactory: StarterViewModelFactory
   abstract override val sessionRestorer: SessionRestorer

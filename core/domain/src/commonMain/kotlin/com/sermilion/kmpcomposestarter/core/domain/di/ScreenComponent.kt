@@ -10,7 +10,6 @@ import software.amazon.lastmile.kotlin.inject.anvil.SingleIn
 @ContributesSubcomponent(ScreenScope::class)
 @SingleIn(ScreenScope::class)
 interface ScreenComponent : ScreenComponentProvider {
-
   override val viewModelFactory: StarterViewModelFactory
 
   @ContributesSubcomponent.Factory(UserScope::class)

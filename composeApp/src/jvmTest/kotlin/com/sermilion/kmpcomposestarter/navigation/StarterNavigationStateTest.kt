@@ -30,16 +30,18 @@ class StarterNavigationStateTest :
     }
 
     test("currentBackStack returns current tab backstack when authenticated") {
-      val tabBackStacks = TopLevelTab.entries.associateWith {
-        SnapshotStateList<TopLevelRoute>().apply {
-          add(it.startRoute)
+      val tabBackStacks =
+        TopLevelTab.entries.associateWith {
+          SnapshotStateList<TopLevelRoute>().apply {
+            add(it.startRoute)
+          }
         }
-      }
-      val state = StarterNavigationState(
-        isAuthenticated = true,
-        tabBackStacks = tabBackStacks,
-        currentTab = TopLevelTab.HOME,
-      )
+      val state =
+        StarterNavigationState(
+          isAuthenticated = true,
+          tabBackStacks = tabBackStacks,
+          currentTab = TopLevelTab.HOME,
+        )
 
       state.currentBackStack shouldBe tabBackStacks[TopLevelTab.HOME]
       state.currentRoute.shouldBeInstanceOf<HomeRoute>()
@@ -60,10 +62,11 @@ class StarterNavigationStateTest :
     }
 
     test("currentRoute returns last item in backstack") {
-      val authBackStack = SnapshotStateList<AuthFlowRoute>().apply {
-        add(LoginRoute)
-        add(RegisterRoute)
-      }
+      val authBackStack =
+        SnapshotStateList<AuthFlowRoute>().apply {
+          add(LoginRoute)
+          add(RegisterRoute)
+        }
       val state = StarterNavigationState(authBackStack = authBackStack)
 
       state.currentRoute.shouldBeInstanceOf<RegisterRoute>()
@@ -78,10 +81,11 @@ class StarterNavigationStateTest :
     }
 
     test("back at a non-HOME tab root returns to HOME") {
-      val state = StarterNavigationState(
-        isAuthenticated = true,
-        currentTab = TopLevelTab.PROFILE,
-      )
+      val state =
+        StarterNavigationState(
+          isAuthenticated = true,
+          currentTab = TopLevelTab.PROFILE,
+        )
 
       state.backAtTabRootShouldReturnHome shouldBe true
     }
@@ -94,21 +98,24 @@ class StarterNavigationStateTest :
     }
 
     test("back mid-stack pops rather than returning to HOME") {
-      val profileStack = SnapshotStateList<TopLevelRoute>().apply {
-        add(ProfileRoute)
-        add(DetailRoute("item-1"))
-      }
-      val state = StarterNavigationState(
-        isAuthenticated = true,
-        tabBackStacks = TopLevelTab.entries.associateWith { tab ->
-          if (tab == TopLevelTab.PROFILE) {
-            profileStack
-          } else {
-            SnapshotStateList<TopLevelRoute>().apply { add(tab.startRoute) }
-          }
-        },
-        currentTab = TopLevelTab.PROFILE,
-      )
+      val profileStack =
+        SnapshotStateList<TopLevelRoute>().apply {
+          add(ProfileRoute)
+          add(DetailRoute("item-1"))
+        }
+      val state =
+        StarterNavigationState(
+          isAuthenticated = true,
+          tabBackStacks =
+            TopLevelTab.entries.associateWith { tab ->
+              if (tab == TopLevelTab.PROFILE) {
+                profileStack
+              } else {
+                SnapshotStateList<TopLevelRoute>().apply { add(tab.startRoute) }
+              }
+            },
+          currentTab = TopLevelTab.PROFILE,
+        )
 
       state.backAtTabRootShouldReturnHome shouldBe false
     }

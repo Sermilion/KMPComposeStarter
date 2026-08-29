@@ -8,9 +8,10 @@ class SettingsViewModelTest :
   FunSpec({
 
     test("the injected user seeds the screen state") {
-      val viewModel = SettingsViewModel(
-        UserData(id = "user-1", email = "ada@example.com", name = "Ada Lovelace"),
-      )
+      val viewModel =
+        SettingsViewModel(
+          UserData(id = "user-1", email = "ada@example.com", name = "Ada Lovelace"),
+        )
 
       viewModel.uiState.value shouldBe
         SettingsContract.UiState(userName = "Ada Lovelace", userEmail = "ada@example.com")

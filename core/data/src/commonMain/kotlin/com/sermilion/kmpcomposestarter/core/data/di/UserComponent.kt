@@ -15,7 +15,6 @@ import software.amazon.lastmile.kotlin.inject.anvil.SingleIn
 @ContributesSubcomponent(UserScope::class)
 @SingleIn(UserScope::class)
 interface UserComponent : UserDependencies {
-
   override val userData: UserData
   override val tokenStore: TokenStore
   override val userRepository: UserRepository

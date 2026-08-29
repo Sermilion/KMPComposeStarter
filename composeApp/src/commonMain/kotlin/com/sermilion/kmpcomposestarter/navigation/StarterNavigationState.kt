@@ -15,13 +15,13 @@ data class StarterNavigationState(
     createInitialTabBackStacks(),
   val currentTab: TopLevelTab = TopLevelTab.HOME,
 ) {
-
   val currentBackStack: SnapshotStateList<out Route>
-    get() = if (isAuthenticated) {
-      tabBackStacks[currentTab] ?: snapshotStateListOf(currentTab.startRoute)
-    } else {
-      authBackStack
-    }
+    get() =
+      if (isAuthenticated) {
+        tabBackStacks[currentTab] ?: snapshotStateListOf(currentTab.startRoute)
+      } else {
+        authBackStack
+      }
 
   val currentRoute: Route?
     get() = currentBackStack.lastOrNull()

@@ -8,9 +8,10 @@ import org.jetbrains.kotlin.gradle.dsl.KotlinMultiplatformExtension
 import org.jetbrains.kotlin.gradle.plugin.KotlinPlatformType
 
 class KmpKotlinInjectConventionPlugin : Plugin<Project> {
-
   private companion object {
     const val KOTLIN_MULTIPLATFORM_PLUGIN = "org.jetbrains.kotlin.multiplatform"
+    const val KOTLIN_JVM_PLUGIN = "org.jetbrains.kotlin.jvm"
+    const val ANDROID_APPLICATION_PLUGIN = "com.android.application"
     const val KSP_PLUGIN = "com.google.devtools.ksp"
     const val ROOM_PLUGIN = "androidx.room3"
 
@@ -68,17 +69,22 @@ class KmpKotlinInjectConventionPlugin : Plugin<Project> {
    * Runs [addProcessors] against the KSP configuration of every target the module declares, now
    * and for any target registered afterwards. Reading `targets` once would make the wiring depend
    * on the module listing its multiplatform plugin before `ksp`, and a module that lost the race
-   * would silently compile with no processors at all. Non-multiplatform consumers (`androidApp`)
-   * have a single `ksp` configuration instead, hence the fallback once evaluation settles.
+   * would silently compile with no processors at all.
+   *
+   * Single-target consumers (`androidApp`, and any plain JVM module a fork adds) have one `ksp`
+   * configuration instead. That fallback has to be registered while the owning plugin is being
+   * applied, not from `afterEvaluate`: KSP decides whether to run or skip each per-variant task
+   * from the processor classpath as it stands once the variants are locked in, which happens
+   * before an `afterEvaluate` registered here would fire. Adding the processors late left
+   * `:androidApp:kspDebugKotlin` permanently SKIPPED, so the module compiled whatever stale
+   * generated sources were still on disk instead of failing.
    *
    * The `metadata` (common) target is skipped deliberately: `kspCommonMainMetadata` used to be
    * wired up here, but its output was never added to any compilation, so the processors ran for
    * nothing.
    */
   private fun Project.withKspConfigurations(addProcessors: (String) -> Unit) {
-    var multiplatform = false
     pluginManager.withPlugin(KOTLIN_MULTIPLATFORM_PLUGIN) {
-      multiplatform = true
       extensions.configure<KotlinMultiplatformExtension> {
         targets.all {
           if (platformType != KotlinPlatformType.common) {
@@ -87,8 +93,15 @@ class KmpKotlinInjectConventionPlugin : Plugin<Project> {
         }
       }
     }
-    afterEvaluate {
-      if (!multiplatform) addProcessors("ksp")
+
+    var singleTargetWired = false
+    val wireSingleTarget = {
+      if (!singleTargetWired) {
+        singleTargetWired = true
+        addProcessors("ksp")
+      }
     }
+    pluginManager.withPlugin(ANDROID_APPLICATION_PLUGIN) { wireSingleTarget() }
+    pluginManager.withPlugin(KOTLIN_JVM_PLUGIN) { wireSingleTarget() }
   }
 }

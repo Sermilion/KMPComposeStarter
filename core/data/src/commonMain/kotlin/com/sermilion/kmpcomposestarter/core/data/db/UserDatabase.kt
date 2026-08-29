@@ -35,6 +35,7 @@ expect object UserDatabaseConstructor : RoomDatabaseConstructor<UserDatabase> {
  * }
  * ```
  */
-fun createUserDatabase(builder: RoomDatabase.Builder<UserDatabase>): UserDatabase = builder
-  // .addMigrations(MIGRATION_1_2)
-  .build()
+fun createUserDatabase(builder: RoomDatabase.Builder<UserDatabase>): UserDatabase =
+  builder
+    // .addMigrations(MIGRATION_1_2)
+    .build()

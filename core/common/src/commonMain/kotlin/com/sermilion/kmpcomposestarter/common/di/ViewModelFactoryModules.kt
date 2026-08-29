@@ -7,7 +7,6 @@ import software.amazon.lastmile.kotlin.inject.anvil.SingleIn
 
 @ContributesTo(AppScope::class)
 interface AppViewModelFactoryModule {
-
   @Provides
   @SingleIn(AppScope::class)
   fun provideAppViewModelFactory(entries: Set<ViewModelEntry>): StarterViewModelFactory =
@@ -16,7 +15,6 @@ interface AppViewModelFactoryModule {
 
 @ContributesTo(ScreenScope::class)
 interface ScreenViewModelFactoryModule {
-
   @Provides
   @SingleIn(ScreenScope::class)
   fun provideScreenViewModelFactory(entries: Set<ViewModelEntry>): StarterViewModelFactory =

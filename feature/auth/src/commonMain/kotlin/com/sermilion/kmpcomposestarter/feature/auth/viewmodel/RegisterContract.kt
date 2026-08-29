@@ -1,7 +1,6 @@
 package com.sermilion.kmpcomposestarter.feature.auth.viewmodel
 
 object RegisterContract {
-
   data class UiState(
     val name: String = "",
     val email: String = "",
@@ -12,7 +11,9 @@ object RegisterContract {
 
   sealed interface Error {
     data object RegistrationFailed : Error
+
     data object Network : Error
+
     data object Unknown : Error
   }
 

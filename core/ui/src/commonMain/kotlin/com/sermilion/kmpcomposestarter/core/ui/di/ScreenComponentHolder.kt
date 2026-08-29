@@ -10,4 +10,6 @@ import com.sermilion.kmpcomposestarter.common.di.ScreenComponentProvider
  * entry's lifetime: every `@SingleIn(ScreenScope)` binding resolved on that screen comes from the
  * same component instance, and the component is dropped when the entry leaves the back stack.
  */
-class ScreenComponentHolder(val provider: ScreenComponentProvider) : ViewModel()
+class ScreenComponentHolder(
+  val provider: ScreenComponentProvider,
+) : ViewModel()

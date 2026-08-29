@@ -29,10 +29,11 @@ class ErrorHandlingTest :
 
     test("other failures are converted by the error block") {
       runTest {
-        val result = withRestErrorHandling(
-          block = { throw IllegalStateException("boom") },
-          errorBlock = { "converted" },
-        )
+        val result =
+          withRestErrorHandling(
+            block = { throw IllegalStateException("boom") },
+            errorBlock = { "converted" },
+          )
 
         result shouldBe "converted"
       }

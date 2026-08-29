@@ -12,31 +12,40 @@ import kotlin.reflect.KClass
  * which [ViewModelEntry] multibindings are visible, so the same class serves the app scope
  * (pre-auth screens) and every screen scope.
  */
-class StarterViewModelFactory(entries: Set<ViewModelEntry>) : ViewModelProvider.Factory {
-
+class StarterViewModelFactory(
+  entries: Set<ViewModelEntry>,
+) : ViewModelProvider.Factory {
   private val entriesByClass: Map<KClass<out ViewModel>, ViewModelEntry> =
     entries.associateBy { it.kclass }.also { byClass ->
       require(byClass.size == entries.size) {
-        val duplicates = entries
-          .groupBy { it.kclass }
-          .filterValues { it.size > 1 }
-          .keys
-          .joinToString { it.simpleName.orEmpty() }
+        val duplicates =
+          entries
+            .groupBy { it.kclass }
+            .filterValues { it.size > 1 }
+            .keys
+            .joinToString { it.simpleName.orEmpty() }
         "Duplicate ViewModel registrations for: $duplicates"
       }
     }
 
   @Suppress("UNCHECKED_CAST")
-  override fun <T : ViewModel> create(modelClass: KClass<T>, extras: CreationExtras): T {
-    val entry = entriesByClass[modelClass] ?: error(
-      "ViewModel ${modelClass.simpleName} is not registered. Annotate it with " +
-        "@ContributesViewModel. Registered: " +
-        entriesByClass.keys.joinToString { it.simpleName.orEmpty() },
-    )
+  override fun <T : ViewModel> create(
+    modelClass: KClass<T>,
+    extras: CreationExtras,
+  ): T {
+    val entry =
+      entriesByClass[modelClass] ?: error(
+        "ViewModel ${modelClass.simpleName} is not registered. Annotate it with " +
+          "@ContributesViewModel. Registered: " +
+          entriesByClass.keys.joinToString { it.simpleName.orEmpty() },
+      )
     return entry.create(assistedArgsFor(entry, extras)) as T
   }
 
-  private fun assistedArgsFor(entry: ViewModelEntry, extras: CreationExtras): AssistedArgs {
+  private fun assistedArgsFor(
+    entry: ViewModelEntry,
+    extras: CreationExtras,
+  ): AssistedArgs {
     val args = extras[AssistedArgsKey] ?: EmptyAssistedArgs
     val handleArgName = entry.savedStateHandleArgName ?: return args
     val savedStateHandle: SavedStateHandle = extras.createSavedStateHandle()

@@ -10,7 +10,6 @@ import java.io.File
 @Inject
 @SingleIn(AppScope::class)
 actual class UserPreferencesPathProvider {
-
   actual fun userPreferencesPath(): Path =
     desktopDataDirectory().resolve(USER_PREFERENCES_FILE_NAME).toOkioPath()
 }
@@ -22,9 +21,11 @@ actual class UserPreferencesPathProvider {
  * developer's home directory.
  */
 private fun desktopDataDirectory(): File {
-  val directory = System.getProperty("starter.dataDir")
-    ?.let(::File)
-    ?: File(System.getProperty("user.home"), ".kmpcomposestarter")
+  val directory =
+    System
+      .getProperty("starter.dataDir")
+      ?.let(::File)
+      ?: File(System.getProperty("user.home"), ".kmpcomposestarter")
   directory.mkdirs()
   return directory
 }

@@ -14,16 +14,18 @@ import com.sermilion.kmpcomposestarter.core.data.db.createUserDatabaseBuilder as
 
 @Inject
 @SingleIn(AppScope::class)
-actual class PlatformRoomDatabaseBuilderFactory(private val application: Application) {
-
+actual class PlatformRoomDatabaseBuilderFactory(
+  private val application: Application,
+) {
   actual fun createUserDatabaseBuilder(
     databaseFileName: String,
     queryContext: CoroutineContext,
-  ): RoomDatabase.Builder<UserDatabase> = newUserDatabaseBuilder(
-    context = application,
-    databaseFileName = databaseFileName,
-    queryContext = queryContext,
-  )
+  ): RoomDatabase.Builder<UserDatabase> =
+    newUserDatabaseBuilder(
+      context = application,
+      databaseFileName = databaseFileName,
+      queryContext = queryContext,
+    )
 
   actual fun deleteDatabaseFile(databaseFileName: String): Boolean {
     val databasePath = application.getDatabasePath(databaseFileName).absolutePath

@@ -34,20 +34,22 @@ import androidx.savedstate.savedState
  * `SavedStateNavEntryDecorator` once navigation3-runtime ships one.
  */
 @Composable
-fun <T : Any> rememberSavedStateNavEntryDecorator(): NavEntryDecorator<T> = remember {
-  NavEntryDecorator { entry ->
-    val owner = rememberSaveable(saver = NavEntrySavedStateRegistryOwner.Saver) {
-      NavEntrySavedStateRegistryOwner(restoredState = null)
-    }
-    CompositionLocalProvider(LocalSavedStateRegistryOwner provides owner) {
-      entry.Content()
+fun <T : Any> rememberSavedStateNavEntryDecorator(): NavEntryDecorator<T> =
+  remember {
+    NavEntryDecorator { entry ->
+      val owner =
+        rememberSaveable(saver = NavEntrySavedStateRegistryOwner.Saver) {
+          NavEntrySavedStateRegistryOwner(restoredState = null)
+        }
+      CompositionLocalProvider(LocalSavedStateRegistryOwner provides owner) {
+        entry.Content()
+      }
     }
   }
-}
 
-private class NavEntrySavedStateRegistryOwner(restoredState: SavedState?) :
-  SavedStateRegistryOwner {
-
+private class NavEntrySavedStateRegistryOwner(
+  restoredState: SavedState?,
+) : SavedStateRegistryOwner {
   override val lifecycle: Lifecycle = InitializedLifecycle()
 
   private val controller = SavedStateRegistryController.create(this)
@@ -62,10 +64,11 @@ private class NavEntrySavedStateRegistryOwner(restoredState: SavedState?) :
   }
 
   companion object {
-    val Saver: Saver<NavEntrySavedStateRegistryOwner, SavedState> = Saver(
-      save = { owner -> savedState().also(owner.controller::performSave) },
-      restore = { NavEntrySavedStateRegistryOwner(restoredState = it) },
-    )
+    val Saver: Saver<NavEntrySavedStateRegistryOwner, SavedState> =
+      Saver(
+        save = { owner -> savedState().also(owner.controller::performSave) },
+        restore = { NavEntrySavedStateRegistryOwner(restoredState = it) },
+      )
   }
 }
 
@@ -79,6 +82,8 @@ private class NavEntrySavedStateRegistryOwner(restoredState: SavedState?) :
  */
 private class InitializedLifecycle : Lifecycle() {
   override val currentState: State = State.INITIALIZED
+
   override fun addObserver(observer: LifecycleObserver) = Unit
+
   override fun removeObserver(observer: LifecycleObserver) = Unit
 }

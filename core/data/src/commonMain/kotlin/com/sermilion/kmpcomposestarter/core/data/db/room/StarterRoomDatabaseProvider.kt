@@ -20,7 +20,6 @@ class StarterRoomDatabaseProvider(
   private val builderFactory: PlatformRoomDatabaseBuilderFactory,
   private val dispatcherProvider: DispatcherProvider,
 ) : DatabaseProvider {
-
   private val databaseCache = mutableMapOf<String, UserDatabase>()
   private val cacheLock = SynchronizedObject()
 

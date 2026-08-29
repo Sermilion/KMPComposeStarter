@@ -32,9 +32,10 @@ fun HomeScreen(
   modifier: Modifier = Modifier,
 ) {
   Column(
-    modifier = modifier
-      .fillMaxSize()
-      .padding(24.dp),
+    modifier =
+      modifier
+        .fillMaxSize()
+        .padding(24.dp),
     horizontalAlignment = Alignment.CenterHorizontally,
     verticalArrangement = Arrangement.Center,
   ) {
@@ -76,10 +77,11 @@ fun HomeScreen(
   }
 }
 
-private val sampleHomeState = HomeContract.UiState(
-  userName = "Ada Lovelace",
-  userEmail = "ada@example.com",
-)
+private val sampleHomeState =
+  HomeContract.UiState(
+    userName = "Ada Lovelace",
+    userEmail = "ada@example.com",
+  )
 
 @Composable
 private fun HomeScreenPreviewHost(darkTheme: Boolean) {
@@ -90,8 +92,8 @@ private fun HomeScreenPreviewHost(darkTheme: Boolean) {
 
 @Preview
 @Composable
-private fun HomeScreenLightPreview() = HomeScreenPreviewHost(darkTheme = false)
+internal fun HomeScreenLightPreview() = HomeScreenPreviewHost(darkTheme = false)
 
 @Preview
 @Composable
-private fun HomeScreenDarkPreview() = HomeScreenPreviewHost(darkTheme = true)
+internal fun HomeScreenDarkPreview() = HomeScreenPreviewHost(darkTheme = true)

@@ -24,19 +24,22 @@ import software.amazon.lastmile.kotlin.inject.anvil.SingleIn
 @SingleIn(AppScope::class)
 @ContributesBinding(AppScope::class)
 class MockAuthRemoteDataSource : AuthRemoteDataSource {
-
-  override suspend fun login(email: String, password: String): AuthResultDataModel =
+  override suspend fun login(
+    email: String,
+    password: String,
+  ): AuthResultDataModel =
     withRestErrorHandling(
       tag = TAG,
       block = {
         delay(MOCK_DELAY_MS)
         if (email == MockConfig.DEMO_EMAIL && password == MockConfig.DEMO_PASSWORD) {
           AuthResultDataModel.Success(
-            user = UserDataModel(
-              id = MockConfig.DEMO_USER_ID,
-              email = email,
-              name = MockConfig.DEMO_USER_NAME,
-            ),
+            user =
+              UserDataModel(
+                id = MockConfig.DEMO_USER_ID,
+                email = email,
+                name = MockConfig.DEMO_USER_NAME,
+              ),
             token = issuedToken(),
           )
         } else {
@@ -50,29 +53,32 @@ class MockAuthRemoteDataSource : AuthRemoteDataSource {
     email: String,
     password: String,
     name: String,
-  ): AuthResultDataModel = withRestErrorHandling(
-    tag = TAG,
-    block = {
-      delay(MOCK_DELAY_MS)
-      AuthResultDataModel.Success(
-        user = UserDataModel(
-          id = "user-${Clock.System.now().toEpochMilliseconds()}",
-          email = email,
-          name = name,
-        ),
-        token = issuedToken(),
-      )
-    },
-    errorBlock = { AuthResultDataModel.Failure(AuthError.Unexpected(it)) },
-  )
+  ): AuthResultDataModel =
+    withRestErrorHandling(
+      tag = TAG,
+      block = {
+        delay(MOCK_DELAY_MS)
+        AuthResultDataModel.Success(
+          user =
+            UserDataModel(
+              id = "user-${Clock.System.now().toEpochMilliseconds()}",
+              email = email,
+              name = name,
+            ),
+          token = issuedToken(),
+        )
+      },
+      errorBlock = { AuthResultDataModel.Failure(AuthError.Unexpected(it)) },
+    )
 
   override suspend fun logout() {
     delay(MOCK_LOGOUT_DELAY_MS)
   }
 
-  private fun issuedToken() = AuthTokenDataModel(
-    accessToken = "mock-access-${Clock.System.now().toEpochMilliseconds()}",
-  )
+  private fun issuedToken() =
+    AuthTokenDataModel(
+      accessToken = "mock-access-${Clock.System.now().toEpochMilliseconds()}",
+    )
 
   private companion object {
     const val TAG = "MockAuthRemoteDataSource"

@@ -24,11 +24,12 @@ class DataStoreTokenStore(
   private val localDataSource: AuthLocalDataSource,
   private val userData: UserData,
 ) : TokenStore {
-
-  override suspend fun get(): AuthToken? = localDataSource.getSession()
-    ?.takeIf { it.user.id == userData.id }
-    ?.token
-    ?.toDomainModel()
+  override suspend fun get(): AuthToken? =
+    localDataSource
+      .getSession()
+      ?.takeIf { it.user.id == userData.id }
+      ?.token
+      ?.toDomainModel()
 
   override suspend fun save(token: AuthToken) {
     localDataSource.saveSession(

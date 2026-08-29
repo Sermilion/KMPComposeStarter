@@ -17,19 +17,20 @@ import kotlinx.serialization.json.Json
  * in development, rather than degrading silently. Restore is deliberately the lenient direction —
  * see the comment on it.
  */
-val StarterNavigationStateSaver: Saver<StarterNavigationState, String> = Saver(
-  save = { encodeNavigationState(it) },
-  restore = { encoded ->
-    // A payload written before a route changed shape can no longer decode. Letting that throw
-    // out of a saver turns an app update into a crash loop the user cannot clear, so an
-    // undecodable payload restores as null and `rememberSaveable` falls back to a fresh state.
-    try {
-      decodeNavigationState(encoded)
-    } catch (error: SerializationException) {
-      null
-    }
-  },
-)
+val StarterNavigationStateSaver: Saver<StarterNavigationState, String> =
+  Saver(
+    save = { encodeNavigationState(it) },
+    restore = { encoded ->
+      // A payload written before a route changed shape can no longer decode. Letting that throw
+      // out of a saver turns an app update into a crash loop the user cannot clear, so an
+      // undecodable payload restores as null and `rememberSaveable` falls back to a fresh state.
+      try {
+        decodeNavigationState(encoded)
+      } catch (error: SerializationException) {
+        null
+      }
+    },
+  )
 
 /** Plain, composition-free half of [StarterNavigationStateSaver], so the round trip is testable. */
 internal fun encodeNavigationState(state: StarterNavigationState): String =
@@ -37,9 +38,10 @@ internal fun encodeNavigationState(state: StarterNavigationState): String =
     SavedNavigationState(
       isAuthenticated = state.isAuthenticated,
       authBackStack = state.authBackStack.toList(),
-      tabBackStacks = state.tabBackStacks.entries.associate { (tab, stack) ->
-        tab.name to stack.toList()
-      },
+      tabBackStacks =
+        state.tabBackStacks.entries.associate { (tab, stack) ->
+          tab.name to stack.toList()
+        },
       currentTab = state.currentTab.name,
     ),
   )
@@ -50,18 +52,21 @@ internal fun decodeNavigationState(encoded: String): StarterNavigationState {
     isAuthenticated = saved.isAuthenticated,
     // An empty stack is not a state any display can render, so a truncated payload falls back to
     // the start of the flow rather than crashing on restore.
-    authBackStack = saved.authBackStack.takeIf { it.isNotEmpty() }?.toSnapshotStateList()
-      ?: snapshotStateListOf(LoginRoute),
-    tabBackStacks = TopLevelTab.entries.associateWith { tab ->
-      // A stack that is missing or empty in the restored payload falls back to the tab's start
-      // route: an empty back stack is not a state any screen can render.
-      saved.tabBackStacks[tab.name]
-        ?.takeIf { it.isNotEmpty() }
-        ?.toSnapshotStateList()
-        ?: snapshotStateListOf(tab.startRoute)
-    },
-    currentTab = TopLevelTab.entries.firstOrNull { it.name == saved.currentTab }
-      ?: TopLevelTab.HOME,
+    authBackStack =
+      saved.authBackStack.takeIf { it.isNotEmpty() }?.toSnapshotStateList()
+        ?: snapshotStateListOf(LoginRoute),
+    tabBackStacks =
+      TopLevelTab.entries.associateWith { tab ->
+        // A stack that is missing or empty in the restored payload falls back to the tab's start
+        // route: an empty back stack is not a state any screen can render.
+        saved.tabBackStacks[tab.name]
+          ?.takeIf { it.isNotEmpty() }
+          ?.toSnapshotStateList()
+          ?: snapshotStateListOf(tab.startRoute)
+      },
+    currentTab =
+      TopLevelTab.entries.firstOrNull { it.name == saved.currentTab }
+        ?: TopLevelTab.HOME,
   )
 }
 
@@ -77,8 +82,9 @@ private data class SavedNavigationState(
   val currentTab: String,
 )
 
-private val navigationStateJson = Json {
-  serializersModule = starterSerializersModule
-  // A field dropped from a route in a later build must not fail the whole restore over one key.
-  ignoreUnknownKeys = true
-}
+private val navigationStateJson =
+  Json {
+    serializersModule = starterSerializersModule
+    // A field dropped from a route in a later build must not fail the whole restore over one key.
+    ignoreUnknownKeys = true
+  }

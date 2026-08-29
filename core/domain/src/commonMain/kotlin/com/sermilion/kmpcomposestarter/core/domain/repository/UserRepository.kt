@@ -9,7 +9,6 @@ import kotlinx.coroutines.flow.Flow
  * Session-scoped: an instance belongs to one user and can never reach another user's data.
  */
 interface UserRepository {
-
   /** Emits the persisted row for this session's user, or `null` while none is stored. */
   fun observeCurrentUser(): Flow<UserData?>
 

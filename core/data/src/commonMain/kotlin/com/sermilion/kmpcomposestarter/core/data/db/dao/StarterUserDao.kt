@@ -16,12 +16,15 @@ import software.amazon.lastmile.kotlin.inject.anvil.SingleIn
  */
 @Inject
 @SingleIn(UserScope::class)
-class StarterUserDao(private val database: UserDatabase) : UserDao {
-
+class StarterUserDao(
+  private val database: UserDatabase,
+) : UserDao {
   private val userDao = database.userEntityDao()
 
-  override fun observeUsers(): Flow<List<UserLocalDataModel>> = userDao.observeUsers()
-    .map { list -> list.map(UserEntity::toLocalDataModel) }
+  override fun observeUsers(): Flow<List<UserLocalDataModel>> =
+    userDao
+      .observeUsers()
+      .map { list -> list.map(UserEntity::toLocalDataModel) }
 
   override fun observeUser(userId: String): Flow<UserLocalDataModel?> =
     userDao.observeById(userId).map { it?.toLocalDataModel() }
@@ -46,16 +49,18 @@ class StarterUserDao(private val database: UserDatabase) : UserDao {
   }
 }
 
-private fun UserEntity.toLocalDataModel() = UserLocalDataModel(
-  id = id,
-  name = name,
-  email = email,
-  createdAt = Instant.fromEpochMilliseconds(createdAt),
-)
+private fun UserEntity.toLocalDataModel() =
+  UserLocalDataModel(
+    id = id,
+    name = name,
+    email = email,
+    createdAt = Instant.fromEpochMilliseconds(createdAt),
+  )
 
-private fun UserLocalDataModel.toEntity() = UserEntity(
-  id = id,
-  name = name,
-  email = email,
-  createdAt = createdAt.toEpochMilliseconds(),
-)
+private fun UserLocalDataModel.toEntity() =
+  UserEntity(
+    id = id,
+    name = name,
+    email = email,
+    createdAt = createdAt.toEpochMilliseconds(),
+  )

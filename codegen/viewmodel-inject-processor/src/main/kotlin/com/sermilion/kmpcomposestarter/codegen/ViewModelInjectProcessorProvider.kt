@@ -5,7 +5,6 @@ import com.google.devtools.ksp.processing.SymbolProcessorEnvironment
 import com.google.devtools.ksp.processing.SymbolProcessorProvider
 
 class ViewModelInjectProcessorProvider : SymbolProcessorProvider {
-
   override fun create(environment: SymbolProcessorEnvironment): SymbolProcessor {
     val diPackage = environment.options[DI_PACKAGE_OPTION]
     require(!diPackage.isNullOrBlank()) {

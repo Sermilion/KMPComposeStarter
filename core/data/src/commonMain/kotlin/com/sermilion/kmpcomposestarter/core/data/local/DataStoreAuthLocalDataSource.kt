@@ -24,11 +24,14 @@ import software.amazon.lastmile.kotlin.inject.anvil.SingleIn
 @Inject
 @SingleIn(AppScope::class)
 @ContributesBinding(AppScope::class)
-class DataStoreAuthLocalDataSource(private val dataStore: DataStore<UserPreferences>) :
-  AuthLocalDataSource {
-
+class DataStoreAuthLocalDataSource(
+  private val dataStore: DataStore<UserPreferences>,
+) : AuthLocalDataSource {
   override suspend fun getSession(): StoredSession? =
-    dataStore.data.first().session?.toStoredSession()
+    dataStore.data
+      .first()
+      .session
+      ?.toStoredSession()
 
   override suspend fun saveSession(session: StoredSession) {
     dataStore.updateData { preferences ->
@@ -43,22 +46,26 @@ class DataStoreAuthLocalDataSource(private val dataStore: DataStore<UserPreferen
   }
 }
 
-private fun PersistedSession.toStoredSession() = StoredSession(
-  user = UserDataModel(id = userId, email = email, name = name),
-  token = AuthTokenDataModel(
-    accessToken = token.accessToken,
-    refreshToken = token.refreshToken,
-    expiresAtEpochMillis = token.expiresAtEpochMillis,
-  ),
-)
+private fun PersistedSession.toStoredSession() =
+  StoredSession(
+    user = UserDataModel(id = userId, email = email, name = name),
+    token =
+      AuthTokenDataModel(
+        accessToken = token.accessToken,
+        refreshToken = token.refreshToken,
+        expiresAtEpochMillis = token.expiresAtEpochMillis,
+      ),
+  )
 
-private fun StoredSession.toPersistedSession() = PersistedSession(
-  userId = user.id,
-  email = user.email,
-  name = user.name,
-  token = PersistedToken(
-    accessToken = token.accessToken,
-    refreshToken = token.refreshToken,
-    expiresAtEpochMillis = token.expiresAtEpochMillis,
-  ),
-)
+private fun StoredSession.toPersistedSession() =
+  PersistedSession(
+    userId = user.id,
+    email = user.email,
+    name = user.name,
+    token =
+      PersistedToken(
+        accessToken = token.accessToken,
+        refreshToken = token.refreshToken,
+        expiresAtEpochMillis = token.expiresAtEpochMillis,
+      ),
+  )

@@ -34,10 +34,11 @@ fun StarterRoot(component: AppComponent) {
         // read is a local file, so the blank frame is not a perceptible delay.
         if (sessionState !is SessionState.Loading) {
           val screenComponentFactory = LocalScreenComponentFactory.current
-          val appState = rememberStarterAppState(
-            userComponentManager = component.userComponentManager,
-            screenComponentFactory = screenComponentFactory,
-          )
+          val appState =
+            rememberStarterAppState(
+              userComponentManager = component.userComponentManager,
+              screenComponentFactory = screenComponentFactory,
+            )
           StarterApp(
             appState = appState,
             screenComponentFactory = screenComponentFactory,

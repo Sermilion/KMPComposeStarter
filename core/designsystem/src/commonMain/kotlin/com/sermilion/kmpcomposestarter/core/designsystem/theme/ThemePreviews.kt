@@ -44,7 +44,11 @@ import org.jetbrains.compose.ui.tooling.preview.Preview
  * every role is rendered somewhere. These previews are that somewhere, and `check` compiles them.
  */
 @Composable
-private fun ColorSwatch(name: String, container: Color, content: Color) {
+private fun ColorSwatch(
+  name: String,
+  container: Color,
+  content: Color,
+) {
   Row(
     modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
     verticalAlignment = Alignment.CenterVertically,
@@ -63,27 +67,28 @@ private fun ColorSwatch(name: String, container: Color, content: Color) {
   }
 }
 
-private fun ColorScheme.reviewPairs(): List<Triple<String, Color, Color>> = listOf(
-  Triple("primary", primary, onPrimary),
-  Triple("primaryContainer", primaryContainer, onPrimaryContainer),
-  Triple("secondary", secondary, onSecondary),
-  Triple("secondaryContainer", secondaryContainer, onSecondaryContainer),
-  Triple("tertiary", tertiary, onTertiary),
-  Triple("tertiaryContainer", tertiaryContainer, onTertiaryContainer),
-  Triple("error", error, onError),
-  Triple("errorContainer", errorContainer, onErrorContainer),
-  Triple("background", background, onBackground),
-  Triple("surface", surface, onSurface),
-  Triple("surfaceVariant", surfaceVariant, onSurfaceVariant),
-  Triple("surfaceContainerLowest", surfaceContainerLowest, onSurface),
-  Triple("surfaceContainerLow", surfaceContainerLow, onSurface),
-  Triple("surfaceContainer", surfaceContainer, onSurface),
-  Triple("surfaceContainerHigh", surfaceContainerHigh, onSurface),
-  Triple("surfaceContainerHighest", surfaceContainerHighest, onSurface),
-  Triple("inverseSurface", inverseSurface, inverseOnSurface),
-  Triple("outline", outline, surface),
-  Triple("outlineVariant", outlineVariant, onSurface),
-)
+private fun ColorScheme.reviewPairs(): List<Triple<String, Color, Color>> =
+  listOf(
+    Triple("primary", primary, onPrimary),
+    Triple("primaryContainer", primaryContainer, onPrimaryContainer),
+    Triple("secondary", secondary, onSecondary),
+    Triple("secondaryContainer", secondaryContainer, onSecondaryContainer),
+    Triple("tertiary", tertiary, onTertiary),
+    Triple("tertiaryContainer", tertiaryContainer, onTertiaryContainer),
+    Triple("error", error, onError),
+    Triple("errorContainer", errorContainer, onErrorContainer),
+    Triple("background", background, onBackground),
+    Triple("surface", surface, onSurface),
+    Triple("surfaceVariant", surfaceVariant, onSurfaceVariant),
+    Triple("surfaceContainerLowest", surfaceContainerLowest, onSurface),
+    Triple("surfaceContainerLow", surfaceContainerLow, onSurface),
+    Triple("surfaceContainer", surfaceContainer, onSurface),
+    Triple("surfaceContainerHigh", surfaceContainerHigh, onSurface),
+    Triple("surfaceContainerHighest", surfaceContainerHighest, onSurface),
+    Triple("inverseSurface", inverseSurface, inverseOnSurface),
+    Triple("outline", outline, surface),
+    Triple("outlineVariant", outlineVariant, onSurface),
+  )
 
 @Composable
 private fun ColorSchemeSheet(darkTheme: Boolean) {
@@ -100,24 +105,25 @@ private fun ColorSchemeSheet(darkTheme: Boolean) {
 
 @Preview
 @Composable
-private fun LightColorSchemePreview() = ColorSchemeSheet(darkTheme = false)
+internal fun LightColorSchemePreview() = ColorSchemeSheet(darkTheme = false)
 
 @Preview
 @Composable
-private fun DarkColorSchemePreview() = ColorSchemeSheet(darkTheme = true)
+internal fun DarkColorSchemePreview() = ColorSchemeSheet(darkTheme = true)
 
-private fun Typography.reviewStyles(): List<Pair<String, TextStyle>> = listOf(
-  "displaySmall" to displaySmall,
-  "headlineLarge" to headlineLarge,
-  "headlineSmall" to headlineSmall,
-  "titleLarge" to titleLarge,
-  "titleMedium" to titleMedium,
-  "bodyLarge" to bodyLarge,
-  "bodyMedium" to bodyMedium,
-  "bodySmall" to bodySmall,
-  "labelLarge" to labelLarge,
-  "labelSmall" to labelSmall,
-)
+private fun Typography.reviewStyles(): List<Pair<String, TextStyle>> =
+  listOf(
+    "displaySmall" to displaySmall,
+    "headlineLarge" to headlineLarge,
+    "headlineSmall" to headlineSmall,
+    "titleLarge" to titleLarge,
+    "titleMedium" to titleMedium,
+    "bodyLarge" to bodyLarge,
+    "bodyMedium" to bodyMedium,
+    "bodySmall" to bodySmall,
+    "labelLarge" to labelLarge,
+    "labelSmall" to labelSmall,
+  )
 
 @Composable
 private fun TypographySheet(darkTheme: Boolean) {
@@ -137,11 +143,11 @@ private fun TypographySheet(darkTheme: Boolean) {
 
 @Preview
 @Composable
-private fun LightTypographyPreview() = TypographySheet(darkTheme = false)
+internal fun LightTypographyPreview() = TypographySheet(darkTheme = false)
 
 @Preview
 @Composable
-private fun DarkTypographyPreview() = TypographySheet(darkTheme = true)
+internal fun DarkTypographyPreview() = TypographySheet(darkTheme = true)
 
 /**
  * The Material 3 components this app actually renders, in both schemes.
@@ -159,7 +165,7 @@ private fun ComponentSheet(darkTheme: Boolean) {
       ) {
         Button(onClick = {}, modifier = Modifier.fillMaxWidth()) { Text("Button") }
         Button(onClick = {}, modifier = Modifier.fillMaxWidth(), enabled = false) {
-          ButtonBusyIndicator(stateDescription = "Working")
+          ButtonBusyIndicator(label = "Button", stateDescription = "Working")
         }
         OutlinedButton(onClick = {}, modifier = Modifier.fillMaxWidth()) { Text("OutlinedButton") }
         TextButton(onClick = {}, modifier = Modifier.fillMaxWidth()) { Text("TextButton") }
@@ -197,8 +203,8 @@ private fun SelectionBar() {
 
 @Preview
 @Composable
-private fun LightComponentsPreview() = ComponentSheet(darkTheme = false)
+internal fun LightComponentsPreview() = ComponentSheet(darkTheme = false)
 
 @Preview
 @Composable
-private fun DarkComponentsPreview() = ComponentSheet(darkTheme = true)
+internal fun DarkComponentsPreview() = ComponentSheet(darkTheme = true)

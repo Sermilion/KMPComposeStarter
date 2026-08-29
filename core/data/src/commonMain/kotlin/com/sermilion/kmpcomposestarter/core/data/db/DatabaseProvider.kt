@@ -5,7 +5,6 @@ package com.sermilion.kmpcomposestarter.core.data.db
  * asked for a database and the teardown that closes it are talking about the same object.
  */
 interface DatabaseProvider {
-
   fun provideUserDatabase(userId: String): UserDatabase
 
   /** Closes and forgets [userId]'s cached instance. Safe to call when nothing was opened. */

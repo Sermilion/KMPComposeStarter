@@ -12,11 +12,12 @@ suspend inline fun <T> withRestErrorHandling(
   tag: String = "RestError",
   crossinline block: suspend () -> T,
   crossinline errorBlock: (Exception) -> T,
-): T = try {
-  block()
-} catch (e: CancellationException) {
-  throw e
-} catch (e: Exception) {
-  Logger.e(tag, e) { "API error: ${e.message}" }
-  errorBlock(e)
-}
+): T =
+  try {
+    block()
+  } catch (e: CancellationException) {
+    throw e
+  } catch (e: Exception) {
+    Logger.e(tag, e) { "API error: ${e.message}" }
+    errorBlock(e)
+  }

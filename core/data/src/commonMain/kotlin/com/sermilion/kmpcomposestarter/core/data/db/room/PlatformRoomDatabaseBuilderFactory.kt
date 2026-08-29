@@ -5,7 +5,6 @@ import com.sermilion.kmpcomposestarter.core.data.db.UserDatabase
 import kotlin.coroutines.CoroutineContext
 
 expect class PlatformRoomDatabaseBuilderFactory {
-
   fun createUserDatabaseBuilder(
     databaseFileName: String,
     queryContext: CoroutineContext,

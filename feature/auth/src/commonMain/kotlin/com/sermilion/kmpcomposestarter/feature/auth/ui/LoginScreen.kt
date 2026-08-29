@@ -52,11 +52,12 @@ fun LoginScreen(
   modifier: Modifier = Modifier,
 ) {
   Column(
-    modifier = modifier
-      .fillMaxSize()
-      .imePadding()
-      .verticalScroll(rememberScrollState())
-      .padding(24.dp),
+    modifier =
+      modifier
+        .fillMaxSize()
+        .imePadding()
+        .verticalScroll(rememberScrollState())
+        .padding(24.dp),
     horizontalAlignment = Alignment.CenterHorizontally,
     verticalArrangement = Arrangement.Center,
   ) {
@@ -120,13 +121,14 @@ private fun LoginFormFields(
 }
 
 @Composable
-private fun LoginContract.Error.message(): String = stringResource(
-  when (this) {
-    LoginContract.Error.InvalidCredentials -> Res.string.login_error_invalid_credentials
-    LoginContract.Error.Network -> Res.string.login_error_network
-    LoginContract.Error.Unknown -> Res.string.login_error_unknown
-  },
-)
+private fun LoginContract.Error.message(): String =
+  stringResource(
+    when (this) {
+      LoginContract.Error.InvalidCredentials -> Res.string.login_error_invalid_credentials
+      LoginContract.Error.Network -> Res.string.login_error_network
+      LoginContract.Error.Unknown -> Res.string.login_error_unknown
+    },
+  )
 
 @Composable
 private fun LoginButtons(
@@ -139,12 +141,16 @@ private fun LoginButtons(
     Button(
       onClick = onLoginClick,
       modifier = Modifier.fillMaxWidth(),
-      enabled = !uiState.isLoading &&
-        uiState.email.isNotBlank() &&
-        uiState.password.isNotBlank(),
+      enabled =
+        !uiState.isLoading &&
+          uiState.email.isNotBlank() &&
+          uiState.password.isNotBlank(),
     ) {
       if (uiState.isLoading) {
-        ButtonBusyIndicator(stateDescription = stringResource(Res.string.login_busy_description))
+        ButtonBusyIndicator(
+          label = stringResource(Res.string.login_button_sign_in),
+          stateDescription = stringResource(Res.string.login_busy_description),
+        )
       } else {
         Text(stringResource(Res.string.login_button_sign_in))
       }
@@ -168,13 +174,17 @@ private fun LoginButtons(
   }
 }
 
-private val filledLoginState = LoginContract.UiState(
-  email = "ada@example.com",
-  password = "correct-horse",
-)
+private val filledLoginState =
+  LoginContract.UiState(
+    email = "ada@example.com",
+    password = "correct-horse",
+  )
 
 @Composable
-private fun LoginScreenPreviewHost(darkTheme: Boolean, uiState: LoginContract.UiState) {
+private fun LoginScreenPreviewHost(
+  darkTheme: Boolean,
+  uiState: LoginContract.UiState,
+) {
   StarterTheme(darkTheme = darkTheme) {
     LoginScreen(
       uiState = uiState,
@@ -189,36 +199,39 @@ private fun LoginScreenPreviewHost(darkTheme: Boolean, uiState: LoginContract.Ui
 
 @Preview
 @Composable
-private fun LoginScreenLightPreview() =
+internal fun LoginScreenLightPreview() =
   LoginScreenPreviewHost(darkTheme = false, uiState = filledLoginState)
 
 @Preview
 @Composable
-private fun LoginScreenDarkPreview() =
+internal fun LoginScreenDarkPreview() =
   LoginScreenPreviewHost(darkTheme = true, uiState = filledLoginState)
 
 @Preview
 @Composable
-private fun LoginScreenLoadingPreview() =
+internal fun LoginScreenLoadingPreview() =
   LoginScreenPreviewHost(darkTheme = false, uiState = filledLoginState.copy(isLoading = true))
 
 @Preview
 @Composable
-private fun LoginScreenInvalidCredentialsPreview() = LoginScreenPreviewHost(
-  darkTheme = false,
-  uiState = filledLoginState.copy(error = LoginContract.Error.InvalidCredentials),
-)
+internal fun LoginScreenInvalidCredentialsPreview() =
+  LoginScreenPreviewHost(
+    darkTheme = false,
+    uiState = filledLoginState.copy(error = LoginContract.Error.InvalidCredentials),
+  )
 
 @Preview
 @Composable
-private fun LoginScreenNetworkErrorPreview() = LoginScreenPreviewHost(
-  darkTheme = true,
-  uiState = filledLoginState.copy(error = LoginContract.Error.Network),
-)
+internal fun LoginScreenNetworkErrorPreview() =
+  LoginScreenPreviewHost(
+    darkTheme = true,
+    uiState = filledLoginState.copy(error = LoginContract.Error.Network),
+  )
 
 @Preview
 @Composable
-private fun LoginScreenUnknownErrorPreview() = LoginScreenPreviewHost(
-  darkTheme = true,
-  uiState = filledLoginState.copy(error = LoginContract.Error.Unknown),
-)
+internal fun LoginScreenUnknownErrorPreview() =
+  LoginScreenPreviewHost(
+    darkTheme = true,
+    uiState = filledLoginState.copy(error = LoginContract.Error.Unknown),
+  )

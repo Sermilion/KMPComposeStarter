@@ -17,7 +17,6 @@ import java.util.concurrent.atomic.AtomicReference
 
 /** In-memory stand-in for the DataStore-backed token store. */
 class FakeTokenStore : TokenStore {
-
   private val stored = AtomicReference<AuthToken?>(null)
 
   override suspend fun get(): AuthToken? = stored.get()
@@ -32,8 +31,9 @@ class FakeTokenStore : TokenStore {
 }
 
 /** In-memory stand-in for the Room-backed user repository. */
-class FakeUserRepository(var deletionSucceeds: Boolean = true) : UserRepository {
-
+class FakeUserRepository(
+  var deletionSucceeds: Boolean = true,
+) : UserRepository {
   private val current = MutableStateFlow<UserData?>(null)
 
   val savedUsers = mutableListOf<UserData>()
@@ -52,8 +52,9 @@ class FakeUserRepository(var deletionSucceeds: Boolean = true) : UserRepository 
 }
 
 /** Stands in for the generated user subcomponent, recording how often teardown touched it. */
-class FakeUserComponent(override val userData: UserData) : UserComponent {
-
+class FakeUserComponent(
+  override val userData: UserData,
+) : UserComponent {
   private val closeCounter = AtomicInteger(0)
 
   val tokenStoreImpl = FakeTokenStore()
@@ -70,9 +71,10 @@ class FakeUserComponent(override val userData: UserData) : UserComponent {
   override val userSessionScope: UserSessionScope =
     UserSessionScope(CoroutineScope(SupervisorJob()))
 
-  override val userScopedCloseables: Set<UserScopedCloseable> = setOf(
-    UserScopedCloseable { closeCounter.incrementAndGet() },
-  )
+  override val userScopedCloseables: Set<UserScopedCloseable> =
+    setOf(
+      UserScopedCloseable { closeCounter.incrementAndGet() },
+    )
 
   override val screenComponentFactory: ScreenComponent.Factory =
     object : ScreenComponent.Factory {
@@ -81,7 +83,6 @@ class FakeUserComponent(override val userData: UserData) : UserComponent {
 }
 
 class RecordingUserComponentFactory : UserComponent.Factory {
-
   private val createdComponents = mutableListOf<FakeUserComponent>()
 
   val created: List<FakeUserComponent>

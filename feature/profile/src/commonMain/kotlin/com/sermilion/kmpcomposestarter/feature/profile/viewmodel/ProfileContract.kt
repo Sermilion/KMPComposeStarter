@@ -1,7 +1,6 @@
 package com.sermilion.kmpcomposestarter.feature.profile.viewmodel
 
 object ProfileContract {
-
   data class UiState(
     val userName: String = "",
     val userEmail: String = "",

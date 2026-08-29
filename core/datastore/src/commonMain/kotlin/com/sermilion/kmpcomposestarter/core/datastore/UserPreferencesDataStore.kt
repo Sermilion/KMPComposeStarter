@@ -25,14 +25,16 @@ const val USER_PREFERENCES_FILE_NAME: String = "user_preferences.json"
 fun createUserPreferencesDataStore(
   scope: CoroutineScope,
   producePath: () -> Path,
-): DataStore<UserPreferences> = DataStoreFactory.create(
-  storage = OkioStorage(
-    fileSystem = FileSystem.SYSTEM,
-    serializer = UserPreferencesSerializer,
-    producePath = producePath,
-  ),
-  // A file we cannot parse is a file we cannot trust: drop it and start signed out rather than
-  // failing every session read until the user reinstalls.
-  corruptionHandler = ReplaceFileCorruptionHandler { UserPreferences() },
-  scope = scope,
-)
+): DataStore<UserPreferences> =
+  DataStoreFactory.create(
+    storage =
+      OkioStorage(
+        fileSystem = FileSystem.SYSTEM,
+        serializer = UserPreferencesSerializer,
+        producePath = producePath,
+      ),
+    // A file we cannot parse is a file we cannot trust: drop it and start signed out rather than
+    // failing every session read until the user reinstalls.
+    corruptionHandler = ReplaceFileCorruptionHandler { UserPreferences() },
+    scope = scope,
+  )

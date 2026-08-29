@@ -22,7 +22,6 @@ import software.amazon.lastmile.kotlin.inject.anvil.SingleIn
 
 @ContributesTo(UserScope::class)
 interface UserScopeModule {
-
   @Provides
   @SingleIn(UserScope::class)
   fun provideUserSessionScope(dispatcherProvider: DispatcherProvider): UserSessionScope =
@@ -34,8 +33,10 @@ interface UserScopeModule {
    */
   @Provides
   @SingleIn(UserScope::class)
-  fun provideUserDatabase(databaseProvider: DatabaseProvider, userData: UserData): UserDatabase =
-    databaseProvider.provideUserDatabase(userData.id)
+  fun provideUserDatabase(
+    databaseProvider: DatabaseProvider,
+    userData: UserData,
+  ): UserDatabase = databaseProvider.provideUserDatabase(userData.id)
 
   @Provides
   fun provideUserDao(dao: StarterUserDao): UserDao = dao

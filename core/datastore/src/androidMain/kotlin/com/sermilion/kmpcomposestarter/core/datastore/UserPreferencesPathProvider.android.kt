@@ -9,8 +9,9 @@ import software.amazon.lastmile.kotlin.inject.anvil.SingleIn
 
 @Inject
 @SingleIn(AppScope::class)
-actual class UserPreferencesPathProvider(private val application: Application) {
-
+actual class UserPreferencesPathProvider(
+  private val application: Application,
+) {
   actual fun userPreferencesPath(): Path =
     application.filesDir.resolve(USER_PREFERENCES_FILE_NAME).toOkioPath()
 }

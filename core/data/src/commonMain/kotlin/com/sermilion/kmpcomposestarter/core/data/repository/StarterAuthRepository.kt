@@ -28,23 +28,28 @@ class StarterAuthRepository(
   private val userComponentManager: UserComponentManager,
   externalScope: CoroutineScope,
 ) : AuthRepository {
-
-  override val isLoggedIn: StateFlow<Boolean> = userComponentManager.userComponentFlow
-    .map { it != null }
-    .stateIn(
-      scope = externalScope,
-      started = SharingStarted.Eagerly,
-      initialValue = userComponentManager.userComponent != null,
-    )
+  override val isLoggedIn: StateFlow<Boolean> =
+    userComponentManager.userComponentFlow
+      .map { it != null }
+      .stateIn(
+        scope = externalScope,
+        started = SharingStarted.Eagerly,
+        initialValue = userComponentManager.userComponent != null,
+      )
 
   override val currentUser: UserData?
     get() = userComponentManager.userComponent?.userData
 
-  override suspend fun login(email: String, password: String): LoginResult =
-    startSession(remoteDataSource.login(email, password))
+  override suspend fun login(
+    email: String,
+    password: String,
+  ): LoginResult = startSession(remoteDataSource.login(email, password))
 
-  override suspend fun register(email: String, password: String, name: String): LoginResult =
-    startSession(remoteDataSource.register(email, password, name))
+  override suspend fun register(
+    email: String,
+    password: String,
+    name: String,
+  ): LoginResult = startSession(remoteDataSource.register(email, password, name))
 
   /**
    * Signs out remotely, but tears the local session down whether or not that call succeeds: a
@@ -68,16 +73,17 @@ class StarterAuthRepository(
    * Opens the session before anything is written into it, so the token and the user row land in
    * the new user's store and database rather than the outgoing user's.
    */
-  private suspend fun startSession(result: AuthResultDataModel): LoginResult = when (result) {
-    is AuthResultDataModel.Success -> {
-      val userData = result.user.toDomainModel()
-      val session = userComponentManager.createComponent(userData)
-      session.tokenStore.save(result.token.toDomainModel())
-      session.userRepository.saveUser(userData)
-      LoginResult.Success(userData)
+  private suspend fun startSession(result: AuthResultDataModel): LoginResult =
+    when (result) {
+      is AuthResultDataModel.Success -> {
+        val userData = result.user.toDomainModel()
+        val session = userComponentManager.createComponent(userData)
+        session.tokenStore.save(result.token.toDomainModel())
+        session.userRepository.saveUser(userData)
+        LoginResult.Success(userData)
+      }
+      is AuthResultDataModel.Failure -> LoginResult.Failure(result.error)
     }
-    is AuthResultDataModel.Failure -> LoginResult.Failure(result.error)
-  }
 
   private suspend fun eraseStoredSession(session: UserDependencies?) {
     try {

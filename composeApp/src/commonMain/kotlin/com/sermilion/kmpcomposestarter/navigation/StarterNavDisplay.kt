@@ -44,39 +44,44 @@ fun StarterNavDisplay(
   val entryStoreOwner = rememberNavEntryViewModelStoreOwner()
 
   key(entryStoreOwner) {
-    val decorators = listOf(
-      // Order is load bearing: saveable state outermost, then the per-entry SavedStateRegistry
-      // owner it scopes, then the ViewModel stores that read that owner.
-      rememberSaveableStateHolderNavEntryDecorator<Route>(),
-      rememberSavedStateNavEntryDecorator<Route>(),
-      rememberViewModelStoreNavEntryDecorator<Route>(viewModelStoreOwner = entryStoreOwner),
-    )
+    val decorators =
+      listOf(
+        // Order is load bearing: saveable state outermost, then the per-entry SavedStateRegistry
+        // owner it scopes, then the ViewModel stores that read that owner.
+        rememberSaveableStateHolderNavEntryDecorator<Route>(),
+        rememberSavedStateNavEntryDecorator<Route>(),
+        rememberViewModelStoreNavEntryDecorator<Route>(viewModelStoreOwner = entryStoreOwner),
+      )
 
     // One rememberDecoratedNavEntries per back stack, which is what navigation3-runtime documents
     // for multiple back stacks. Entries absent from the list handed to NavDisplay are popped, so
     // the previous single-display design — one display fed a wholesale-swapped list — cleared
     // every tab's ViewModelStore and SaveableStateHolder on each switch. These calls are
     // unconditional over a fixed enum precisely so an off-screen tab keeps its entries alive.
-    val tabEntries = TopLevelTab.entries.associateWith { tab ->
+    val tabEntries =
+      TopLevelTab.entries.associateWith { tab ->
+        rememberDecoratedNavEntries(
+          backStack =
+            navigationState.tabBackStacks[tab]?.takeIf { it.isNotEmpty() }
+              ?: listOf(tab.startRoute),
+          entryDecorators = decorators,
+          entryProvider = entryProvider,
+        )
+      }
+    val authEntries =
       rememberDecoratedNavEntries(
-        backStack = navigationState.tabBackStacks[tab]?.takeIf { it.isNotEmpty() }
-          ?: listOf(tab.startRoute),
+        backStack = navigationState.authBackStack,
         entryDecorators = decorators,
         entryProvider = entryProvider,
       )
-    }
-    val authEntries = rememberDecoratedNavEntries(
-      backStack = navigationState.authBackStack,
-      entryDecorators = decorators,
-      entryProvider = entryProvider,
-    )
 
     val currentTab = navigationState.currentTab
-    val entries = if (navigationState.isAuthenticated) {
-      tabEntries.getValue(currentTab)
-    } else {
-      authEntries
-    }
+    val entries =
+      if (navigationState.isAuthenticated) {
+        tabEntries.getValue(currentTab)
+      } else {
+        authEntries
+      }
 
     // Tab switches are classified by the tab actually changing. Reading it off the destination
     // ("is a root and the stack is one deep") mislabelled every switch into a tab whose stack was
@@ -98,10 +103,11 @@ fun StarterNavDisplay(
           slideInHorizontally(
             initialOffsetX = { it },
             animationSpec = slideAnimationSpec,
-          ) togetherWith slideOutHorizontally(
-            targetOffsetX = { -it / 3 },
-            animationSpec = slideAnimationSpec,
-          )
+          ) togetherWith
+            slideOutHorizontally(
+              targetOffsetX = { -it / 3 },
+              animationSpec = slideAnimationSpec,
+            )
         }
       },
       popTransitionSpec = { popTransition() },
@@ -118,23 +124,28 @@ fun StarterNavDisplay(
  * it forced would re-read `isTabSwitching` as false — swapping the tab-switch fade for a push
  * slide while the transition was still running.
  */
-private class PreviousTabHolder(var value: TopLevelTab)
+private class PreviousTabHolder(
+  var value: TopLevelTab,
+)
 
 private fun popTransition(): ContentTransform =
   slideInHorizontally(
     initialOffsetX = { -it / 3 },
     animationSpec = slideAnimationSpec,
-  ) togetherWith slideOutHorizontally(
-    targetOffsetX = { it },
-    animationSpec = slideAnimationSpec,
+  ) togetherWith
+    slideOutHorizontally(
+      targetOffsetX = { it },
+      animationSpec = slideAnimationSpec,
+    )
+
+private val fadeAnimationSpec: FiniteAnimationSpec<Float> =
+  tween(
+    durationMillis = 300,
+    easing = FastOutSlowInEasing,
   )
 
-private val fadeAnimationSpec: FiniteAnimationSpec<Float> = tween(
-  durationMillis = 300,
-  easing = FastOutSlowInEasing,
-)
-
-private val slideAnimationSpec: FiniteAnimationSpec<IntOffset> = tween(
-  durationMillis = 350,
-  easing = FastOutSlowInEasing,
-)
+private val slideAnimationSpec: FiniteAnimationSpec<IntOffset> =
+  tween(
+    durationMillis = 350,
+    easing = FastOutSlowInEasing,
+  )

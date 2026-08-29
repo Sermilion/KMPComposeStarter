@@ -1,6 +1,3 @@
-import com.android.build.api.dsl.Lint
-import org.gradle.kotlin.dsl.configure
-
 plugins {
   alias(libs.plugins.kmp.library)
   alias(libs.plugins.kotlin.serialization)
@@ -80,11 +77,21 @@ kotlin {
   }
 }
 
-// The single RestrictedApi suppression for this module. Room 3 alpha01 reports false positives on
-// `RoomDatabase` usage under the KMP lint tasks; lint.xml narrows the generated-KSP half of the
-// same problem by path. Revisit both when the Room pin moves off alpha.
-configure<Lint> {
-  disable += "RestrictedApi"
+// The single RestrictedApi suppression for this module. Room 3 alpha01 reports a false positive on
+// the hand-written `RoomDatabase` supertype in `UserDatabase.kt` under `lintAndroidMain`, which no
+// path-scoped ignore can narrow because the file is ours. The much larger generated-KSP half of
+// the same problem is handled by path in lint.xml instead — that is what `lintJvm` reads, and it
+// keeps the rule live on every hand-written source in the module. Revisit both when the Room pin
+// moves off alpha.
+//
+// This has to sit on the Android KMP library extension: that is the one `lintAndroidMain` reads.
+// Setting it on the standalone `com.android.lint` extension configured nothing.
+kotlin {
+  androidLibrary {
+    lint {
+      disable += "RestrictedApi"
+    }
+  }
 }
 
 tasks.withType<Test>().configureEach {
@@ -112,10 +119,11 @@ val generateNetworkConfig by tasks.registering {
   outputs.dir(outputDirectory)
 
   doLast {
-    val target = outputDirectory
-      .get()
-      .asFile
-      .resolve("com/sermilion/kmpcomposestarter/core/data/network/NetworkConfig.kt")
+    val target =
+      outputDirectory
+        .get()
+        .asFile
+        .resolve("com/sermilion/kmpcomposestarter/core/data/network/NetworkConfig.kt")
     target.parentFile.mkdirs()
     target.writeText(
       """

@@ -9,15 +9,17 @@ import kotlinx.datetime.Instant
  * reads the clock is not a mapping, and it makes the same input produce a different row every
  * time it runs — including on every re-login.
  */
-fun UserData.toLocalDataModel(createdAt: Instant): UserLocalDataModel = UserLocalDataModel(
-  id = id,
-  name = name,
-  email = email,
-  createdAt = createdAt,
-)
+fun UserData.toLocalDataModel(createdAt: Instant): UserLocalDataModel =
+  UserLocalDataModel(
+    id = id,
+    name = name,
+    email = email,
+    createdAt = createdAt,
+  )
 
-fun UserLocalDataModel.toDomainModel(): UserData = UserData(
-  id = id,
-  email = email.orEmpty(),
-  name = name,
-)
+fun UserLocalDataModel.toDomainModel(): UserData =
+  UserData(
+    id = id,
+    email = email.orEmpty(),
+    name = name,
+  )

@@ -19,21 +19,23 @@ class UserDatabaseTest :
     test("user dao can upsert and query entities") {
       runTest {
         val databaseDirectory = Files.createTempDirectory("room3-user-db").toFile()
-        val database = createUserDatabase(
-          createUserDatabaseBuilder(
-            databaseFileName = "user-test.db",
-            queryContext = Dispatchers.IO,
-            path = databaseDirectory.resolve("user-test.db").absolutePath,
-          ),
-        )
+        val database =
+          createUserDatabase(
+            createUserDatabaseBuilder(
+              databaseFileName = "user-test.db",
+              queryContext = Dispatchers.IO,
+              path = databaseDirectory.resolve("user-test.db").absolutePath,
+            ),
+          )
 
         try {
-          val user = UserEntity(
-            id = "user-1",
-            name = "Sample User",
-            email = "sample@example.com",
-            createdAt = 1L,
-          )
+          val user =
+            UserEntity(
+              id = "user-1",
+              name = "Sample User",
+              email = "sample@example.com",
+              createdAt = 1L,
+            )
 
           database.userEntityDao().upsert(user)
 
@@ -48,13 +50,15 @@ class UserDatabaseTest :
 
     test("delete-my-data removes the database and its wal and shm sidecars") {
       runTest {
-        val provider = StarterRoomDatabaseProvider(
-          builderFactory = PlatformRoomDatabaseBuilderFactory(),
-          dispatcherProvider = RealDispatcherProvider,
-        )
+        val provider =
+          StarterRoomDatabaseProvider(
+            builderFactory = PlatformRoomDatabaseBuilderFactory(),
+            dispatcherProvider = RealDispatcherProvider,
+          )
         val userId = "user-to-erase"
-        val files = databaseFilePaths(defaultDatabasePath(userDatabaseFileName(userId)))
-          .map(::File)
+        val files =
+          databaseFilePaths(defaultDatabasePath(userDatabaseFileName(userId)))
+            .map(::File)
 
         provider.deleteDatabaseForUser(userId)
 

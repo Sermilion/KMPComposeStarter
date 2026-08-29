@@ -1,0 +1,3014 @@
+diff --git a/README.md b/README.md
+index 755a021..1aefc6b 100644
+--- a/README.md
++++ b/README.md
+@@ -18,6 +18,9 @@ This repository gives you a modern baseline for app development with Compose Mul
+ - Room 3 persistence with shared schemas, a per-user database, and platform-specific builders
+ - Session persistence in DataStore, restored at launch so returning users skip the login screen
+ - One shared Ktor client with bearer auth, sanitized logging, and a build-configurable base URL
++- Complete light and dark Material 3 schemes generated from one brand seed, with light/dark
++  previews for every screen and design-system component
++- One `Channel`-backed `Effect` idiom for one-off navigation and UI events
+ - Shared Gradle convention plugins in `build-logic/`
+ - Kotest, MockK, Detekt, Spotless, Kover coverage, and GitHub automation
+ 
+diff --git a/androidApp/src/main/res/values-night/themes.xml b/androidApp/src/main/res/values-night/themes.xml
+new file mode 100644
+index 0000000..35cb00e
+--- /dev/null
++++ b/androidApp/src/main/res/values-night/themes.xml
+@@ -0,0 +1,5 @@
++<?xml version="1.0" encoding="utf-8"?>
++<resources>
++  <!-- Night half of the pair declared in `values/themes.xml`. -->
++  <style name="Theme.KMPComposeStarter" parent="android:Theme.Material.NoActionBar" />
++</resources>
+diff --git a/androidApp/src/main/res/values/themes.xml b/androidApp/src/main/res/values/themes.xml
+index b2046a9..46e5622 100644
+--- a/androidApp/src/main/res/values/themes.xml
++++ b/androidApp/src/main/res/values/themes.xml
+@@ -1,4 +1,17 @@
+ <?xml version="1.0" encoding="utf-8"?>
+ <resources>
++  <!--
++    Day half of the DayNight pair; `values-night/themes.xml` carries the night half. The window
++    background has to follow the system setting on its own, because it is painted before the first
++    Compose frame - a light window under a dark `StarterTheme` is a white flash on every launch.
++
++    The platform's own DayNight parents start at API 29 while this template's minSdk is 26, and
++    pulling in AppCompat or the Material Components library only to inherit a theme parent would
++    add a dependency the app does not otherwise use. The `-night` resource qualifier is the same
++    mechanism with nothing extra on the classpath.
++
++    System bars are deliberately not styled here: `MainActivity` calls `enableEdgeToEdge()`, which
++    owns bar transparency and icon contrast, and a theme attribute would fight it.
++  -->
+   <style name="Theme.KMPComposeStarter" parent="android:Theme.Material.Light.NoActionBar" />
+ </resources>
+diff --git a/composeApp/build.gradle.kts b/composeApp/build.gradle.kts
+index 940588e..22468b3 100644
+--- a/composeApp/build.gradle.kts
++++ b/composeApp/build.gradle.kts
+@@ -37,6 +37,7 @@ kotlin {
+       implementation(libs.androidx.savedstate.compose)
+       implementation(libs.jetbrains.lifecycle.viewmodel)
+       implementation(libs.jetbrains.lifecycle.viewmodel.compose)
++      implementation(libs.jetbrains.lifecycle.runtime.compose)
+     }
+ 
+     jvmMain.dependencies {
+diff --git a/composeApp/src/commonMain/composeResources/values/strings.xml b/composeApp/src/commonMain/composeResources/values/strings.xml
+index 8eeb83d..f870b90 100644
+--- a/composeApp/src/commonMain/composeResources/values/strings.xml
++++ b/composeApp/src/commonMain/composeResources/values/strings.xml
+@@ -1,5 +1,6 @@
+ <?xml version="1.0" encoding="utf-8"?>
+ <resources>
++  <string name="app_window_title">KMP Compose Starter</string>
+   <string name="tab_home">Home</string>
+   <string name="tab_profile">Profile</string>
+   <string name="tab_settings">Settings</string>
+diff --git a/composeApp/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/App.kt b/composeApp/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/App.kt
+index 8511686..0efb090 100644
+--- a/composeApp/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/App.kt
++++ b/composeApp/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/App.kt
+@@ -51,9 +51,7 @@ fun StarterApp(
+   )
+ 
+   Scaffold(
+-    modifier = Modifier
+-      .fillMaxSize()
+-      .then(modifier),
++    modifier = modifier.fillMaxSize(),
+     bottomBar = {
+       if (canRenderAuthenticatedScreens && shouldShowBottomNavigation(navigationState)) {
+         StarterBottomBar(
+diff --git a/composeApp/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/StarterRoot.kt b/composeApp/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/StarterRoot.kt
+index 318c182..859e4cd 100644
+--- a/composeApp/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/StarterRoot.kt
++++ b/composeApp/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/StarterRoot.kt
+@@ -3,8 +3,8 @@ package com.sermilion.kmpcomposestarter
+ import androidx.compose.runtime.Composable
+ import androidx.compose.runtime.CompositionLocalProvider
+ import androidx.compose.runtime.LaunchedEffect
+-import androidx.compose.runtime.collectAsState
+ import androidx.compose.runtime.getValue
++import androidx.lifecycle.compose.collectAsStateWithLifecycle
+ import com.sermilion.kmpcomposestarter.common.di.LocalPreAuthViewModelFactory
+ import com.sermilion.kmpcomposestarter.common.di.LocalScreenComponentFactory
+ import com.sermilion.kmpcomposestarter.core.designsystem.theme.StarterTheme
+@@ -17,7 +17,7 @@ import com.sermilion.kmpcomposestarter.ui.rememberStarterAppState
+ /** The single host wiring block. Android, iOS and desktop all render through this. */
+ @Composable
+ fun StarterRoot(component: AppComponent) {
+-  val sessionState by component.sessionRestorer.state.collectAsState()
++  val sessionState by component.sessionRestorer.state.collectAsStateWithLifecycle()
+ 
+   LaunchedEffect(Unit) {
+     component.sessionRestorer.restore()
+diff --git a/composeApp/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/navigation/StarterEntryProvider.kt b/composeApp/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/navigation/StarterEntryProvider.kt
+index eac8d95..0f7bf23 100644
+--- a/composeApp/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/navigation/StarterEntryProvider.kt
++++ b/composeApp/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/navigation/StarterEntryProvider.kt
+@@ -1,9 +1,8 @@
+ package com.sermilion.kmpcomposestarter.navigation
+ 
+-import androidx.compose.runtime.Composable
+ import androidx.compose.runtime.LaunchedEffect
+-import androidx.compose.runtime.collectAsState
+ import androidx.compose.runtime.getValue
++import androidx.lifecycle.compose.collectAsStateWithLifecycle
+ import androidx.navigation3.runtime.entryProvider
+ import com.sermilion.kmpcomposestarter.common.navigation.Route
+ import com.sermilion.kmpcomposestarter.core.ui.navigation.ViewModelScope
+@@ -42,14 +41,13 @@ import com.sermilion.kmpcomposestarter.feature.settings.viewmodel.SettingsViewMo
+  * process-death restore fails on it. `StarterRouteSerializationTest` is the check for that.
+  */
+ @Suppress("LongMethod")
+-@Composable
+ fun createStarterEntryProvider(navigator: StarterNavigator) =
+   entryProvider<Route> {
+     entry<LoginRoute> {
+       val viewModel = injectViewModel<LoginViewModel>(scope = ViewModelScope.PreAuth)
+-      val uiState by viewModel.uiState.collectAsState()
++      val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+       LaunchedEffect(Unit) {
+-        viewModel.events.collect { event ->
++        viewModel.effects.collect { event ->
+           when (event) {
+             LoginContract.Event.NavigateToRegister -> navigator.navigate(RegisterRoute)
+           }
+@@ -67,9 +65,9 @@ fun createStarterEntryProvider(navigator: StarterNavigator) =
+ 
+     entry<RegisterRoute> {
+       val viewModel = injectViewModel<RegisterViewModel>(scope = ViewModelScope.PreAuth)
+-      val uiState by viewModel.uiState.collectAsState()
++      val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+       LaunchedEffect(Unit) {
+-        viewModel.events.collect { event ->
++        viewModel.effects.collect { event ->
+           when (event) {
+             RegisterContract.Event.NavigateBack -> navigator.goBack()
+           }
+@@ -77,6 +75,10 @@ fun createStarterEntryProvider(navigator: StarterNavigator) =
+       }
+       RegisterScreen(
+         uiState = uiState,
++        onNameChange = viewModel::onNameChange,
++        onEmailChange = viewModel::onEmailChange,
++        onPasswordChange = viewModel::onPasswordChange,
++        onRegisterClick = viewModel::register,
+         onRegisterDemo = viewModel::registerDemo,
+         onNavigateBack = viewModel::navigateBack,
+       )
+@@ -84,9 +86,9 @@ fun createStarterEntryProvider(navigator: StarterNavigator) =
+ 
+     entry<HomeRoute> {
+       val viewModel = injectViewModel<HomeViewModel>()
+-      val uiState by viewModel.uiState.collectAsState()
++      val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+       LaunchedEffect(Unit) {
+-        viewModel.events.collect { event ->
++        viewModel.effects.collect { event ->
+           when (event) {
+             HomeContract.Event.NavigateToProfile -> navigator.navigateToTopLevel(
+               TopLevelTab.PROFILE,
+@@ -106,7 +108,7 @@ fun createStarterEntryProvider(navigator: StarterNavigator) =
+       // The assisted key must match DetailViewModel's constructor parameter name exactly: that
+       // name is the contract the generated entry reads the argument back out under.
+       val viewModel = injectViewModel<DetailViewModel>(assisted = mapOf("id" to route.id))
+-      val uiState by viewModel.uiState.collectAsState()
++      val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+       DetailScreen(
+         uiState = uiState,
+         onNoteChange = viewModel::onNoteChange,
+@@ -116,9 +118,9 @@ fun createStarterEntryProvider(navigator: StarterNavigator) =
+ 
+     entry<ProfileRoute> {
+       val viewModel = injectViewModel<ProfileViewModel>()
+-      val uiState by viewModel.uiState.collectAsState()
++      val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+       LaunchedEffect(Unit) {
+-        viewModel.events.collect { event ->
++        viewModel.effects.collect { event ->
+           when (event) {
+             ProfileContract.Event.NavigateBack -> navigator.goBack()
+           }
+@@ -134,7 +136,7 @@ fun createStarterEntryProvider(navigator: StarterNavigator) =
+ 
+     entry<SettingsRoute> {
+       val viewModel = injectViewModel<SettingsViewModel>()
+-      val uiState by viewModel.uiState.collectAsState()
++      val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+       SettingsScreen(
+         uiState = uiState,
+       )
+diff --git a/composeApp/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/navigation/StarterNavDisplay.kt b/composeApp/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/navigation/StarterNavDisplay.kt
+index 77984ad..79efcc6 100644
+--- a/composeApp/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/navigation/StarterNavDisplay.kt
++++ b/composeApp/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/navigation/StarterNavDisplay.kt
+@@ -33,7 +33,10 @@ fun StarterNavDisplay(
+   navigationState: StarterNavigationState,
+   navigator: StarterNavigator,
+   modifier: Modifier = Modifier,
+-  entryProvider: (Route) -> NavEntry<Route> = createStarterEntryProvider(navigator),
++  // Remembered, not rebuilt: the default expression re-ran on every recomposition, throwing
++  // away and re-registering all six entries each frame.
++  entryProvider: (Route) -> NavEntry<Route> =
++    remember(navigator) { createStarterEntryProvider(navigator) },
+ ) {
+   // Nav-entry state is keyed by route, so without a session-scoped owner the next user's Home
+   // entry would inherit the previous session's screen component, ViewModels and saved UI state.
+diff --git a/composeApp/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/ui/StarterAppState.kt b/composeApp/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/ui/StarterAppState.kt
+index 57b9b1d..fa88e15 100644
+--- a/composeApp/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/ui/StarterAppState.kt
++++ b/composeApp/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/ui/StarterAppState.kt
+@@ -5,11 +5,11 @@ import androidx.compose.runtime.LaunchedEffect
+ import androidx.compose.runtime.MutableState
+ import androidx.compose.runtime.Stable
+ import androidx.compose.runtime.State
+-import androidx.compose.runtime.collectAsState
+ import androidx.compose.runtime.getValue
+ import androidx.compose.runtime.mutableStateOf
+ import androidx.compose.runtime.remember
+ import androidx.compose.runtime.saveable.rememberSaveable
++import androidx.lifecycle.compose.collectAsStateWithLifecycle
+ import com.sermilion.kmpcomposestarter.common.di.ScreenComponentProvider
+ import com.sermilion.kmpcomposestarter.common.navigation.Route
+ import com.sermilion.kmpcomposestarter.core.domain.di.UserComponentManager
+@@ -23,7 +23,7 @@ fun rememberStarterAppState(
+   userComponentManager: UserComponentManager,
+   screenComponentFactory: (() -> ScreenComponentProvider)?,
+ ): StarterAppState {
+-  val userComponent by userComponentManager.userComponentFlow.collectAsState()
++  val userComponent by userComponentManager.userComponentFlow.collectAsStateWithLifecycle()
+   val isLoggedIn = userComponent != null
+   val canShowAuthenticated = isLoggedIn && screenComponentFactory != null
+ 
+diff --git a/composeApp/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/ui/StarterBottomBar.kt b/composeApp/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/ui/StarterBottomBar.kt
+index f9d815a..02b9742 100644
+--- a/composeApp/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/ui/StarterBottomBar.kt
++++ b/composeApp/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/ui/StarterBottomBar.kt
+@@ -21,7 +21,9 @@ fun StarterBottomBar(
+       NavigationBarItem(
+         selected = currentTab == tab,
+         onClick = { onTabSelected(tab) },
+-        icon = { Icon(imageVector = tab.icon, contentDescription = label) },
++        // Null on purpose: the visible label below is already the item's announcement, and a
++        // matching contentDescription made every tab announce its name twice.
++        icon = { Icon(imageVector = tab.icon, contentDescription = null) },
+         label = { Text(text = label) },
+       )
+     }
+diff --git a/composeApp/src/jvmMain/kotlin/com/sermilion/kmpcomposestarter/Main.kt b/composeApp/src/jvmMain/kotlin/com/sermilion/kmpcomposestarter/Main.kt
+index 09b6d7b..bf98ba2 100644
+--- a/composeApp/src/jvmMain/kotlin/com/sermilion/kmpcomposestarter/Main.kt
++++ b/composeApp/src/jvmMain/kotlin/com/sermilion/kmpcomposestarter/Main.kt
+@@ -2,6 +2,9 @@ package com.sermilion.kmpcomposestarter
+ 
+ import androidx.compose.ui.window.Window
+ import androidx.compose.ui.window.application
++import kmpcomposestarter.composeapp.generated.resources.Res
++import kmpcomposestarter.composeapp.generated.resources.app_window_title
++import org.jetbrains.compose.resources.stringResource
+ 
+ fun main() {
+   // Desktop is the one target with no framework-owned process lifecycle: without this the
+@@ -13,7 +16,7 @@ fun main() {
+   application {
+     Window(
+       onCloseRequest = ::exitApplication,
+-      title = "KMP Compose Starter",
++      title = stringResource(Res.string.app_window_title),
+     ) {
+       StarterRoot(JvmAppComponentHolder.component)
+     }
+diff --git a/core/common/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/common/coroutines/Effect.kt b/core/common/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/common/coroutines/Effect.kt
+new file mode 100644
+index 0000000..eb6f62e
+--- /dev/null
++++ b/core/common/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/common/coroutines/Effect.kt
+@@ -0,0 +1,27 @@
++package com.sermilion.kmpcomposestarter.common.coroutines
++
++import kotlinx.coroutines.channels.Channel
++import kotlinx.coroutines.flow.Flow
++import kotlinx.coroutines.flow.receiveAsFlow
++
++/**
++ * The one one-off-effect idiom in this app: navigate, show a snackbar, dismiss a sheet.
++ *
++ * A `MutableSharedFlow()` with the default zero replay drops anything emitted while no collector
++ * is attached, and a screen has no collector between leaving the composition and re-entering it —
++ * so a navigation request made in that window was silently lost. A [Channel] buffers instead, and
++ * hands each value to exactly one collector.
++ *
++ * Use this and only this for one-off effects; state belongs in a `StateFlow`, not here.
++ */
++class Effect<T> {
++
++  private val channel = Channel<T>(Channel.BUFFERED)
++
++  /** Single-consumer by construction: a value delivered to one collector is gone. */
++  val flow: Flow<T> = channel.receiveAsFlow()
++
++  suspend fun emit(value: T) {
++    channel.send(value)
++  }
++}
+diff --git a/core/designsystem/build.gradle.kts b/core/designsystem/build.gradle.kts
+index 93628ef..044dcb0 100644
+--- a/core/designsystem/build.gradle.kts
++++ b/core/designsystem/build.gradle.kts
+@@ -15,6 +15,7 @@ kotlin {
+       api(libs.compose.ui)
+       api(libs.compose.animation)
+       api(libs.compose.components.resources)
++      api(libs.compose.components.uiToolingPreview)
+       api(libs.kotlinx.collections.immutable)
+     }
+ 
+diff --git a/core/designsystem/src/androidMain/kotlin/com/sermilion/kmpcomposestarter/core/designsystem/theme/DynamicColorScheme.android.kt b/core/designsystem/src/androidMain/kotlin/com/sermilion/kmpcomposestarter/core/designsystem/theme/DynamicColorScheme.android.kt
+new file mode 100644
+index 0000000..64ec749
+--- /dev/null
++++ b/core/designsystem/src/androidMain/kotlin/com/sermilion/kmpcomposestarter/core/designsystem/theme/DynamicColorScheme.android.kt
+@@ -0,0 +1,16 @@
++package com.sermilion.kmpcomposestarter.core.designsystem.theme
++
++import android.os.Build
++import androidx.compose.material3.ColorScheme
++import androidx.compose.material3.dynamicDarkColorScheme
++import androidx.compose.material3.dynamicLightColorScheme
++import androidx.compose.runtime.Composable
++import androidx.compose.ui.platform.LocalContext
++
++/** Material You landed in Android 12; below that there is no palette to read. */
++@Composable
++actual fun dynamicColorSchemeOrNull(darkTheme: Boolean): ColorScheme? {
++  if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return null
++  val context = LocalContext.current
++  return if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
++}
+diff --git a/core/designsystem/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/core/designsystem/component/Feedback.kt b/core/designsystem/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/core/designsystem/component/Feedback.kt
+new file mode 100644
+index 0000000..cb3457e
+--- /dev/null
++++ b/core/designsystem/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/core/designsystem/component/Feedback.kt
+@@ -0,0 +1,52 @@
++package com.sermilion.kmpcomposestarter.core.designsystem.component
++
++import androidx.compose.foundation.layout.size
++import androidx.compose.foundation.progressSemantics
++import androidx.compose.material3.CircularProgressIndicator
++import androidx.compose.material3.LocalContentColor
++import androidx.compose.material3.MaterialTheme
++import androidx.compose.material3.Text
++import androidx.compose.runtime.Composable
++import androidx.compose.ui.Modifier
++import androidx.compose.ui.semantics.LiveRegionMode
++import androidx.compose.ui.semantics.liveRegion
++import androidx.compose.ui.semantics.semantics
++import androidx.compose.ui.semantics.stateDescription
++import androidx.compose.ui.unit.dp
++
++/**
++ * An inline failure message.
++ *
++ * The polite live region is the point: an error that appears after a submit is text a sighted
++ * user notices and a screen-reader user never hears unless the node announces itself.
++ */
++@Composable
++fun StarterErrorText(text: String, modifier: Modifier = Modifier) {
++  Text(
++    text = text,
++    color = MaterialTheme.colorScheme.error,
++    style = MaterialTheme.typography.bodySmall,
++    modifier = modifier.semantics { liveRegion = LiveRegionMode.Polite },
++  )
++}
++
++/**
++ * The spinner that goes *inside* a button while its action is in flight.
++ *
++ * Buttons keep their place and go disabled rather than being replaced by a bare indicator, so the
++ * layout does not jump under the user's finger mid-tap.
++ *
++ * @param stateDescription what a screen reader announces instead of silence; caller-supplied so it
++ *   comes from a string resource rather than a literal here.
++ */
++@Composable
++fun ButtonBusyIndicator(stateDescription: String, modifier: Modifier = Modifier) {
++  CircularProgressIndicator(
++    modifier = modifier
++      .size(18.dp)
++      .progressSemantics()
++      .semantics { this.stateDescription = stateDescription },
++    color = LocalContentColor.current,
++    strokeWidth = 2.dp,
++  )
++}
+diff --git a/core/designsystem/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/core/designsystem/theme/Color.kt b/core/designsystem/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/core/designsystem/theme/Color.kt
+index a61aa8a..43b9d8b 100644
+--- a/core/designsystem/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/core/designsystem/theme/Color.kt
++++ b/core/designsystem/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/core/designsystem/theme/Color.kt
+@@ -1,25 +1,134 @@
+ package com.sermilion.kmpcomposestarter.core.designsystem.theme
+ 
++import androidx.compose.material3.darkColorScheme
+ import androidx.compose.material3.lightColorScheme
+ import androidx.compose.ui.graphics.Color
+ 
+-val Grey600 = Color(0xFF1A1A1A)
++/**
++ * The brand seed. Both schemes below are tonal ramps of this one hue, so a fork rebrands the
++ * template by regenerating from a new seed rather than by hand-editing forty roles.
++ *
++ * The seed itself is too light to carry white text (2.2:1 against `onPrimary`), so the light
++ * scheme's `primary` is the same hue at a darker tone. Measured contrast ratios are recorded in
++ * `docs/architecture/conventions.md`.
++ */
+ val Green600 = Color(0xFF92B215)
+ 
++/**
++ * Every role the app renders is assigned explicitly. Leaving one unset falls back to the Material
++ * baseline purple, which is how a half-filled scheme leaks non-brand colour into a screen nobody
++ * previewed.
++ */
+ internal val KmpLightColorScheme =
+   lightColorScheme(
+-    primary = Green600,
+-    onSurface = Grey600,
+-    tertiary = Green600,
+-    onBackground = Grey600,
+-    background = Color.White,
+-    surface = Color.White,
+-    surfaceTint = Color.White,
+-    surfaceContainer = Color.White,
+-    surfaceContainerLow = Color.White,
+-    surfaceContainerLowest = Color.White,
+-    surfaceVariant = Color.White,
+-    surfaceContainerHigh = Color.White,
+-    surfaceContainerHighest = Color.White,
+-    secondaryContainer = Color.White,
++    primary = Color(0xFF53660C),
++    onPrimary = Color(0xFFFFFFFF),
++    primaryContainer = Color(0xFFD4EE70),
++    onPrimaryContainer = Color(0xFF181E03),
++    inversePrimary = Color(0xFFAED519),
++    secondary = Color(0xFF576426),
++    onSecondary = Color(0xFFFFFFFF),
++    // Deliberately more saturated than a stock tone-90 container: this is the NavigationBar
++    // selection pill, and at tone 90 it is indistinguishable from the bar behind it.
++    secondaryContainer = Color(0xFFB1C465),
++    onSecondaryContainer = Color(0xFF1A1D0B),
++    tertiary = Color(0xFF2C6B38),
++    onTertiary = Color(0xFFFFFFFF),
++    tertiaryContainer = Color(0xFFCCEAD2),
++    onTertiaryContainer = Color(0xFF0D2011),
++    error = Color(0xFFB3261E),
++    onError = Color(0xFFFFFFFF),
++    errorContainer = Color(0xFFF9DEDC),
++    onErrorContainer = Color(0xFF410E0B),
++    background = Color(0xFFF9FAF9),
++    onBackground = Color(0xFF1B1C19),
++    surface = Color(0xFFF9FAF9),
++    onSurface = Color(0xFF1B1C19),
++    surfaceVariant = Color(0xFFE2E3DC),
++    onSurfaceVariant = Color(0xFF454839),
++    surfaceTint = Color(0xFF53660C),
++    inverseSurface = Color(0xFF30312C),
++    inverseOnSurface = Color(0xFFF0F1EF),
++    outline = Color(0xFF747A5F),
++    outlineVariant = Color(0xFFC5C8B8),
++    scrim = Color(0xFF000000),
++    surfaceBright = Color(0xFFF9FAF9),
++    surfaceDim = Color(0xFFDADBD7),
++    // The tonal-elevation ramp. Flattening it to white (the previous scheme did) removes every
++    // elevation cue Material3 draws with colour rather than shadow.
++    surfaceContainerLowest = Color(0xFFFFFFFF),
++    surfaceContainerLow = Color(0xFFF3F4F2),
++    surfaceContainer = Color(0xFFEEEEEC),
++    surfaceContainerHigh = Color(0xFFE8E9E6),
++    surfaceContainerHighest = Color(0xFFE2E3DF),
++    // The Material 3 expressive "fixed" roles. No component this template ships renders them,
++    // but a fork that adds one would otherwise get baseline purple. They are identical in both
++    // schemes by definition — that is what "fixed" means.
++    primaryFixed = Color(0xFFD4EE70),
++    primaryFixedDim = Color(0xFFAED519),
++    onPrimaryFixed = Color(0xFF181E03),
++    onPrimaryFixedVariant = Color(0xFF3E4C09),
++    secondaryFixed = Color(0xFFDEE6BE),
++    secondaryFixedDim = Color(0xFFBECE7F),
++    onSecondaryFixed = Color(0xFF1A1D0B),
++    onSecondaryFixedVariant = Color(0xFF414A1C),
++    tertiaryFixed = Color(0xFFCCEAD2),
++    tertiaryFixedDim = Color(0xFF97D4A3),
++    onTertiaryFixed = Color(0xFF0D2011),
++    onTertiaryFixedVariant = Color(0xFF21502B),
++  )
++
++internal val KmpDarkColorScheme =
++  darkColorScheme(
++    primary = Color(0xFFAED519),
++    onPrimary = Color(0xFF2B3406),
++    primaryContainer = Color(0xFF3E4C09),
++    onPrimaryContainer = Color(0xFFD4EE70),
++    inversePrimary = Color(0xFF53660C),
++    secondary = Color(0xFFBECE7F),
++    onSecondary = Color(0xFF2D3314),
++    secondaryContainer = Color(0xFF414A1C),
++    onSecondaryContainer = Color(0xFFDEE6BE),
++    tertiary = Color(0xFF97D4A3),
++    onTertiary = Color(0xFF16361D),
++    tertiaryContainer = Color(0xFF21502B),
++    onTertiaryContainer = Color(0xFFCCEAD2),
++    error = Color(0xFFF2B8B5),
++    onError = Color(0xFF601410),
++    errorContainer = Color(0xFF8C1D18),
++    onErrorContainer = Color(0xFFF9DEDC),
++    background = Color(0xFF131312),
++    onBackground = Color(0xFFE2E3DF),
++    surface = Color(0xFF131312),
++    onSurface = Color(0xFFE2E3DF),
++    surfaceVariant = Color(0xFF454839),
++    onSurfaceVariant = Color(0xFFC5C8B8),
++    surfaceTint = Color(0xFFAED519),
++    inverseSurface = Color(0xFFE2E3DF),
++    inverseOnSurface = Color(0xFF30312C),
++    outline = Color(0xFF8E9476),
++    outlineVariant = Color(0xFF454839),
++    scrim = Color(0xFF000000),
++    surfaceBright = Color(0xFF383934),
++    surfaceDim = Color(0xFF131312),
++    surfaceContainerLowest = Color(0xFF0E0F0D),
++    surfaceContainerLow = Color(0xFF1B1C19),
++    surfaceContainer = Color(0xFF1F201C),
++    surfaceContainerHigh = Color(0xFF2A2A26),
++    surfaceContainerHighest = Color(0xFF343530),
++    // The Material 3 expressive "fixed" roles. No component this template ships renders them,
++    // but a fork that adds one would otherwise get baseline purple. They are identical in both
++    // schemes by definition — that is what "fixed" means.
++    primaryFixed = Color(0xFFD4EE70),
++    primaryFixedDim = Color(0xFFAED519),
++    onPrimaryFixed = Color(0xFF181E03),
++    onPrimaryFixedVariant = Color(0xFF3E4C09),
++    secondaryFixed = Color(0xFFDEE6BE),
++    secondaryFixedDim = Color(0xFFBECE7F),
++    onSecondaryFixed = Color(0xFF1A1D0B),
++    onSecondaryFixedVariant = Color(0xFF414A1C),
++    tertiaryFixed = Color(0xFFCCEAD2),
++    tertiaryFixedDim = Color(0xFF97D4A3),
++    onTertiaryFixed = Color(0xFF0D2011),
++    onTertiaryFixedVariant = Color(0xFF21502B),
+   )
+diff --git a/core/designsystem/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/core/designsystem/theme/DynamicColorScheme.kt b/core/designsystem/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/core/designsystem/theme/DynamicColorScheme.kt
+new file mode 100644
+index 0000000..ae70d4d
+--- /dev/null
++++ b/core/designsystem/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/core/designsystem/theme/DynamicColorScheme.kt
+@@ -0,0 +1,13 @@
++package com.sermilion.kmpcomposestarter.core.designsystem.theme
++
++import androidx.compose.material3.ColorScheme
++import androidx.compose.runtime.Composable
++
++/**
++ * The platform's own colour scheme, or `null` where the platform has none.
++ *
++ * Only Android 12+ answers this; every other target returns `null` and [StarterTheme] falls back
++ * to the template scheme.
++ */
++@Composable
++expect fun dynamicColorSchemeOrNull(darkTheme: Boolean): ColorScheme?
+diff --git a/core/designsystem/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/core/designsystem/theme/KmpTheme.kt b/core/designsystem/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/core/designsystem/theme/KmpTheme.kt
+index 951bfd6..8d10e02 100644
+--- a/core/designsystem/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/core/designsystem/theme/KmpTheme.kt
++++ b/core/designsystem/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/core/designsystem/theme/KmpTheme.kt
+@@ -1,12 +1,28 @@
+ package com.sermilion.kmpcomposestarter.core.designsystem.theme
+ 
++import androidx.compose.foundation.isSystemInDarkTheme
+ import androidx.compose.material3.MaterialTheme
+ import androidx.compose.runtime.Composable
+ 
++/**
++ * The one theme every host renders through.
++ *
++ * @param dynamicColor opts into the platform's wallpaper-derived palette where one exists
++ *   (Android 12+). It defaults to `false` so a fork sees this template's own scheme first;
++ *   platforms without a dynamic palette ignore it.
++ */
+ @Composable
+-fun StarterTheme(content: @Composable () -> Unit) {
++fun StarterTheme(
++  darkTheme: Boolean = isSystemInDarkTheme(),
++  dynamicColor: Boolean = false,
++  content: @Composable () -> Unit,
++) {
++  val dynamicScheme = if (dynamicColor) dynamicColorSchemeOrNull(darkTheme) else null
++  val colorScheme = dynamicScheme
++    ?: if (darkTheme) KmpDarkColorScheme else KmpLightColorScheme
++
+   MaterialTheme(
+-    colorScheme = KmpLightColorScheme,
++    colorScheme = colorScheme,
+     typography = KmpTypography,
+     shapes = KmpShapes,
+     content = content,
+diff --git a/core/designsystem/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/core/designsystem/theme/Shape.kt b/core/designsystem/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/core/designsystem/theme/Shape.kt
+index 0e38c42..47a322e 100644
+--- a/core/designsystem/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/core/designsystem/theme/Shape.kt
++++ b/core/designsystem/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/core/designsystem/theme/Shape.kt
+@@ -8,5 +8,6 @@ val KmpShapes =
+   Shapes(
+     small = RoundedCornerShape(4.dp),
+     medium = RoundedCornerShape(8.dp),
+-    large = RoundedCornerShape(0.dp),
++    // Monotonic on purpose: `large` used to be 0.dp, i.e. sharper than `medium`.
++    large = RoundedCornerShape(16.dp),
+   )
+diff --git a/core/designsystem/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/core/designsystem/theme/ThemePreviews.kt b/core/designsystem/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/core/designsystem/theme/ThemePreviews.kt
+new file mode 100644
+index 0000000..1dd963d
+--- /dev/null
++++ b/core/designsystem/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/core/designsystem/theme/ThemePreviews.kt
+@@ -0,0 +1,204 @@
++package com.sermilion.kmpcomposestarter.core.designsystem.theme
++
++import androidx.compose.foundation.background
++import androidx.compose.foundation.layout.Arrangement
++import androidx.compose.foundation.layout.Box
++import androidx.compose.foundation.layout.Column
++import androidx.compose.foundation.layout.Row
++import androidx.compose.foundation.layout.fillMaxWidth
++import androidx.compose.foundation.layout.padding
++import androidx.compose.foundation.layout.size
++import androidx.compose.foundation.rememberScrollState
++import androidx.compose.foundation.verticalScroll
++import androidx.compose.material.icons.Icons
++import androidx.compose.material.icons.filled.Home
++import androidx.compose.material.icons.filled.Person
++import androidx.compose.material.icons.filled.Settings
++import androidx.compose.material3.Button
++import androidx.compose.material3.ColorScheme
++import androidx.compose.material3.Icon
++import androidx.compose.material3.MaterialTheme
++import androidx.compose.material3.NavigationBar
++import androidx.compose.material3.NavigationBarItem
++import androidx.compose.material3.OutlinedButton
++import androidx.compose.material3.OutlinedTextField
++import androidx.compose.material3.Surface
++import androidx.compose.material3.Text
++import androidx.compose.material3.TextButton
++import androidx.compose.material3.Typography
++import androidx.compose.runtime.Composable
++import androidx.compose.ui.Alignment
++import androidx.compose.ui.Modifier
++import androidx.compose.ui.graphics.Color
++import androidx.compose.ui.text.TextStyle
++import androidx.compose.ui.unit.dp
++import com.sermilion.kmpcomposestarter.core.designsystem.component.ButtonBusyIndicator
++import com.sermilion.kmpcomposestarter.core.designsystem.component.StarterErrorText
++import org.jetbrains.compose.ui.tooling.preview.Preview
++
++/**
++ * The theme's own review surface.
++ *
++ * Both schemes are generated from one seed, so a regression in one role — a container that
++ * collapses into its surface, an `on*` pairing that stops being readable — is only visible if
++ * every role is rendered somewhere. These previews are that somewhere, and `check` compiles them.
++ */
++@Composable
++private fun ColorSwatch(name: String, container: Color, content: Color) {
++  Row(
++    modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
++    verticalAlignment = Alignment.CenterVertically,
++  ) {
++    Box(
++      modifier = Modifier.size(40.dp).background(container),
++      contentAlignment = Alignment.Center,
++    ) {
++      Text(text = "Aa", color = content, style = MaterialTheme.typography.labelSmall)
++    }
++    Text(
++      text = name,
++      style = MaterialTheme.typography.bodySmall,
++      modifier = Modifier.padding(start = 12.dp),
++    )
++  }
++}
++
++private fun ColorScheme.reviewPairs(): List<Triple<String, Color, Color>> = listOf(
++  Triple("primary", primary, onPrimary),
++  Triple("primaryContainer", primaryContainer, onPrimaryContainer),
++  Triple("secondary", secondary, onSecondary),
++  Triple("secondaryContainer", secondaryContainer, onSecondaryContainer),
++  Triple("tertiary", tertiary, onTertiary),
++  Triple("tertiaryContainer", tertiaryContainer, onTertiaryContainer),
++  Triple("error", error, onError),
++  Triple("errorContainer", errorContainer, onErrorContainer),
++  Triple("background", background, onBackground),
++  Triple("surface", surface, onSurface),
++  Triple("surfaceVariant", surfaceVariant, onSurfaceVariant),
++  Triple("surfaceContainerLowest", surfaceContainerLowest, onSurface),
++  Triple("surfaceContainerLow", surfaceContainerLow, onSurface),
++  Triple("surfaceContainer", surfaceContainer, onSurface),
++  Triple("surfaceContainerHigh", surfaceContainerHigh, onSurface),
++  Triple("surfaceContainerHighest", surfaceContainerHighest, onSurface),
++  Triple("inverseSurface", inverseSurface, inverseOnSurface),
++  Triple("outline", outline, surface),
++  Triple("outlineVariant", outlineVariant, onSurface),
++)
++
++@Composable
++private fun ColorSchemeSheet(darkTheme: Boolean) {
++  StarterTheme(darkTheme = darkTheme) {
++    Surface {
++      Column(modifier = Modifier.verticalScroll(rememberScrollState()).padding(16.dp)) {
++        MaterialTheme.colorScheme.reviewPairs().forEach { (name, container, content) ->
++          ColorSwatch(name = name, container = container, content = content)
++        }
++      }
++    }
++  }
++}
++
++@Preview
++@Composable
++private fun LightColorSchemePreview() = ColorSchemeSheet(darkTheme = false)
++
++@Preview
++@Composable
++private fun DarkColorSchemePreview() = ColorSchemeSheet(darkTheme = true)
++
++private fun Typography.reviewStyles(): List<Pair<String, TextStyle>> = listOf(
++  "displaySmall" to displaySmall,
++  "headlineLarge" to headlineLarge,
++  "headlineSmall" to headlineSmall,
++  "titleLarge" to titleLarge,
++  "titleMedium" to titleMedium,
++  "bodyLarge" to bodyLarge,
++  "bodyMedium" to bodyMedium,
++  "bodySmall" to bodySmall,
++  "labelLarge" to labelLarge,
++  "labelSmall" to labelSmall,
++)
++
++@Composable
++private fun TypographySheet(darkTheme: Boolean) {
++  StarterTheme(darkTheme = darkTheme) {
++    Surface {
++      Column(
++        modifier = Modifier.verticalScroll(rememberScrollState()).padding(16.dp),
++        verticalArrangement = Arrangement.spacedBy(4.dp),
++      ) {
++        MaterialTheme.typography.reviewStyles().forEach { (name, style) ->
++          Text(text = name, style = style)
++        }
++      }
++    }
++  }
++}
++
++@Preview
++@Composable
++private fun LightTypographyPreview() = TypographySheet(darkTheme = false)
++
++@Preview
++@Composable
++private fun DarkTypographyPreview() = TypographySheet(darkTheme = true)
++
++/**
++ * The Material 3 components this app actually renders, in both schemes.
++ *
++ * The literals below are preview fixtures, not shipped UI copy: nothing in this file is reachable
++ * from the running app, so they deliberately do not go through `composeResources`.
++ */
++@Composable
++private fun ComponentSheet(darkTheme: Boolean) {
++  StarterTheme(darkTheme = darkTheme) {
++    Surface {
++      Column(
++        modifier = Modifier.verticalScroll(rememberScrollState()).padding(16.dp),
++        verticalArrangement = Arrangement.spacedBy(12.dp),
++      ) {
++        Button(onClick = {}, modifier = Modifier.fillMaxWidth()) { Text("Button") }
++        Button(onClick = {}, modifier = Modifier.fillMaxWidth(), enabled = false) {
++          ButtonBusyIndicator(stateDescription = "Working")
++        }
++        OutlinedButton(onClick = {}, modifier = Modifier.fillMaxWidth()) { Text("OutlinedButton") }
++        TextButton(onClick = {}, modifier = Modifier.fillMaxWidth()) { Text("TextButton") }
++        OutlinedTextField(
++          value = "typed value",
++          onValueChange = {},
++          label = { Text("OutlinedTextField") },
++          modifier = Modifier.fillMaxWidth(),
++        )
++        StarterErrorText(text = "Something went wrong. Please try again.")
++        SelectionBar()
++      }
++    }
++  }
++}
++
++/** The selected item has to read as selected in both schemes; that is the regression it guards. */
++@Composable
++private fun SelectionBar() {
++  NavigationBar {
++    listOf(
++      Triple("Home", Icons.Default.Home, true),
++      Triple("Profile", Icons.Default.Person, false),
++      Triple("Settings", Icons.Default.Settings, false),
++    ).forEach { (label, icon, selected) ->
++      NavigationBarItem(
++        selected = selected,
++        onClick = {},
++        icon = { Icon(imageVector = icon, contentDescription = null) },
++        label = { Text(label) },
++      )
++    }
++  }
++}
++
++@Preview
++@Composable
++private fun LightComponentsPreview() = ComponentSheet(darkTheme = false)
++
++@Preview
++@Composable
++private fun DarkComponentsPreview() = ComponentSheet(darkTheme = true)
+diff --git a/core/designsystem/src/iosMain/kotlin/com/sermilion/kmpcomposestarter/core/designsystem/theme/DynamicColorScheme.ios.kt b/core/designsystem/src/iosMain/kotlin/com/sermilion/kmpcomposestarter/core/designsystem/theme/DynamicColorScheme.ios.kt
+new file mode 100644
+index 0000000..55eae71
+--- /dev/null
++++ b/core/designsystem/src/iosMain/kotlin/com/sermilion/kmpcomposestarter/core/designsystem/theme/DynamicColorScheme.ios.kt
+@@ -0,0 +1,8 @@
++package com.sermilion.kmpcomposestarter.core.designsystem.theme
++
++import androidx.compose.material3.ColorScheme
++import androidx.compose.runtime.Composable
++
++/** No wallpaper-derived palette on this platform. */
++@Composable
++actual fun dynamicColorSchemeOrNull(darkTheme: Boolean): ColorScheme? = null
+diff --git a/core/designsystem/src/jvmMain/kotlin/com/sermilion/kmpcomposestarter/core/designsystem/theme/DynamicColorScheme.jvm.kt b/core/designsystem/src/jvmMain/kotlin/com/sermilion/kmpcomposestarter/core/designsystem/theme/DynamicColorScheme.jvm.kt
+new file mode 100644
+index 0000000..55eae71
+--- /dev/null
++++ b/core/designsystem/src/jvmMain/kotlin/com/sermilion/kmpcomposestarter/core/designsystem/theme/DynamicColorScheme.jvm.kt
+@@ -0,0 +1,8 @@
++package com.sermilion.kmpcomposestarter.core.designsystem.theme
++
++import androidx.compose.material3.ColorScheme
++import androidx.compose.runtime.Composable
++
++/** No wallpaper-derived palette on this platform. */
++@Composable
++actual fun dynamicColorSchemeOrNull(darkTheme: Boolean): ColorScheme? = null
+diff --git a/core/testing/build.gradle.kts b/core/testing/build.gradle.kts
+index e0fde43..873d09e 100644
+--- a/core/testing/build.gradle.kts
++++ b/core/testing/build.gradle.kts
+@@ -1,3 +1,6 @@
++// A dependency-only module: it carries no source of its own and exists to `api`-export one test
++// stack (kotest, coroutines-test, MockK) to :core:data, :core:datastore and :core:domain. Deleting
++// it because it looks empty takes those three modules' test dependencies with it.
+ plugins {
+   alias(libs.plugins.kmp.library)
+ }
+diff --git a/core/testing/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/core/testing/TestDispatcherProvider.kt b/core/testing/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/core/testing/TestDispatcherProvider.kt
+deleted file mode 100644
+index 8283687..0000000
+--- a/core/testing/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/core/testing/TestDispatcherProvider.kt
++++ /dev/null
+@@ -1,13 +0,0 @@
+-package com.sermilion.kmpcomposestarter.core.testing
+-
+-import com.sermilion.kmpcomposestarter.common.coroutines.DispatcherProvider
+-import kotlinx.coroutines.CoroutineDispatcher
+-import kotlinx.coroutines.test.StandardTestDispatcher
+-import kotlinx.coroutines.test.TestDispatcher
+-
+-class TestDispatcherProvider(testDispatcher: TestDispatcher = StandardTestDispatcher()) :
+-  DispatcherProvider {
+-  override val io: CoroutineDispatcher = testDispatcher
+-  override val main: CoroutineDispatcher = testDispatcher
+-  override val default: CoroutineDispatcher = testDispatcher
+-}
+diff --git a/docs/ARCHITECTURE.md b/docs/ARCHITECTURE.md
+index b980847..c022334 100644
+--- a/docs/ARCHITECTURE.md
++++ b/docs/ARCHITECTURE.md
+@@ -78,7 +78,9 @@ Read: `docs/architecture/build-and-tooling.md`
+ ### Conventions
+ 
+ - Reusable starter-safe contribution rules
+-- State hoisting and preview guidance
++- State hoisting, `Modifier`, lifecycle-aware collection and preview guidance
++- The single `Channel`-backed `Effect` idiom for one-off events
++- The `StarterTheme` contract: complete light/dark schemes, `dynamicColor`, measured contrast
+ - Repository and source-of-truth rules
+ - Networking, base URL, and credential-handling rules
+ - Documentation update expectations
+diff --git a/docs/architecture/conventions.md b/docs/architecture/conventions.md
+index 638fb88..eaf46aa 100644
+--- a/docs/architecture/conventions.md
++++ b/docs/architecture/conventions.md
+@@ -31,6 +31,66 @@ Adapted from the kinds of practices that scale well in larger Compose apps:
+ - Hoist display state into reusable content composables where practical.
+ - Make previewable UI easy to render with sample state and minimal wiring.
+ - Keep side effects and navigation triggers explicit instead of burying them in deeply nested UI code.
++- Every public screen composable takes a `modifier: Modifier = Modifier` and applies it at its own
++  root — `modifier.fillMaxSize()`, never `Modifier.fillMaxSize().then(modifier)`, which lets the
++  screen's own sizing win over the caller's.
++- Collect a `StateFlow` in composeApp with `collectAsStateWithLifecycle()`, not `collectAsState()`.
++- Stateless content composables and the design-system components carry light and dark `@Preview`
++  functions. They use `org.jetbrains.compose.ui.tooling.preview.Preview` so they live in
++  `commonMain`, and `check` compiles them — a broken preview fails the same gate as a broken screen.
++
++### One-Off Effects
++
++There is exactly one one-off-effect idiom in this app: `Effect<T>` in
++`core:common` (`com.sermilion.kmpcomposestarter.common.coroutines.Effect`). It wraps a
++`Channel(Channel.BUFFERED)` and exposes a `Flow<T>`.
++
++Use it for things that happen once — navigate, show a snackbar, dismiss a sheet. State that a
++screen re-reads on every recomposition belongs in a `StateFlow` instead.
++
++A `MutableSharedFlow()` is not an acceptable substitute, and none remain in the tree. Its default
++replay is zero, so anything emitted while no collector is attached is dropped — and a screen has no
++collector between leaving the composition and re-entering it. A navigation request made in that
++window was silently lost and the user simply stayed where they were. The channel buffers instead,
++and hands each value to exactly one collector.
++
++The shape every feature ViewModel uses:
++
++```kotlin
++private val _effects = Effect<MyContract.Event>()
++val effects: Flow<MyContract.Event> = _effects.flow
++```
++
++A ViewModel with no one-off effects — `SettingsViewModel` — declares no `Effect` at all. Do not add
++one for symmetry.
++
++### Theming
++
++`StarterTheme(darkTheme: Boolean = isSystemInDarkTheme(), dynamicColor: Boolean = false)` is the one
++theme every host renders through.
++
++- Both schemes are complete: every Material 3 role the app renders is assigned explicitly. An unset
++  role falls back to the Material baseline purple, which is how non-brand colour reaches a screen
++  nobody previewed.
++- Both are tonal ramps of one brand seed, `Green600` (`#92B215`). A fork rebrands by regenerating
++  from a new seed, not by hand-editing forty roles. The light `primary` is a darker tone of that
++  seed, because the raw seed carries white text at only 2.2:1.
++- `dynamicColor` defaults to `false` so a fork sees the template's own scheme first. On Android 12+
++  it opts into the wallpaper palette; every other target ignores it.
++- `secondaryContainer` and the `surfaceContainer*` ramp are deliberately distinct from `surface` in
++  both schemes. Flattening them removes Material's tonal elevation and makes the selected
++  bottom-bar tab indistinguishable from the bar behind it.
++- Measured WCAG contrast ratios (AA needs 4.5:1 for body text):
++
++  | Pairing | Light | Dark |
++  | --- | --- | --- |
++  | `primary` / `onPrimary` | 6.41:1 | 7.72:1 |
++  | `onSurface` / `surface` | 16.36:1 | 14.42:1 |
++
++- On Android the window theme is a DayNight pair (`values/themes.xml` plus
++  `values-night/themes.xml`), so the window background painted before the first Compose frame
++  follows the system setting. `MainActivity` calls `enableEdgeToEdge()`, which owns system-bar
++  transparency and icon contrast; the theme deliberately does not set those attributes.
+ 
+ ## Navigation Guidance
+ 
+diff --git a/docs/architecture/di-and-scoping.md b/docs/architecture/di-and-scoping.md
+index 2617ecd..5f6cf15 100644
+--- a/docs/architecture/di-and-scoping.md
++++ b/docs/architecture/di-and-scoping.md
+@@ -82,3 +82,6 @@ This keeps platform hosts thin while still letting shared UI resolve screen-scop
+ - Prefer injecting stable managers or IDs over passing around heavy graph objects manually.
+ - Register every ViewModel with `@ContributesViewModel(scope)`; the KSP processor generates its
+   `ViewModelEntry` multibinding. Do not hand-write a registration module or add a second factory.
++- A ViewModel reports one-off effects — navigation, snackbars — through the single `Effect<T>`
++  idiom in `core:common`, never a `MutableSharedFlow`. See
++  [One-Off Effects](conventions.md#one-off-effects) for why and for the shape to copy.
+diff --git a/feature/auth/build.gradle.kts b/feature/auth/build.gradle.kts
+index cc43ae2..be7e217 100644
+--- a/feature/auth/build.gradle.kts
++++ b/feature/auth/build.gradle.kts
+@@ -17,6 +17,7 @@ kotlin {
+       implementation(libs.jetbrains.lifecycle.viewmodel)
+       implementation(libs.jetbrains.lifecycle.viewmodel.compose)
+       implementation(libs.kermit)
++      implementation(libs.compose.components.uiToolingPreview)
+     }
+ 
+     jvmTest.dependencies {
+@@ -25,6 +26,7 @@ kotlin {
+       implementation(libs.kotest.runner.junit5.jvm)
+       implementation(libs.kotlinx.coroutines.test)
+       implementation(libs.mockk.core)
++      implementation(libs.turbine)
+     }
+   }
+ }
+diff --git a/feature/auth/src/commonMain/composeResources/values/strings.xml b/feature/auth/src/commonMain/composeResources/values/strings.xml
+index c506949..897d339 100644
+--- a/feature/auth/src/commonMain/composeResources/values/strings.xml
++++ b/feature/auth/src/commonMain/composeResources/values/strings.xml
+@@ -1,13 +1,24 @@
+ <?xml version="1.0" encoding="utf-8"?>
+ <resources>
+-  <string name="login_screen_title">Login Screen</string>
++  <string name="login_screen_title">Sign in</string>
+   <string name="login_email_label">Email</string>
+   <string name="login_password_label">Password</string>
+-  <string name="login_error_invalid_credentials">Invalid credentials</string>
++  <string name="login_error_invalid_credentials">That email and password do not match an account.</string>
++  <string name="login_error_network">We could not reach the server. Check your connection and try again.</string>
++  <string name="login_error_unknown">Something went wrong. Please try again.</string>
+   <string name="login_button_sign_in">Sign In</string>
+   <string name="login_button_sign_in_demo">Sign In (Demo)</string>
+   <string name="login_button_create_account">Create Account</string>
+-  <string name="register_screen_title">Register Screen</string>
++  <string name="login_busy_description">Signing in</string>
++  <string name="register_screen_title">Create account</string>
++  <string name="register_name_label">Name</string>
++  <string name="register_email_label">Email</string>
++  <string name="register_password_label">Password</string>
++  <string name="register_error_registration_failed">We could not create that account. Try a different email.</string>
++  <string name="register_error_network">We could not reach the server. Check your connection and try again.</string>
++  <string name="register_error_unknown">Something went wrong. Please try again.</string>
++  <string name="register_button_create_account">Create Account</string>
+   <string name="register_button_register_demo">Register (Demo)</string>
+   <string name="register_button_back_to_login">Back to Login</string>
++  <string name="register_busy_description">Creating your account</string>
+ </resources>
+diff --git a/feature/auth/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/feature/auth/ui/AuthFormField.kt b/feature/auth/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/feature/auth/ui/AuthFormField.kt
+new file mode 100644
+index 0000000..2fd95c2
+--- /dev/null
++++ b/feature/auth/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/feature/auth/ui/AuthFormField.kt
+@@ -0,0 +1,49 @@
++package com.sermilion.kmpcomposestarter.feature.auth.ui
++
++import androidx.compose.foundation.layout.fillMaxWidth
++import androidx.compose.foundation.text.KeyboardActions
++import androidx.compose.foundation.text.KeyboardOptions
++import androidx.compose.material3.OutlinedTextField
++import androidx.compose.material3.Text
++import androidx.compose.runtime.Composable
++import androidx.compose.ui.Modifier
++import androidx.compose.ui.autofill.ContentType
++import androidx.compose.ui.semantics.contentType
++import androidx.compose.ui.semantics.semantics
++import androidx.compose.ui.text.input.ImeAction
++import androidx.compose.ui.text.input.KeyboardType
++import androidx.compose.ui.text.input.VisualTransformation
++
++/**
++ * One text field for both auth forms.
++ *
++ * It exists so the keyboard type, IME action and autofill content type travel with the field
++ * rather than being re-declared — and quietly forgotten — at each of the five call sites.
++ */
++@Composable
++internal fun AuthFormField(
++  value: String,
++  onValueChange: (String) -> Unit,
++  label: String,
++  contentType: ContentType,
++  keyboardType: KeyboardType,
++  imeAction: ImeAction,
++  enabled: Boolean,
++  modifier: Modifier = Modifier,
++  visualTransformation: VisualTransformation = VisualTransformation.None,
++  keyboardActions: KeyboardActions = KeyboardActions.Default,
++) {
++  OutlinedTextField(
++    value = value,
++    onValueChange = onValueChange,
++    label = { Text(label) },
++    modifier = modifier
++      .fillMaxWidth()
++      .semantics { this.contentType = contentType },
++    singleLine = true,
++    enabled = enabled,
++    visualTransformation = visualTransformation,
++    keyboardOptions = KeyboardOptions(keyboardType = keyboardType, imeAction = imeAction),
++    keyboardActions = keyboardActions,
++  )
++}
+diff --git a/feature/auth/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/feature/auth/ui/LoginScreen.kt b/feature/auth/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/feature/auth/ui/LoginScreen.kt
+index 0fa374b..0e32863 100644
+--- a/feature/auth/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/feature/auth/ui/LoginScreen.kt
++++ b/feature/auth/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/feature/auth/ui/LoginScreen.kt
+@@ -6,28 +6,40 @@ import androidx.compose.foundation.layout.Spacer
+ import androidx.compose.foundation.layout.fillMaxSize
+ import androidx.compose.foundation.layout.fillMaxWidth
+ import androidx.compose.foundation.layout.height
++import androidx.compose.foundation.layout.imePadding
+ import androidx.compose.foundation.layout.padding
++import androidx.compose.foundation.rememberScrollState
++import androidx.compose.foundation.text.KeyboardActions
++import androidx.compose.foundation.verticalScroll
+ import androidx.compose.material3.Button
+-import androidx.compose.material3.CircularProgressIndicator
+ import androidx.compose.material3.MaterialTheme
+ import androidx.compose.material3.OutlinedButton
+-import androidx.compose.material3.OutlinedTextField
+ import androidx.compose.material3.Text
+ import androidx.compose.runtime.Composable
+ import androidx.compose.ui.Alignment
+ import androidx.compose.ui.Modifier
++import androidx.compose.ui.autofill.ContentType
++import androidx.compose.ui.text.input.ImeAction
++import androidx.compose.ui.text.input.KeyboardType
+ import androidx.compose.ui.text.input.PasswordVisualTransformation
+ import androidx.compose.ui.unit.dp
++import com.sermilion.kmpcomposestarter.core.designsystem.component.ButtonBusyIndicator
++import com.sermilion.kmpcomposestarter.core.designsystem.component.StarterErrorText
++import com.sermilion.kmpcomposestarter.core.designsystem.theme.StarterTheme
+ import com.sermilion.kmpcomposestarter.feature.auth.viewmodel.LoginContract
+ import kmpcomposestarter.feature.auth.generated.resources.Res
++import kmpcomposestarter.feature.auth.generated.resources.login_busy_description
+ import kmpcomposestarter.feature.auth.generated.resources.login_button_create_account
+ import kmpcomposestarter.feature.auth.generated.resources.login_button_sign_in
+ import kmpcomposestarter.feature.auth.generated.resources.login_button_sign_in_demo
+ import kmpcomposestarter.feature.auth.generated.resources.login_email_label
+ import kmpcomposestarter.feature.auth.generated.resources.login_error_invalid_credentials
++import kmpcomposestarter.feature.auth.generated.resources.login_error_network
++import kmpcomposestarter.feature.auth.generated.resources.login_error_unknown
+ import kmpcomposestarter.feature.auth.generated.resources.login_password_label
+ import kmpcomposestarter.feature.auth.generated.resources.login_screen_title
+ import org.jetbrains.compose.resources.stringResource
++import org.jetbrains.compose.ui.tooling.preview.Preview
+ 
+ @Composable
+ fun LoginScreen(
+@@ -37,29 +49,13 @@ fun LoginScreen(
+   onLoginClick: () -> Unit,
+   onDemoLoginClick: () -> Unit,
+   onNavigateToRegister: () -> Unit,
+-) {
+-  LoginScreenContent(
+-    uiState = uiState,
+-    onEmailChange = onEmailChange,
+-    onPasswordChange = onPasswordChange,
+-    onLoginClick = onLoginClick,
+-    onDemoLoginClick = onDemoLoginClick,
+-    onNavigateToRegister = onNavigateToRegister,
+-  )
+-}
+-
+-@Composable
+-private fun LoginScreenContent(
+-  uiState: LoginContract.UiState,
+-  onEmailChange: (String) -> Unit,
+-  onPasswordChange: (String) -> Unit,
+-  onLoginClick: () -> Unit,
+-  onDemoLoginClick: () -> Unit,
+-  onNavigateToRegister: () -> Unit,
++  modifier: Modifier = Modifier,
+ ) {
+   Column(
+-    modifier = Modifier
++    modifier = modifier
+       .fillMaxSize()
++      .imePadding()
++      .verticalScroll(rememberScrollState())
+       .padding(24.dp),
+     horizontalAlignment = Alignment.CenterHorizontally,
+     verticalArrangement = Arrangement.Center,
+@@ -73,6 +69,7 @@ private fun LoginScreenContent(
+       uiState = uiState,
+       onEmailChange = onEmailChange,
+       onPasswordChange = onPasswordChange,
++      onSubmit = onLoginClick,
+     )
+     Spacer(modifier = Modifier.height(32.dp))
+     LoginButtons(
+@@ -89,37 +86,48 @@ private fun LoginFormFields(
+   uiState: LoginContract.UiState,
+   onEmailChange: (String) -> Unit,
+   onPasswordChange: (String) -> Unit,
++  onSubmit: () -> Unit,
+ ) {
+   Column {
+-    OutlinedTextField(
++    AuthFormField(
+       value = uiState.email,
+       onValueChange = onEmailChange,
+-      label = { Text(stringResource(Res.string.login_email_label)) },
+-      modifier = Modifier.fillMaxWidth(),
+-      singleLine = true,
++      label = stringResource(Res.string.login_email_label),
++      contentType = ContentType.EmailAddress,
++      keyboardType = KeyboardType.Email,
++      imeAction = ImeAction.Next,
+       enabled = !uiState.isLoading,
+     )
+     Spacer(modifier = Modifier.height(16.dp))
+-    OutlinedTextField(
++    AuthFormField(
+       value = uiState.password,
+       onValueChange = onPasswordChange,
+-      label = { Text(stringResource(Res.string.login_password_label)) },
+-      modifier = Modifier.fillMaxWidth(),
+-      singleLine = true,
+-      visualTransformation = PasswordVisualTransformation(),
++      label = stringResource(Res.string.login_password_label),
++      contentType = ContentType.Password,
++      keyboardType = KeyboardType.Password,
++      imeAction = ImeAction.Done,
+       enabled = !uiState.isLoading,
++      visualTransformation = PasswordVisualTransformation(),
++      keyboardActions = KeyboardActions(onDone = { onSubmit() }),
+     )
+-    uiState.error?.let {
++    uiState.error?.let { error ->
+       Spacer(modifier = Modifier.height(8.dp))
+-      Text(
+-        text = stringResource(Res.string.login_error_invalid_credentials),
+-        color = MaterialTheme.colorScheme.error,
+-        style = MaterialTheme.typography.bodySmall,
+-      )
++      // Each reason gets its own sentence: telling a user with no connection that their password
++      // is wrong sends them to reset a password that was never the problem.
++      StarterErrorText(text = error.message())
+     }
+   }
+ }
+ 
++@Composable
++private fun LoginContract.Error.message(): String = stringResource(
++  when (this) {
++    LoginContract.Error.InvalidCredentials -> Res.string.login_error_invalid_credentials
++    LoginContract.Error.Network -> Res.string.login_error_network
++    LoginContract.Error.Unknown -> Res.string.login_error_unknown
++  },
++)
++
+ @Composable
+ private fun LoginButtons(
+   uiState: LoginContract.UiState,
+@@ -128,23 +136,26 @@ private fun LoginButtons(
+   onNavigateToRegister: () -> Unit,
+ ) {
+   Column {
+-    if (uiState.isLoading) {
+-      CircularProgressIndicator()
+-    } else {
+-      Button(
+-        onClick = onLoginClick,
+-        modifier = Modifier.fillMaxWidth(),
+-        enabled = uiState.email.isNotBlank() && uiState.password.isNotBlank(),
+-      ) {
++    Button(
++      onClick = onLoginClick,
++      modifier = Modifier.fillMaxWidth(),
++      enabled = !uiState.isLoading &&
++        uiState.email.isNotBlank() &&
++        uiState.password.isNotBlank(),
++    ) {
++      if (uiState.isLoading) {
++        ButtonBusyIndicator(stateDescription = stringResource(Res.string.login_busy_description))
++      } else {
+         Text(stringResource(Res.string.login_button_sign_in))
+       }
+-      Spacer(modifier = Modifier.height(8.dp))
+-      OutlinedButton(
+-        onClick = onDemoLoginClick,
+-        modifier = Modifier.fillMaxWidth(),
+-      ) {
+-        Text(stringResource(Res.string.login_button_sign_in_demo))
+-      }
++    }
++    Spacer(modifier = Modifier.height(8.dp))
++    OutlinedButton(
++      onClick = onDemoLoginClick,
++      modifier = Modifier.fillMaxWidth(),
++      enabled = !uiState.isLoading,
++    ) {
++      Text(stringResource(Res.string.login_button_sign_in_demo))
+     }
+     Spacer(modifier = Modifier.height(16.dp))
+     OutlinedButton(
+@@ -156,3 +167,58 @@ private fun LoginButtons(
+     }
+   }
+ }
++
++private val filledLoginState = LoginContract.UiState(
++  email = "ada@example.com",
++  password = "correct-horse",
++)
++
++@Composable
++private fun LoginScreenPreviewHost(darkTheme: Boolean, uiState: LoginContract.UiState) {
++  StarterTheme(darkTheme = darkTheme) {
++    LoginScreen(
++      uiState = uiState,
++      onEmailChange = {},
++      onPasswordChange = {},
++      onLoginClick = {},
++      onDemoLoginClick = {},
++      onNavigateToRegister = {},
++    )
++  }
++}
++
++@Preview
++@Composable
++private fun LoginScreenLightPreview() =
++  LoginScreenPreviewHost(darkTheme = false, uiState = filledLoginState)
++
++@Preview
++@Composable
++private fun LoginScreenDarkPreview() =
++  LoginScreenPreviewHost(darkTheme = true, uiState = filledLoginState)
++
++@Preview
++@Composable
++private fun LoginScreenLoadingPreview() =
++  LoginScreenPreviewHost(darkTheme = false, uiState = filledLoginState.copy(isLoading = true))
++
++@Preview
++@Composable
++private fun LoginScreenInvalidCredentialsPreview() = LoginScreenPreviewHost(
++  darkTheme = false,
++  uiState = filledLoginState.copy(error = LoginContract.Error.InvalidCredentials),
++)
++
++@Preview
++@Composable
++private fun LoginScreenNetworkErrorPreview() = LoginScreenPreviewHost(
++  darkTheme = true,
++  uiState = filledLoginState.copy(error = LoginContract.Error.Network),
++)
++
++@Preview
++@Composable
++private fun LoginScreenUnknownErrorPreview() = LoginScreenPreviewHost(
++  darkTheme = true,
++  uiState = filledLoginState.copy(error = LoginContract.Error.Unknown),
++)
+diff --git a/feature/auth/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/feature/auth/ui/RegisterScreen.kt b/feature/auth/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/feature/auth/ui/RegisterScreen.kt
+index a76354f..42c3c82 100644
+--- a/feature/auth/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/feature/auth/ui/RegisterScreen.kt
++++ b/feature/auth/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/feature/auth/ui/RegisterScreen.kt
+@@ -6,7 +6,11 @@ import androidx.compose.foundation.layout.Spacer
+ import androidx.compose.foundation.layout.fillMaxSize
+ import androidx.compose.foundation.layout.fillMaxWidth
+ import androidx.compose.foundation.layout.height
++import androidx.compose.foundation.layout.imePadding
+ import androidx.compose.foundation.layout.padding
++import androidx.compose.foundation.rememberScrollState
++import androidx.compose.foundation.text.KeyboardActions
++import androidx.compose.foundation.verticalScroll
+ import androidx.compose.material3.Button
+ import androidx.compose.material3.MaterialTheme
+ import androidx.compose.material3.OutlinedButton
+@@ -14,36 +18,46 @@ import androidx.compose.material3.Text
+ import androidx.compose.runtime.Composable
+ import androidx.compose.ui.Alignment
+ import androidx.compose.ui.Modifier
++import androidx.compose.ui.autofill.ContentType
++import androidx.compose.ui.text.input.ImeAction
++import androidx.compose.ui.text.input.KeyboardType
++import androidx.compose.ui.text.input.PasswordVisualTransformation
+ import androidx.compose.ui.unit.dp
++import com.sermilion.kmpcomposestarter.core.designsystem.component.ButtonBusyIndicator
++import com.sermilion.kmpcomposestarter.core.designsystem.component.StarterErrorText
++import com.sermilion.kmpcomposestarter.core.designsystem.theme.StarterTheme
+ import com.sermilion.kmpcomposestarter.feature.auth.viewmodel.RegisterContract
+ import kmpcomposestarter.feature.auth.generated.resources.Res
++import kmpcomposestarter.feature.auth.generated.resources.register_busy_description
+ import kmpcomposestarter.feature.auth.generated.resources.register_button_back_to_login
++import kmpcomposestarter.feature.auth.generated.resources.register_button_create_account
+ import kmpcomposestarter.feature.auth.generated.resources.register_button_register_demo
++import kmpcomposestarter.feature.auth.generated.resources.register_email_label
++import kmpcomposestarter.feature.auth.generated.resources.register_error_network
++import kmpcomposestarter.feature.auth.generated.resources.register_error_registration_failed
++import kmpcomposestarter.feature.auth.generated.resources.register_error_unknown
++import kmpcomposestarter.feature.auth.generated.resources.register_name_label
++import kmpcomposestarter.feature.auth.generated.resources.register_password_label
+ import kmpcomposestarter.feature.auth.generated.resources.register_screen_title
+ import org.jetbrains.compose.resources.stringResource
++import org.jetbrains.compose.ui.tooling.preview.Preview
+ 
+ @Composable
+ fun RegisterScreen(
+   uiState: RegisterContract.UiState,
++  onNameChange: (String) -> Unit,
++  onEmailChange: (String) -> Unit,
++  onPasswordChange: (String) -> Unit,
++  onRegisterClick: () -> Unit,
+   onRegisterDemo: () -> Unit,
+   onNavigateBack: () -> Unit,
+-) {
+-  RegisterScreenContent(
+-    uiState = uiState,
+-    onRegisterDemo = onRegisterDemo,
+-    onNavigateBack = onNavigateBack,
+-  )
+-}
+-
+-@Composable
+-private fun RegisterScreenContent(
+-  uiState: RegisterContract.UiState,
+-  onRegisterDemo: () -> Unit,
+-  onNavigateBack: () -> Unit,
++  modifier: Modifier = Modifier,
+ ) {
+   Column(
+-    modifier = Modifier
++    modifier = modifier
+       .fillMaxSize()
++      .imePadding()
++      .verticalScroll(rememberScrollState())
+       .padding(24.dp),
+     horizontalAlignment = Alignment.CenterHorizontally,
+     verticalArrangement = Arrangement.Center,
+@@ -52,19 +66,111 @@ private fun RegisterScreenContent(
+       text = stringResource(Res.string.register_screen_title),
+       style = MaterialTheme.typography.headlineLarge,
+     )
+-
+     Spacer(modifier = Modifier.height(32.dp))
++    RegisterFormFields(
++      uiState = uiState,
++      onNameChange = onNameChange,
++      onEmailChange = onEmailChange,
++      onPasswordChange = onPasswordChange,
++      onSubmit = onRegisterClick,
++    )
++    Spacer(modifier = Modifier.height(32.dp))
++    RegisterButtons(
++      uiState = uiState,
++      onRegisterClick = onRegisterClick,
++      onRegisterDemo = onRegisterDemo,
++      onNavigateBack = onNavigateBack,
++    )
++  }
++}
+ 
++@Composable
++private fun RegisterFormFields(
++  uiState: RegisterContract.UiState,
++  onNameChange: (String) -> Unit,
++  onEmailChange: (String) -> Unit,
++  onPasswordChange: (String) -> Unit,
++  onSubmit: () -> Unit,
++) {
++  Column {
++    AuthFormField(
++      value = uiState.name,
++      onValueChange = onNameChange,
++      label = stringResource(Res.string.register_name_label),
++      contentType = ContentType.PersonFullName,
++      keyboardType = KeyboardType.Text,
++      imeAction = ImeAction.Next,
++      enabled = !uiState.isLoading,
++    )
++    Spacer(modifier = Modifier.height(16.dp))
++    AuthFormField(
++      value = uiState.email,
++      onValueChange = onEmailChange,
++      label = stringResource(Res.string.register_email_label),
++      contentType = ContentType.EmailAddress,
++      keyboardType = KeyboardType.Email,
++      imeAction = ImeAction.Next,
++      enabled = !uiState.isLoading,
++    )
++    Spacer(modifier = Modifier.height(16.dp))
++    AuthFormField(
++      value = uiState.password,
++      onValueChange = onPasswordChange,
++      label = stringResource(Res.string.register_password_label),
++      contentType = ContentType.NewPassword,
++      keyboardType = KeyboardType.Password,
++      imeAction = ImeAction.Done,
++      enabled = !uiState.isLoading,
++      visualTransformation = PasswordVisualTransformation(),
++      keyboardActions = KeyboardActions(onDone = { onSubmit() }),
++    )
++    uiState.error?.let { error ->
++      Spacer(modifier = Modifier.height(8.dp))
++      StarterErrorText(text = error.message())
++    }
++  }
++}
++
++@Composable
++private fun RegisterContract.Error.message(): String = stringResource(
++  when (this) {
++    RegisterContract.Error.RegistrationFailed -> Res.string.register_error_registration_failed
++    RegisterContract.Error.Network -> Res.string.register_error_network
++    RegisterContract.Error.Unknown -> Res.string.register_error_unknown
++  },
++)
++
++@Composable
++private fun RegisterButtons(
++  uiState: RegisterContract.UiState,
++  onRegisterClick: () -> Unit,
++  onRegisterDemo: () -> Unit,
++  onNavigateBack: () -> Unit,
++) {
++  Column {
+     Button(
++      onClick = onRegisterClick,
++      modifier = Modifier.fillMaxWidth(),
++      enabled = !uiState.isLoading &&
++        uiState.name.isNotBlank() &&
++        uiState.email.isNotBlank() &&
++        uiState.password.isNotBlank(),
++    ) {
++      if (uiState.isLoading) {
++        ButtonBusyIndicator(stateDescription = stringResource(Res.string.register_busy_description))
++      } else {
++        Text(stringResource(Res.string.register_button_create_account))
++      }
++    }
++    Spacer(modifier = Modifier.height(8.dp))
++    OutlinedButton(
+       onClick = onRegisterDemo,
+       modifier = Modifier.fillMaxWidth(),
+       enabled = !uiState.isLoading,
+     ) {
+       Text(stringResource(Res.string.register_button_register_demo))
+     }
+-
+     Spacer(modifier = Modifier.height(16.dp))
+-
+     OutlinedButton(
+       onClick = onNavigateBack,
+       modifier = Modifier.fillMaxWidth(),
+@@ -74,3 +180,51 @@ private fun RegisterScreenContent(
+     }
+   }
+ }
++
++private val filledRegisterState = RegisterContract.UiState(
++  name = "Ada Lovelace",
++  email = "ada@example.com",
++  password = "correct-horse",
++)
++
++@Composable
++private fun RegisterScreenPreviewHost(darkTheme: Boolean, uiState: RegisterContract.UiState) {
++  StarterTheme(darkTheme = darkTheme) {
++    RegisterScreen(
++      uiState = uiState,
++      onNameChange = {},
++      onEmailChange = {},
++      onPasswordChange = {},
++      onRegisterClick = {},
++      onRegisterDemo = {},
++      onNavigateBack = {},
++    )
++  }
++}
++
++@Preview
++@Composable
++private fun RegisterScreenEmptyPreview() =
++  RegisterScreenPreviewHost(darkTheme = false, uiState = RegisterContract.UiState())
++
++@Preview
++@Composable
++private fun RegisterScreenLightPreview() =
++  RegisterScreenPreviewHost(darkTheme = false, uiState = filledRegisterState)
++
++@Preview
++@Composable
++private fun RegisterScreenDarkPreview() =
++  RegisterScreenPreviewHost(darkTheme = true, uiState = filledRegisterState)
++
++@Preview
++@Composable
++private fun RegisterScreenLoadingPreview() =
++  RegisterScreenPreviewHost(darkTheme = true, uiState = filledRegisterState.copy(isLoading = true))
++
++@Preview
++@Composable
++private fun RegisterScreenErrorPreview() = RegisterScreenPreviewHost(
++  darkTheme = false,
++  uiState = filledRegisterState.copy(error = RegisterContract.Error.RegistrationFailed),
++)
+diff --git a/feature/auth/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/feature/auth/viewmodel/LoginViewModel.kt b/feature/auth/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/feature/auth/viewmodel/LoginViewModel.kt
+index b5c1e34..6a83d09 100644
+--- a/feature/auth/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/feature/auth/viewmodel/LoginViewModel.kt
++++ b/feature/auth/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/feature/auth/viewmodel/LoginViewModel.kt
+@@ -2,16 +2,15 @@ package com.sermilion.kmpcomposestarter.feature.auth.viewmodel
+ 
+ import androidx.lifecycle.ViewModel
+ import androidx.lifecycle.viewModelScope
++import com.sermilion.kmpcomposestarter.common.coroutines.Effect
+ import com.sermilion.kmpcomposestarter.common.di.ContributesViewModel
+ import com.sermilion.kmpcomposestarter.core.domain.model.AuthError
+ import com.sermilion.kmpcomposestarter.core.domain.model.DemoCredentials
+ import com.sermilion.kmpcomposestarter.core.domain.model.LoginResult
+ import com.sermilion.kmpcomposestarter.core.domain.repository.AuthRepository
+-import kotlinx.coroutines.flow.MutableSharedFlow
++import kotlinx.coroutines.flow.Flow
+ import kotlinx.coroutines.flow.MutableStateFlow
+-import kotlinx.coroutines.flow.SharedFlow
+ import kotlinx.coroutines.flow.StateFlow
+-import kotlinx.coroutines.flow.asSharedFlow
+ import kotlinx.coroutines.flow.asStateFlow
+ import kotlinx.coroutines.flow.update
+ import kotlinx.coroutines.launch
+@@ -28,8 +27,8 @@ class LoginViewModel(
+   private val _uiState = MutableStateFlow(LoginContract.UiState())
+   val uiState: StateFlow<LoginContract.UiState> = _uiState.asStateFlow()
+ 
+-  private val _events = MutableSharedFlow<LoginContract.Event>()
+-  val events: SharedFlow<LoginContract.Event> = _events.asSharedFlow()
++  private val _effects = Effect<LoginContract.Event>()
++  val effects: Flow<LoginContract.Event> = _effects.flow
+ 
+   fun onEmailChange(email: String) {
+     _uiState.update { it.copy(email = email, error = null) }
+@@ -66,7 +65,7 @@ class LoginViewModel(
+ 
+   fun navigateToRegister() {
+     viewModelScope.launch {
+-      _events.emit(LoginContract.Event.NavigateToRegister)
++      _effects.emit(LoginContract.Event.NavigateToRegister)
+     }
+   }
+ 
+diff --git a/feature/auth/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/feature/auth/viewmodel/RegisterViewModel.kt b/feature/auth/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/feature/auth/viewmodel/RegisterViewModel.kt
+index df0e072..fbe2ef0 100644
+--- a/feature/auth/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/feature/auth/viewmodel/RegisterViewModel.kt
++++ b/feature/auth/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/feature/auth/viewmodel/RegisterViewModel.kt
+@@ -2,16 +2,15 @@ package com.sermilion.kmpcomposestarter.feature.auth.viewmodel
+ 
+ import androidx.lifecycle.ViewModel
+ import androidx.lifecycle.viewModelScope
++import com.sermilion.kmpcomposestarter.common.coroutines.Effect
+ import com.sermilion.kmpcomposestarter.common.di.ContributesViewModel
+ import com.sermilion.kmpcomposestarter.core.domain.model.AuthError
+ import com.sermilion.kmpcomposestarter.core.domain.model.DemoCredentials
+ import com.sermilion.kmpcomposestarter.core.domain.model.LoginResult
+ import com.sermilion.kmpcomposestarter.core.domain.repository.AuthRepository
+-import kotlinx.coroutines.flow.MutableSharedFlow
++import kotlinx.coroutines.flow.Flow
+ import kotlinx.coroutines.flow.MutableStateFlow
+-import kotlinx.coroutines.flow.SharedFlow
+ import kotlinx.coroutines.flow.StateFlow
+-import kotlinx.coroutines.flow.asSharedFlow
+ import kotlinx.coroutines.flow.asStateFlow
+ import kotlinx.coroutines.flow.update
+ import kotlinx.coroutines.launch
+@@ -28,8 +27,8 @@ class RegisterViewModel(
+   private val _uiState = MutableStateFlow(RegisterContract.UiState())
+   val uiState: StateFlow<RegisterContract.UiState> = _uiState.asStateFlow()
+ 
+-  private val _events = MutableSharedFlow<RegisterContract.Event>()
+-  val events: SharedFlow<RegisterContract.Event> = _events.asSharedFlow()
++  private val _effects = Effect<RegisterContract.Event>()
++  val effects: Flow<RegisterContract.Event> = _effects.flow
+ 
+   fun onNameChange(name: String) {
+     _uiState.update { it.copy(name = name, error = null) }
+@@ -74,7 +73,7 @@ class RegisterViewModel(
+ 
+   fun navigateBack() {
+     viewModelScope.launch {
+-      _events.emit(RegisterContract.Event.NavigateBack)
++      _effects.emit(RegisterContract.Event.NavigateBack)
+     }
+   }
+ 
+diff --git a/feature/auth/src/jvmTest/kotlin/com/sermilion/kmpcomposestarter/feature/auth/viewmodel/LoginViewModelTest.kt b/feature/auth/src/jvmTest/kotlin/com/sermilion/kmpcomposestarter/feature/auth/viewmodel/LoginViewModelTest.kt
+index 5fe30d8..b639bb6 100644
+--- a/feature/auth/src/jvmTest/kotlin/com/sermilion/kmpcomposestarter/feature/auth/viewmodel/LoginViewModelTest.kt
++++ b/feature/auth/src/jvmTest/kotlin/com/sermilion/kmpcomposestarter/feature/auth/viewmodel/LoginViewModelTest.kt
+@@ -1,19 +1,18 @@
+ package com.sermilion.kmpcomposestarter.feature.auth.viewmodel
+ 
++import app.cash.turbine.test
+ import com.sermilion.kmpcomposestarter.core.domain.model.AuthError
+ import com.sermilion.kmpcomposestarter.core.domain.model.DemoCredentials
+ import com.sermilion.kmpcomposestarter.core.domain.model.LoginResult
+ import com.sermilion.kmpcomposestarter.core.domain.model.UserData
+ import com.sermilion.kmpcomposestarter.core.domain.repository.AuthRepository
+ import io.kotest.core.spec.style.FunSpec
+-import io.kotest.matchers.collections.shouldBeEmpty
+ import io.kotest.matchers.shouldBe
+ import io.mockk.coEvery
+ import io.mockk.coVerify
+ import io.mockk.mockk
+ import kotlinx.coroutines.Dispatchers
+-import kotlinx.coroutines.ExperimentalCoroutinesApi
+-import kotlinx.coroutines.launch
++import kotlinx.coroutines.delay
+ import kotlinx.coroutines.test.StandardTestDispatcher
+ import kotlinx.coroutines.test.advanceUntilIdle
+ import kotlinx.coroutines.test.resetMain
+@@ -30,207 +29,137 @@ private val demoCredentials = DemoCredentials(
+ private fun viewModelWith(authRepository: AuthRepository) =
+   LoginViewModel(authRepository, demoCredentials)
+ 
+-@OptIn(ExperimentalCoroutinesApi::class)
+ class LoginViewModelTest :
+   FunSpec({
+ 
+     val testDispatcher = StandardTestDispatcher()
+ 
+-    beforeEach {
+-      Dispatchers.setMain(testDispatcher)
+-    }
+-
+-    afterEach {
+-      Dispatchers.resetMain()
+-    }
+-
+-    test("initial state should have empty email and password") {
+-      val viewModel = viewModelWith(mockk())
+-
+-      val state = viewModel.uiState.value
+-
+-      state.email shouldBe ""
+-      state.password shouldBe ""
+-      state.isLoading shouldBe false
+-      state.error shouldBe null
+-    }
+-
+-    test("onEmailChange updates email in state") {
+-      val viewModel = viewModelWith(mockk())
+-
+-      viewModel.onEmailChange("test@email.com")
+-
+-      viewModel.uiState.value.email shouldBe "test@email.com"
+-    }
+-
+-    test("onPasswordChange updates password in state") {
+-      val viewModel = viewModelWith(mockk())
+-
+-      viewModel.onPasswordChange("secret123")
+-
+-      viewModel.uiState.value.password shouldBe "secret123"
+-    }
+-
+-    test("onEmailChange clears error") {
+-      val authRepository = mockk<AuthRepository>()
+-      coEvery { authRepository.login(any(), any()) } returns
+-        LoginResult.Failure(AuthError.InvalidCredentials)
+-
+-      val viewModel = viewModelWith(authRepository)
+-      viewModel.onEmailChange("test@email.com")
+-      viewModel.onPasswordChange("wrong")
++    beforeEach { Dispatchers.setMain(testDispatcher) }
++    afterEach { Dispatchers.resetMain() }
+ 
++    test("editing a field clears the error the previous attempt left behind") {
+       runTest(testDispatcher) {
++        val authRepository = mockk<AuthRepository>()
++        coEvery { authRepository.login(any(), any()) } returns
++          LoginResult.Failure(AuthError.InvalidCredentials)
++
++        val viewModel = viewModelWith(authRepository)
++        viewModel.onEmailChange("test@email.com")
++        viewModel.onPasswordChange("wrong")
+         viewModel.login()
+         advanceUntilIdle()
+-      }
+ 
+-      viewModel.uiState.value.error shouldBe LoginContract.Error.InvalidCredentials
++        viewModel.uiState.value.error shouldBe LoginContract.Error.InvalidCredentials
+ 
+-      viewModel.onEmailChange("new@email.com")
++        viewModel.onEmailChange("new@email.com")
+ 
+-      viewModel.uiState.value.error shouldBe null
++        viewModel.uiState.value.error shouldBe null
++      }
+     }
+ 
+-    test("a successful login clears the spinner and emits no navigation event") {
+-      val userData = UserData(id = "123", email = "test@email.com", name = "Test User")
+-      val authRepository = mockk<AuthRepository>()
+-      coEvery { authRepository.login("test@email.com", "password123") } returns
+-        LoginResult.Success(userData)
+-
+-      val viewModel = viewModelWith(authRepository)
+-      viewModel.onEmailChange("test@email.com")
+-      viewModel.onPasswordChange("password123")
+-
++    test("a successful login clears the spinner and emits no navigation effect") {
+       runTest(testDispatcher) {
+-        val events = mutableListOf<LoginContract.Event>()
+-        val job = launch { viewModel.events.collect { events.add(it) } }
+-
++        val userData = UserData(id = "123", email = "test@email.com", name = "Test User")
++        val authRepository = mockk<AuthRepository>()
++        coEvery { authRepository.login("test@email.com", "password123") } returns
++          LoginResult.Success(userData)
++
++        val viewModel = viewModelWith(authRepository)
++        viewModel.onEmailChange("test@email.com")
++        viewModel.onPasswordChange("password123")
+         viewModel.login()
+         advanceUntilIdle()
+ 
+-        // The session flow the repository writes is the only thing that moves the app to the
+-        // signed-in shell. A second, screen-driven signal would race it.
+-        events.shouldBeEmpty()
+         viewModel.uiState.value.isLoading shouldBe false
+         viewModel.uiState.value.error shouldBe null
+-
+-        job.cancel()
++        // The session flow the repository writes is the only thing that moves the app to the
++        // signed-in shell. A second, screen-driven signal would race it.
++        viewModel.effects.test { expectNoEvents() }
++        coVerify(exactly = 1) { authRepository.login("test@email.com", "password123") }
+       }
+-
+-      coVerify { authRepository.login("test@email.com", "password123") }
+     }
+ 
+-    test("wrong credentials surface the InvalidCredentials reason, not a generic error") {
+-      val authRepository = mockk<AuthRepository>()
+-      coEvery { authRepository.login(any(), any()) } returns
+-        LoginResult.Failure(AuthError.InvalidCredentials)
+-
+-      val viewModel = viewModelWith(authRepository)
+-      viewModel.onEmailChange("wrong@email.com")
+-      viewModel.onPasswordChange("wrongpassword")
++    test("each failure reason surfaces as its own error, not one generic message") {
++      val expected = mapOf(
++        AuthError.InvalidCredentials to LoginContract.Error.InvalidCredentials,
++        AuthError.Network to LoginContract.Error.Network,
++        AuthError.RefreshFailed to LoginContract.Error.Unknown,
++        AuthError.Unexpected(cause = null) to LoginContract.Error.Unknown,
++      )
+ 
+       runTest(testDispatcher) {
+-        viewModel.login()
+-        advanceUntilIdle()
++        expected.forEach { (repositoryError, uiError) ->
++          val authRepository = mockk<AuthRepository>()
++          coEvery { authRepository.login(any(), any()) } returns
++            LoginResult.Failure(repositoryError)
++
++          val viewModel = viewModelWith(authRepository)
++          viewModel.onEmailChange("test@email.com")
++          viewModel.onPasswordChange("password")
++          viewModel.login()
++          advanceUntilIdle()
++
++          viewModel.uiState.value.error shouldBe uiError
++          viewModel.uiState.value.isLoading shouldBe false
++        }
+       }
+-
+-      viewModel.uiState.value.error shouldBe LoginContract.Error.InvalidCredentials
+-      viewModel.uiState.value.isLoading shouldBe false
+     }
+ 
+-    test("a transport failure maps to the Network reason") {
+-      val authRepository = mockk<AuthRepository>()
+-      coEvery { authRepository.login(any(), any()) } returns LoginResult.Failure(AuthError.Network)
+-
+-      val viewModel = viewModelWith(authRepository)
+-      viewModel.onEmailChange("test@email.com")
+-      viewModel.onPasswordChange("password")
+-
++    test("a second tap while a login is in flight does not reach the repository") {
+       runTest(testDispatcher) {
+-        viewModel.login()
+-        advanceUntilIdle()
+-      }
+-
+-      viewModel.uiState.value.error shouldBe LoginContract.Error.Network
+-    }
++        val authRepository = mockk<AuthRepository>()
++        coEvery { authRepository.login(any(), any()) } coAnswers {
++          delay(1000)
++          LoginResult.Success(UserData("1", "test@email.com", "Test"))
++        }
+ 
+-    test("login sets isLoading true during request") {
+-      val authRepository = mockk<AuthRepository>()
+-      coEvery { authRepository.login(any(), any()) } coAnswers {
+-        kotlinx.coroutines.delay(100)
+-        LoginResult.Success(UserData("1", "test@email.com", "Test"))
+-      }
+-
+-      val viewModel = viewModelWith(authRepository)
+-      viewModel.onEmailChange("test@email.com")
+-      viewModel.onPasswordChange("password")
++        val viewModel = viewModelWith(authRepository)
++        viewModel.onEmailChange("test@email.com")
++        viewModel.onPasswordChange("password")
+ 
+-      runTest(testDispatcher) {
+         viewModel.login()
+         testDispatcher.scheduler.runCurrent()
+-
+         viewModel.uiState.value.isLoading shouldBe true
+ 
+-        advanceUntilIdle()
+-
+-        viewModel.uiState.value.isLoading shouldBe false
+-      }
+-    }
+-
+-    test("login does nothing if already loading") {
+-      val authRepository = mockk<AuthRepository>()
+-      coEvery { authRepository.login(any(), any()) } coAnswers {
+-        kotlinx.coroutines.delay(1000)
+-        LoginResult.Success(UserData("1", "test@email.com", "Test"))
+-      }
+-
+-      val viewModel = viewModelWith(authRepository)
+-      viewModel.onEmailChange("test@email.com")
+-      viewModel.onPasswordChange("password")
+-
+-      runTest(testDispatcher) {
+-        viewModel.login()
+-        testDispatcher.scheduler.runCurrent()
+         viewModel.login()
+         advanceUntilIdle()
+ 
+         coVerify(exactly = 1) { authRepository.login(any(), any()) }
++        viewModel.uiState.value.isLoading shouldBe false
+       }
+     }
+ 
+     test("loginDemo uses the injected demo credentials") {
+-      val userData = UserData(id = "123", email = demoCredentials.loginEmail, name = "Test User")
+-      val authRepository = mockk<AuthRepository>()
+-      coEvery {
+-        authRepository.login(demoCredentials.loginEmail, demoCredentials.password)
+-      } returns LoginResult.Success(userData)
+-
+-      val viewModel = viewModelWith(authRepository)
+-
+       runTest(testDispatcher) {
++        val userData = UserData(id = "123", email = demoCredentials.loginEmail, name = "Test User")
++        val authRepository = mockk<AuthRepository>()
++        coEvery {
++          authRepository.login(demoCredentials.loginEmail, demoCredentials.password)
++        } returns LoginResult.Success(userData)
++
++        val viewModel = viewModelWith(authRepository)
+         viewModel.loginDemo()
+         advanceUntilIdle()
+-      }
+ 
+-      viewModel.uiState.value.email shouldBe demoCredentials.loginEmail
+-      viewModel.uiState.value.password shouldBe demoCredentials.password
+-      coVerify { authRepository.login(demoCredentials.loginEmail, demoCredentials.password) }
++        viewModel.uiState.value.email shouldBe demoCredentials.loginEmail
++        viewModel.uiState.value.password shouldBe demoCredentials.password
++        coVerify(exactly = 1) {
++          authRepository.login(demoCredentials.loginEmail, demoCredentials.password)
++        }
++      }
+     }
+ 
+-    test("navigateToRegister emits NavigateToRegister event") {
+-      val viewModel = viewModelWith(mockk())
+-
++    test("navigateToRegister emits NavigateToRegister") {
+       runTest(testDispatcher) {
+-        val events = mutableListOf<LoginContract.Event>()
+-        val job = launch { viewModel.events.collect { events.add(it) } }
++        val viewModel = viewModelWith(mockk())
+ 
+         viewModel.navigateToRegister()
+         advanceUntilIdle()
+ 
+-        events shouldBe listOf(LoginContract.Event.NavigateToRegister)
+-
+-        job.cancel()
++        viewModel.effects.test {
++          awaitItem() shouldBe LoginContract.Event.NavigateToRegister
++          cancelAndIgnoreRemainingEvents()
++        }
+       }
+     }
+   })
+diff --git a/feature/auth/src/jvmTest/kotlin/com/sermilion/kmpcomposestarter/feature/auth/viewmodel/RegisterViewModelTest.kt b/feature/auth/src/jvmTest/kotlin/com/sermilion/kmpcomposestarter/feature/auth/viewmodel/RegisterViewModelTest.kt
+new file mode 100644
+index 0000000..15b1b39
+--- /dev/null
++++ b/feature/auth/src/jvmTest/kotlin/com/sermilion/kmpcomposestarter/feature/auth/viewmodel/RegisterViewModelTest.kt
+@@ -0,0 +1,110 @@
++package com.sermilion.kmpcomposestarter.feature.auth.viewmodel
++
++import app.cash.turbine.test
++import com.sermilion.kmpcomposestarter.core.domain.model.AuthError
++import com.sermilion.kmpcomposestarter.core.domain.model.DemoCredentials
++import com.sermilion.kmpcomposestarter.core.domain.model.LoginResult
++import com.sermilion.kmpcomposestarter.core.domain.model.UserData
++import com.sermilion.kmpcomposestarter.core.domain.repository.AuthRepository
++import io.kotest.core.spec.style.FunSpec
++import io.kotest.matchers.shouldBe
++import io.mockk.coEvery
++import io.mockk.coVerify
++import io.mockk.mockk
++import kotlinx.coroutines.Dispatchers
++import kotlinx.coroutines.delay
++import kotlinx.coroutines.test.StandardTestDispatcher
++import kotlinx.coroutines.test.advanceUntilIdle
++import kotlinx.coroutines.test.resetMain
++import kotlinx.coroutines.test.runTest
++import kotlinx.coroutines.test.setMain
++
++private val demoCredentials = DemoCredentials(
++  loginEmail = "demo@example.com",
++  password = "demo-password",
++  newUserEmail = "new@example.com",
++  newUserName = "New User",
++)
++
++private fun viewModelWith(authRepository: AuthRepository) =
++  RegisterViewModel(authRepository, demoCredentials)
++
++private fun RegisterViewModel.fillForm() {
++  onNameChange("Ada Lovelace")
++  onEmailChange("ada@example.com")
++  onPasswordChange("correct-horse")
++}
++
++class RegisterViewModelTest :
++  FunSpec({
++
++    val testDispatcher = StandardTestDispatcher()
++
++    beforeEach { Dispatchers.setMain(testDispatcher) }
++    afterEach { Dispatchers.resetMain() }
++
++    // A double-tapped register button creating two accounts is the failure this guards.
++    test("a second register while one is in flight does not reach the repository") {
++      runTest(testDispatcher) {
++        val authRepository = mockk<AuthRepository>()
++        coEvery { authRepository.register(any(), any(), any()) } coAnswers {
++          delay(1000)
++          LoginResult.Success(UserData("1", "ada@example.com", "Ada Lovelace"))
++        }
++
++        val viewModel = viewModelWith(authRepository)
++        viewModel.fillForm()
++
++        viewModel.register()
++        testDispatcher.scheduler.runCurrent()
++        viewModel.uiState.value.isLoading shouldBe true
++
++        viewModel.register()
++        advanceUntilIdle()
++
++        coVerify(exactly = 1) { authRepository.register(any(), any(), any()) }
++        viewModel.uiState.value.isLoading shouldBe false
++      }
++    }
++
++    // Login shipped exactly this defect: one message for every reason. This locks the Register
++    // mapping so the same regression cannot land here.
++    test("each failure reason maps to its own error variant") {
++      val expected = mapOf(
++        AuthError.InvalidCredentials to RegisterContract.Error.RegistrationFailed,
++        AuthError.Network to RegisterContract.Error.Network,
++        AuthError.RefreshFailed to RegisterContract.Error.Unknown,
++        AuthError.Unexpected(cause = null) to RegisterContract.Error.Unknown,
++      )
++
++      runTest(testDispatcher) {
++        expected.forEach { (repositoryError, uiError) ->
++          val authRepository = mockk<AuthRepository>()
++          coEvery { authRepository.register(any(), any(), any()) } returns
++            LoginResult.Failure(repositoryError)
++
++          val viewModel = viewModelWith(authRepository)
++          viewModel.fillForm()
++          viewModel.register()
++          advanceUntilIdle()
++
++          viewModel.uiState.value.error shouldBe uiError
++          viewModel.uiState.value.isLoading shouldBe false
++        }
++      }
++    }
++
++    test("navigateBack emits NavigateBack") {
++      runTest(testDispatcher) {
++        val viewModel = viewModelWith(mockk())
++
++        viewModel.navigateBack()
++        advanceUntilIdle()
++
++        viewModel.effects.test {
++          awaitItem() shouldBe RegisterContract.Event.NavigateBack
++          cancelAndIgnoreRemainingEvents()
++        }
++      }
++    }
++  })
+diff --git a/feature/home/build.gradle.kts b/feature/home/build.gradle.kts
+index f4b4cd2..be7e217 100644
+--- a/feature/home/build.gradle.kts
++++ b/feature/home/build.gradle.kts
+@@ -17,12 +17,16 @@ kotlin {
+       implementation(libs.jetbrains.lifecycle.viewmodel)
+       implementation(libs.jetbrains.lifecycle.viewmodel.compose)
+       implementation(libs.kermit)
++      implementation(libs.compose.components.uiToolingPreview)
+     }
+ 
+     jvmTest.dependencies {
+       implementation(libs.kotest.framework.engine)
+       implementation(libs.kotest.assertions.core)
+       implementation(libs.kotest.runner.junit5.jvm)
++      implementation(libs.kotlinx.coroutines.test)
++      implementation(libs.mockk.core)
++      implementation(libs.turbine)
+     }
+   }
+ }
+diff --git a/feature/home/src/commonMain/composeResources/values/strings.xml b/feature/home/src/commonMain/composeResources/values/strings.xml
+index bddfac2..052b867 100644
+--- a/feature/home/src/commonMain/composeResources/values/strings.xml
++++ b/feature/home/src/commonMain/composeResources/values/strings.xml
+@@ -1,10 +1,10 @@
+ <?xml version="1.0" encoding="utf-8"?>
+ <resources>
+-  <string name="home_screen_title">Home Screen</string>
++  <string name="home_screen_title">Home</string>
+   <string name="home_welcome_message">Welcome, %1$s!</string>
+   <string name="home_button_go_to_profile">Go to Profile</string>
+   <string name="home_button_open_detail">Open detail</string>
+-  <string name="detail_screen_title">Detail Screen</string>
++  <string name="detail_screen_title">Detail</string>
+   <string name="detail_id_label">Item id: %1$s</string>
+   <string name="detail_note_label">Note</string>
+   <string name="detail_button_back">Back</string>
+diff --git a/feature/home/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/feature/home/detail/DetailScreen.kt b/feature/home/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/feature/home/detail/DetailScreen.kt
+index 5070265..f5a68f1 100644
+--- a/feature/home/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/feature/home/detail/DetailScreen.kt
++++ b/feature/home/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/feature/home/detail/DetailScreen.kt
+@@ -15,34 +15,24 @@ import androidx.compose.runtime.Composable
+ import androidx.compose.ui.Alignment
+ import androidx.compose.ui.Modifier
+ import androidx.compose.ui.unit.dp
++import com.sermilion.kmpcomposestarter.core.designsystem.theme.StarterTheme
+ import kmpcomposestarter.feature.home.generated.resources.Res
+ import kmpcomposestarter.feature.home.generated.resources.detail_button_back
+ import kmpcomposestarter.feature.home.generated.resources.detail_id_label
+ import kmpcomposestarter.feature.home.generated.resources.detail_note_label
+ import kmpcomposestarter.feature.home.generated.resources.detail_screen_title
+ import org.jetbrains.compose.resources.stringResource
++import org.jetbrains.compose.ui.tooling.preview.Preview
+ 
+ @Composable
+ fun DetailScreen(
+   uiState: DetailContract.UiState,
+   onNoteChange: (String) -> Unit,
+   onNavigateBack: () -> Unit,
+-) {
+-  DetailScreenContent(
+-    uiState = uiState,
+-    onNoteChange = onNoteChange,
+-    onNavigateBack = onNavigateBack,
+-  )
+-}
+-
+-@Composable
+-private fun DetailScreenContent(
+-  uiState: DetailContract.UiState,
+-  onNoteChange: (String) -> Unit,
+-  onNavigateBack: () -> Unit,
++  modifier: Modifier = Modifier,
+ ) {
+   Column(
+-    modifier = Modifier
++    modifier = modifier
+       .fillMaxSize()
+       .padding(24.dp),
+     horizontalAlignment = Alignment.CenterHorizontally,
+@@ -77,3 +67,20 @@ private fun DetailScreenContent(
+     }
+   }
+ }
++
++private val sampleDetailState = DetailContract.UiState(id = "item-1", note = "Remember this")
++
++@Composable
++private fun DetailScreenPreviewHost(darkTheme: Boolean) {
++  StarterTheme(darkTheme = darkTheme) {
++    DetailScreen(uiState = sampleDetailState, onNoteChange = {}, onNavigateBack = {})
++  }
++}
++
++@Preview
++@Composable
++private fun DetailScreenLightPreview() = DetailScreenPreviewHost(darkTheme = false)
++
++@Preview
++@Composable
++private fun DetailScreenDarkPreview() = DetailScreenPreviewHost(darkTheme = true)
+diff --git a/feature/home/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/feature/home/ui/HomeScreen.kt b/feature/home/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/feature/home/ui/HomeScreen.kt
+index b39a9d2..eeab534 100644
+--- a/feature/home/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/feature/home/ui/HomeScreen.kt
++++ b/feature/home/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/feature/home/ui/HomeScreen.kt
+@@ -14,6 +14,7 @@ import androidx.compose.runtime.Composable
+ import androidx.compose.ui.Alignment
+ import androidx.compose.ui.Modifier
+ import androidx.compose.ui.unit.dp
++import com.sermilion.kmpcomposestarter.core.designsystem.theme.StarterTheme
+ import com.sermilion.kmpcomposestarter.feature.home.viewmodel.HomeContract
+ import kmpcomposestarter.feature.home.generated.resources.Res
+ import kmpcomposestarter.feature.home.generated.resources.home_button_go_to_profile
+@@ -21,28 +22,17 @@ import kmpcomposestarter.feature.home.generated.resources.home_button_open_detai
+ import kmpcomposestarter.feature.home.generated.resources.home_screen_title
+ import kmpcomposestarter.feature.home.generated.resources.home_welcome_message
+ import org.jetbrains.compose.resources.stringResource
++import org.jetbrains.compose.ui.tooling.preview.Preview
+ 
+ @Composable
+ fun HomeScreen(
+   uiState: HomeContract.UiState,
+   onNavigateToProfile: () -> Unit,
+   onOpenDetail: () -> Unit,
+-) {
+-  HomeScreenContent(
+-    uiState = uiState,
+-    onNavigateToProfile = onNavigateToProfile,
+-    onOpenDetail = onOpenDetail,
+-  )
+-}
+-
+-@Composable
+-private fun HomeScreenContent(
+-  uiState: HomeContract.UiState,
+-  onNavigateToProfile: () -> Unit,
+-  onOpenDetail: () -> Unit,
++  modifier: Modifier = Modifier,
+ ) {
+   Column(
+-    modifier = Modifier
++    modifier = modifier
+       .fillMaxSize()
+       .padding(24.dp),
+     horizontalAlignment = Alignment.CenterHorizontally,
+@@ -85,3 +75,23 @@ private fun HomeScreenContent(
+     }
+   }
+ }
++
++private val sampleHomeState = HomeContract.UiState(
++  userName = "Ada Lovelace",
++  userEmail = "ada@example.com",
++)
++
++@Composable
++private fun HomeScreenPreviewHost(darkTheme: Boolean) {
++  StarterTheme(darkTheme = darkTheme) {
++    HomeScreen(uiState = sampleHomeState, onNavigateToProfile = {}, onOpenDetail = {})
++  }
++}
++
++@Preview
++@Composable
++private fun HomeScreenLightPreview() = HomeScreenPreviewHost(darkTheme = false)
++
++@Preview
++@Composable
++private fun HomeScreenDarkPreview() = HomeScreenPreviewHost(darkTheme = true)
+diff --git a/feature/home/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/feature/home/viewmodel/HomeViewModel.kt b/feature/home/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/feature/home/viewmodel/HomeViewModel.kt
+index 51de7eb..fcd424a 100644
+--- a/feature/home/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/feature/home/viewmodel/HomeViewModel.kt
++++ b/feature/home/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/feature/home/viewmodel/HomeViewModel.kt
+@@ -2,14 +2,13 @@ package com.sermilion.kmpcomposestarter.feature.home.viewmodel
+ 
+ import androidx.lifecycle.ViewModel
+ import androidx.lifecycle.viewModelScope
++import com.sermilion.kmpcomposestarter.common.coroutines.Effect
+ import com.sermilion.kmpcomposestarter.common.di.ContributesViewModel
+ import com.sermilion.kmpcomposestarter.common.di.ScreenScope
+ import com.sermilion.kmpcomposestarter.core.domain.model.UserData
+-import kotlinx.coroutines.flow.MutableSharedFlow
++import kotlinx.coroutines.flow.Flow
+ import kotlinx.coroutines.flow.MutableStateFlow
+-import kotlinx.coroutines.flow.SharedFlow
+ import kotlinx.coroutines.flow.StateFlow
+-import kotlinx.coroutines.flow.asSharedFlow
+ import kotlinx.coroutines.flow.asStateFlow
+ import kotlinx.coroutines.launch
+ import me.tatarka.inject.annotations.Inject
+@@ -26,19 +25,19 @@ class HomeViewModel(private val userData: UserData) : ViewModel() {
+   )
+   val uiState: StateFlow<HomeContract.UiState> = _uiState.asStateFlow()
+ 
+-  private val _events = MutableSharedFlow<HomeContract.Event>()
+-  val events: SharedFlow<HomeContract.Event> = _events.asSharedFlow()
++  private val _effects = Effect<HomeContract.Event>()
++  val effects: Flow<HomeContract.Event> = _effects.flow
+ 
+   fun navigateToProfile() {
+     viewModelScope.launch {
+-      _events.emit(HomeContract.Event.NavigateToProfile)
++      _effects.emit(HomeContract.Event.NavigateToProfile)
+     }
+   }
+ 
+   /** Sends the id, not the object: the detail screen resolves it from the source of truth. */
+   fun openDetail() {
+     viewModelScope.launch {
+-      _events.emit(HomeContract.Event.NavigateToDetail(userData.id))
++      _effects.emit(HomeContract.Event.NavigateToDetail(userData.id))
+     }
+   }
+ }
+diff --git a/feature/home/src/jvmTest/kotlin/com/sermilion/kmpcomposestarter/feature/home/viewmodel/HomeViewModelTest.kt b/feature/home/src/jvmTest/kotlin/com/sermilion/kmpcomposestarter/feature/home/viewmodel/HomeViewModelTest.kt
+new file mode 100644
+index 0000000..3fd374a
+--- /dev/null
++++ b/feature/home/src/jvmTest/kotlin/com/sermilion/kmpcomposestarter/feature/home/viewmodel/HomeViewModelTest.kt
+@@ -0,0 +1,58 @@
++package com.sermilion.kmpcomposestarter.feature.home.viewmodel
++
++import app.cash.turbine.test
++import com.sermilion.kmpcomposestarter.core.domain.model.UserData
++import io.kotest.core.spec.style.FunSpec
++import io.kotest.matchers.shouldBe
++import kotlinx.coroutines.Dispatchers
++import kotlinx.coroutines.test.StandardTestDispatcher
++import kotlinx.coroutines.test.advanceUntilIdle
++import kotlinx.coroutines.test.resetMain
++import kotlinx.coroutines.test.runTest
++import kotlinx.coroutines.test.setMain
++
++private val signedInUser = UserData(id = "user-1", email = "ada@example.com", name = "Ada Lovelace")
++
++class HomeViewModelTest :
++  FunSpec({
++
++    val testDispatcher = StandardTestDispatcher()
++
++    beforeEach { Dispatchers.setMain(testDispatcher) }
++    afterEach { Dispatchers.resetMain() }
++
++    /**
++     * The regression guard for the effect migration. A zero-replay `MutableSharedFlow` dropped
++     * anything emitted while the screen had no collector attached, so a profile tap made during
++     * recomposition left the user sitting on Home with nothing to show for it. The buffered
++     * channel has to hold the effect until someone reads it.
++     */
++    test("an effect emitted before any collector attaches is still delivered") {
++      runTest(testDispatcher) {
++        val viewModel = HomeViewModel(signedInUser)
++
++        viewModel.navigateToProfile()
++        advanceUntilIdle()
++
++        viewModel.effects.test {
++          awaitItem() shouldBe HomeContract.Event.NavigateToProfile
++          cancelAndIgnoreRemainingEvents()
++        }
++      }
++    }
++
++    // The id travels, not the object: the detail screen resolves it from the source of truth.
++    test("openDetail carries the user id") {
++      runTest(testDispatcher) {
++        val viewModel = HomeViewModel(signedInUser)
++
++        viewModel.openDetail()
++        advanceUntilIdle()
++
++        viewModel.effects.test {
++          awaitItem() shouldBe HomeContract.Event.NavigateToDetail(signedInUser.id)
++          cancelAndIgnoreRemainingEvents()
++        }
++      }
++    }
++  })
+diff --git a/feature/profile/build.gradle.kts b/feature/profile/build.gradle.kts
+index cc43ae2..be7e217 100644
+--- a/feature/profile/build.gradle.kts
++++ b/feature/profile/build.gradle.kts
+@@ -17,6 +17,7 @@ kotlin {
+       implementation(libs.jetbrains.lifecycle.viewmodel)
+       implementation(libs.jetbrains.lifecycle.viewmodel.compose)
+       implementation(libs.kermit)
++      implementation(libs.compose.components.uiToolingPreview)
+     }
+ 
+     jvmTest.dependencies {
+@@ -25,6 +26,7 @@ kotlin {
+       implementation(libs.kotest.runner.junit5.jvm)
+       implementation(libs.kotlinx.coroutines.test)
+       implementation(libs.mockk.core)
++      implementation(libs.turbine)
+     }
+   }
+ }
+diff --git a/feature/profile/src/commonMain/composeResources/values/strings.xml b/feature/profile/src/commonMain/composeResources/values/strings.xml
+index 7fafe4a..b9ad2fc 100644
+--- a/feature/profile/src/commonMain/composeResources/values/strings.xml
++++ b/feature/profile/src/commonMain/composeResources/values/strings.xml
+@@ -1,6 +1,6 @@
+ <?xml version="1.0" encoding="utf-8"?>
+ <resources>
+-  <string name="profile_screen_title">Profile Screen</string>
++  <string name="profile_screen_title">Profile</string>
+   <string name="profile_name_label">Name: %1$s</string>
+   <string name="profile_email_label">Email: %1$s</string>
+   <string name="profile_id_label">ID: %1$s</string>
+@@ -8,4 +8,7 @@
+   <string name="profile_button_logout">Logout</string>
+   <string name="profile_button_delete_my_data">Delete my data</string>
+   <string name="profile_delete_failed">Some of your data could not be deleted. Please try again.</string>
++  <string name="profile_logout_failed">We could not sign you out. Please try again.</string>
++  <string name="profile_logout_busy_description">Signing out</string>
++  <string name="profile_delete_busy_description">Deleting your data</string>
+ </resources>
+diff --git a/feature/profile/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/feature/profile/ui/ProfileScreen.kt b/feature/profile/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/feature/profile/ui/ProfileScreen.kt
+index 31bfbe7..954378c 100644
+--- a/feature/profile/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/feature/profile/ui/ProfileScreen.kt
++++ b/feature/profile/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/feature/profile/ui/ProfileScreen.kt
+@@ -8,7 +8,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
+ import androidx.compose.foundation.layout.height
+ import androidx.compose.foundation.layout.padding
+ import androidx.compose.material3.Button
+-import androidx.compose.material3.CircularProgressIndicator
+ import androidx.compose.material3.MaterialTheme
+ import androidx.compose.material3.OutlinedButton
+ import androidx.compose.material3.Text
+@@ -17,17 +16,24 @@ import androidx.compose.runtime.Composable
+ import androidx.compose.ui.Alignment
+ import androidx.compose.ui.Modifier
+ import androidx.compose.ui.unit.dp
++import com.sermilion.kmpcomposestarter.core.designsystem.component.ButtonBusyIndicator
++import com.sermilion.kmpcomposestarter.core.designsystem.component.StarterErrorText
++import com.sermilion.kmpcomposestarter.core.designsystem.theme.StarterTheme
+ import com.sermilion.kmpcomposestarter.feature.profile.viewmodel.ProfileContract
+ import kmpcomposestarter.feature.profile.generated.resources.Res
+ import kmpcomposestarter.feature.profile.generated.resources.profile_button_back_to_home
+ import kmpcomposestarter.feature.profile.generated.resources.profile_button_delete_my_data
+ import kmpcomposestarter.feature.profile.generated.resources.profile_button_logout
++import kmpcomposestarter.feature.profile.generated.resources.profile_delete_busy_description
+ import kmpcomposestarter.feature.profile.generated.resources.profile_delete_failed
+ import kmpcomposestarter.feature.profile.generated.resources.profile_email_label
+ import kmpcomposestarter.feature.profile.generated.resources.profile_id_label
++import kmpcomposestarter.feature.profile.generated.resources.profile_logout_busy_description
++import kmpcomposestarter.feature.profile.generated.resources.profile_logout_failed
+ import kmpcomposestarter.feature.profile.generated.resources.profile_name_label
+ import kmpcomposestarter.feature.profile.generated.resources.profile_screen_title
+ import org.jetbrains.compose.resources.stringResource
++import org.jetbrains.compose.ui.tooling.preview.Preview
+ 
+ @Composable
+ fun ProfileScreen(
+@@ -35,24 +41,10 @@ fun ProfileScreen(
+   onNavigateBack: () -> Unit,
+   onLogout: () -> Unit,
+   onDeleteMyData: () -> Unit,
+-) {
+-  ProfileScreenContent(
+-    uiState = uiState,
+-    onNavigateBack = onNavigateBack,
+-    onLogout = onLogout,
+-    onDeleteMyData = onDeleteMyData,
+-  )
+-}
+-
+-@Composable
+-private fun ProfileScreenContent(
+-  uiState: ProfileContract.UiState,
+-  onNavigateBack: () -> Unit,
+-  onLogout: () -> Unit,
+-  onDeleteMyData: () -> Unit,
++  modifier: Modifier = Modifier,
+ ) {
+   Column(
+-    modifier = Modifier
++    modifier = modifier
+       .fillMaxSize()
+       .padding(24.dp),
+     horizontalAlignment = Alignment.CenterHorizontally,
+@@ -100,8 +92,11 @@ private fun ProfileScreenContent(
+ }
+ 
+ /**
+- * The two ways out of a session. Both are hidden while one is running, so a second tap cannot
+- * start a sign-out on top of a deletion.
++ * The two ways out of a session.
++ *
++ * Both controls stay on screen while one runs, disabled, with the spinner inside the button that
++ * is working. Replacing them with a bare indicator moved every other control on the screen, and
++ * left nothing to read once the action finished.
+  */
+ @Composable
+ private fun SessionActions(
+@@ -109,36 +104,97 @@ private fun SessionActions(
+   onLogout: () -> Unit,
+   onDeleteMyData: () -> Unit,
+ ) {
+-  if (uiState.isBusy) {
+-    CircularProgressIndicator()
+-    return
+-  }
++  Column {
++    Button(
++      onClick = onLogout,
++      modifier = Modifier.fillMaxWidth(),
++      enabled = !uiState.isBusy,
++    ) {
++      if (uiState.isLoggingOut) {
++        ButtonBusyIndicator(
++          stateDescription = stringResource(Res.string.profile_logout_busy_description),
++        )
++      } else {
++        Text(stringResource(Res.string.profile_button_logout))
++      }
++    }
+ 
+-  Button(
+-    onClick = onLogout,
+-    modifier = Modifier.fillMaxWidth(),
+-  ) {
+-    Text(stringResource(Res.string.profile_button_logout))
+-  }
++    Spacer(modifier = Modifier.height(16.dp))
+ 
+-  Spacer(modifier = Modifier.height(16.dp))
++    TextButton(
++      onClick = onDeleteMyData,
++      modifier = Modifier.fillMaxWidth(),
++      enabled = !uiState.isBusy,
++    ) {
++      if (uiState.isDeletingData) {
++        ButtonBusyIndicator(
++          stateDescription = stringResource(Res.string.profile_delete_busy_description),
++        )
++      } else {
++        Text(
++          text = stringResource(Res.string.profile_button_delete_my_data),
++          color = MaterialTheme.colorScheme.error,
++        )
++      }
++    }
+ 
+-  TextButton(
+-    onClick = onDeleteMyData,
+-    modifier = Modifier.fillMaxWidth(),
+-  ) {
+-    Text(
+-      text = stringResource(Res.string.profile_button_delete_my_data),
+-      color = MaterialTheme.colorScheme.error,
+-    )
++    if (uiState.dataDeletionFailed) {
++      Spacer(modifier = Modifier.height(16.dp))
++      StarterErrorText(text = stringResource(Res.string.profile_delete_failed))
++    }
++
++    if (uiState.logoutFailed) {
++      Spacer(modifier = Modifier.height(16.dp))
++      StarterErrorText(text = stringResource(Res.string.profile_logout_failed))
++    }
+   }
++}
+ 
+-  if (uiState.dataDeletionFailed) {
+-    Spacer(modifier = Modifier.height(16.dp))
+-    Text(
+-      text = stringResource(Res.string.profile_delete_failed),
+-      style = MaterialTheme.typography.bodyMedium,
+-      color = MaterialTheme.colorScheme.error,
++private val sampleProfileState = ProfileContract.UiState(
++  userName = "Ada Lovelace",
++  userEmail = "ada@example.com",
++  userId = "user-1",
++)
++
++@Composable
++private fun ProfileScreenPreviewHost(darkTheme: Boolean, uiState: ProfileContract.UiState) {
++  StarterTheme(darkTheme = darkTheme) {
++    ProfileScreen(
++      uiState = uiState,
++      onNavigateBack = {},
++      onLogout = {},
++      onDeleteMyData = {},
+     )
+   }
+ }
++
++@Preview
++@Composable
++private fun ProfileScreenLightPreview() =
++  ProfileScreenPreviewHost(darkTheme = false, uiState = sampleProfileState)
++
++@Preview
++@Composable
++private fun ProfileScreenDarkPreview() =
++  ProfileScreenPreviewHost(darkTheme = true, uiState = sampleProfileState)
++
++@Preview
++@Composable
++private fun ProfileScreenLoggingOutPreview() = ProfileScreenPreviewHost(
++  darkTheme = false,
++  uiState = sampleProfileState.copy(isLoggingOut = true),
++)
++
++@Preview
++@Composable
++private fun ProfileScreenDeletionFailedPreview() = ProfileScreenPreviewHost(
++  darkTheme = true,
++  uiState = sampleProfileState.copy(dataDeletionFailed = true),
++)
++
++@Preview
++@Composable
++private fun ProfileScreenLogoutFailedPreview() = ProfileScreenPreviewHost(
++  darkTheme = false,
++  uiState = sampleProfileState.copy(logoutFailed = true),
++)
+diff --git a/feature/profile/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/feature/profile/viewmodel/ProfileContract.kt b/feature/profile/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/feature/profile/viewmodel/ProfileContract.kt
+index 1221270..5e79f96 100644
+--- a/feature/profile/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/feature/profile/viewmodel/ProfileContract.kt
++++ b/feature/profile/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/feature/profile/viewmodel/ProfileContract.kt
+@@ -9,6 +9,7 @@ object ProfileContract {
+     val isLoggingOut: Boolean = false,
+     val isDeletingData: Boolean = false,
+     val dataDeletionFailed: Boolean = false,
++    val logoutFailed: Boolean = false,
+   ) {
+     /** One flag for "a destructive action is in flight", so no control can start a second one. */
+     val isBusy: Boolean get() = isLoggingOut || isDeletingData
+diff --git a/feature/profile/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/feature/profile/viewmodel/ProfileViewModel.kt b/feature/profile/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/feature/profile/viewmodel/ProfileViewModel.kt
+index 3de2146..43850ec 100644
+--- a/feature/profile/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/feature/profile/viewmodel/ProfileViewModel.kt
++++ b/feature/profile/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/feature/profile/viewmodel/ProfileViewModel.kt
+@@ -3,21 +3,21 @@ package com.sermilion.kmpcomposestarter.feature.profile.viewmodel
+ import androidx.lifecycle.ViewModel
+ import androidx.lifecycle.viewModelScope
+ import co.touchlab.kermit.Logger
++import com.sermilion.kmpcomposestarter.common.coroutines.Effect
+ import com.sermilion.kmpcomposestarter.common.di.ContributesViewModel
+ import com.sermilion.kmpcomposestarter.common.di.ScreenScope
+ import com.sermilion.kmpcomposestarter.core.domain.model.UserData
+ import com.sermilion.kmpcomposestarter.core.domain.repository.AuthRepository
+ import com.sermilion.kmpcomposestarter.core.domain.repository.UserRepository
+-import kotlinx.coroutines.flow.MutableSharedFlow
++import kotlinx.coroutines.flow.Flow
+ import kotlinx.coroutines.flow.MutableStateFlow
+-import kotlinx.coroutines.flow.SharedFlow
+ import kotlinx.coroutines.flow.StateFlow
+-import kotlinx.coroutines.flow.asSharedFlow
+ import kotlinx.coroutines.flow.asStateFlow
+ import kotlinx.coroutines.flow.catch
+ import kotlinx.coroutines.flow.update
+ import kotlinx.coroutines.launch
+ import me.tatarka.inject.annotations.Inject
++import kotlin.coroutines.cancellation.CancellationException
+ 
+ @Inject
+ @ContributesViewModel(ScreenScope::class)
+@@ -36,8 +36,8 @@ class ProfileViewModel(
+   )
+   val uiState: StateFlow<ProfileContract.UiState> = _uiState.asStateFlow()
+ 
+-  private val _events = MutableSharedFlow<ProfileContract.Event>()
+-  val events: SharedFlow<ProfileContract.Event> = _events.asSharedFlow()
++  private val _effects = Effect<ProfileContract.Event>()
++  val effects: Flow<ProfileContract.Event> = _effects.flow
+ 
+   init {
+     // The sign-in response seeds the screen so it is never blank, but the stored row is what it
+@@ -49,7 +49,7 @@ class ProfileViewModel(
+           // failed deletion leaves the row unreadable for the rest of the session. Stop
+           // following it and keep what is already on screen: a stale profile is a better
+           // answer than taking the session down with an unhandled read failure.
+-          Logger.w("ProfileViewModel", error) { "Stopped following the stored user row." }
++          Logger.w(TAG, error) { "Stopped following the stored user row." }
+         }
+         .collect { stored ->
+           if (stored != null) {
+@@ -63,17 +63,31 @@ class ProfileViewModel(
+ 
+   fun navigateBack() {
+     viewModelScope.launch {
+-      _events.emit(ProfileContract.Event.NavigateBack)
++      _effects.emit(ProfileContract.Event.NavigateBack)
+     }
+   }
+ 
++  /**
++   * Signing out is the whole action: the session flow carries the app back to the auth stack.
++   *
++   * The `finally` is the point. Without it a repository that throws left `isLoggingOut` stuck at
++   * `true`, and the screen stayed busy with every control disabled and no way back out.
++   */
+   fun logout() {
+     if (_uiState.value.isBusy) return
+ 
+     viewModelScope.launch {
+-      _uiState.update { it.copy(isLoggingOut = true) }
+-      // Signing out is the whole action: the session flow carries the app back to the auth stack.
+-      authRepository.logout()
++      _uiState.update { it.copy(isLoggingOut = true, logoutFailed = false) }
++      try {
++        authRepository.logout()
++      } catch (e: CancellationException) {
++        throw e
++      } catch (e: Exception) {
++        Logger.e(TAG, e) { "Sign-out failed." }
++        _uiState.update { it.copy(logoutFailed = true) }
++      } finally {
++        _uiState.update { it.copy(isLoggingOut = false) }
++      }
+     }
+   }
+ 
+@@ -98,4 +112,8 @@ class ProfileViewModel(
+       }
+     }
+   }
++
++  private companion object {
++    const val TAG = "ProfileViewModel"
++  }
+ }
+diff --git a/feature/profile/src/jvmTest/kotlin/com/sermilion/kmpcomposestarter/feature/profile/viewmodel/ProfileViewModelTest.kt b/feature/profile/src/jvmTest/kotlin/com/sermilion/kmpcomposestarter/feature/profile/viewmodel/ProfileViewModelTest.kt
+index 43632ac..669624a 100644
+--- a/feature/profile/src/jvmTest/kotlin/com/sermilion/kmpcomposestarter/feature/profile/viewmodel/ProfileViewModelTest.kt
++++ b/feature/profile/src/jvmTest/kotlin/com/sermilion/kmpcomposestarter/feature/profile/viewmodel/ProfileViewModelTest.kt
+@@ -1,5 +1,6 @@
+ package com.sermilion.kmpcomposestarter.feature.profile.viewmodel
+ 
++import app.cash.turbine.test
+ import com.sermilion.kmpcomposestarter.core.domain.model.UserData
+ import com.sermilion.kmpcomposestarter.core.domain.repository.AuthRepository
+ import com.sermilion.kmpcomposestarter.core.domain.repository.UserRepository
+@@ -10,7 +11,6 @@ import io.mockk.coVerify
+ import io.mockk.every
+ import io.mockk.mockk
+ import kotlinx.coroutines.Dispatchers
+-import kotlinx.coroutines.ExperimentalCoroutinesApi
+ import kotlinx.coroutines.flow.emptyFlow
+ import kotlinx.coroutines.flow.flowOf
+ import kotlinx.coroutines.test.StandardTestDispatcher
+@@ -21,68 +21,97 @@ import kotlinx.coroutines.test.setMain
+ 
+ private val signedInUser = UserData(id = "id-1", email = "user@test.com", name = "User")
+ 
+-@OptIn(ExperimentalCoroutinesApi::class)
+ class ProfileViewModelTest :
+   FunSpec({
+ 
+     val testDispatcher = StandardTestDispatcher()
+ 
+-    beforeEach {
+-      Dispatchers.setMain(testDispatcher)
+-    }
+-
+-    afterEach {
+-      Dispatchers.resetMain()
+-    }
++    beforeEach { Dispatchers.setMain(testDispatcher) }
++    afterEach { Dispatchers.resetMain() }
+ 
+     test("the profile follows the stored user row, not the sign-in response") {
+-      val userRepository = mockk<UserRepository>()
+-      every { userRepository.observeCurrentUser() } returns
+-        flowOf(UserData(id = "id-1", email = "renamed@test.com", name = "Renamed"))
+-
+-      val viewModel = ProfileViewModel(signedInUser, mockk(), userRepository)
+-
+       runTest(testDispatcher) {
++        val userRepository = mockk<UserRepository>()
++        every { userRepository.observeCurrentUser() } returns
++          flowOf(UserData(id = "id-1", email = "renamed@test.com", name = "Renamed"))
++
++        val viewModel = ProfileViewModel(signedInUser, mockk(), userRepository)
+         advanceUntilIdle()
+-      }
+ 
+-      viewModel.uiState.value.userName shouldBe "Renamed"
+-      viewModel.uiState.value.userEmail shouldBe "renamed@test.com"
++        viewModel.uiState.value.userName shouldBe "Renamed"
++        viewModel.uiState.value.userEmail shouldBe "renamed@test.com"
++      }
+     }
+ 
+     test("a failed data deletion keeps the user signed in and reports the failure") {
+-      val userRepository = mockk<UserRepository>()
+-      every { userRepository.observeCurrentUser() } returns emptyFlow()
+-      coEvery { userRepository.deleteMyData() } returns false
+-      val authRepository = mockk<AuthRepository>(relaxUnitFun = true)
+-
+-      val viewModel = ProfileViewModel(signedInUser, authRepository, userRepository)
+-
+       runTest(testDispatcher) {
++        val userRepository = mockk<UserRepository>()
++        every { userRepository.observeCurrentUser() } returns emptyFlow()
++        coEvery { userRepository.deleteMyData() } returns false
++        val authRepository = mockk<AuthRepository>(relaxUnitFun = true)
++
++        val viewModel = ProfileViewModel(signedInUser, authRepository, userRepository)
+         viewModel.deleteMyData()
+         advanceUntilIdle()
+-      }
+ 
+-      // Signing out here would tell the user their data is gone while it is still on disk.
+-      viewModel.uiState.value.dataDeletionFailed shouldBe true
+-      viewModel.uiState.value.isDeletingData shouldBe false
+-      coVerify(exactly = 0) { authRepository.logout() }
++        // Signing out here would tell the user their data is gone while it is still on disk.
++        viewModel.uiState.value.dataDeletionFailed shouldBe true
++        viewModel.uiState.value.isDeletingData shouldBe false
++        coVerify(exactly = 0) { authRepository.logout() }
++      }
+     }
+ 
+     test("a successful data deletion signs the user out") {
+-      val userRepository = mockk<UserRepository>()
+-      every { userRepository.observeCurrentUser() } returns emptyFlow()
+-      coEvery { userRepository.deleteMyData() } returns true
+-      val authRepository = mockk<AuthRepository>(relaxUnitFun = true)
++      runTest(testDispatcher) {
++        val userRepository = mockk<UserRepository>()
++        every { userRepository.observeCurrentUser() } returns emptyFlow()
++        coEvery { userRepository.deleteMyData() } returns true
++        val authRepository = mockk<AuthRepository>(relaxUnitFun = true)
+ 
+-      val viewModel = ProfileViewModel(signedInUser, authRepository, userRepository)
++        val viewModel = ProfileViewModel(signedInUser, authRepository, userRepository)
++        viewModel.deleteMyData()
++        advanceUntilIdle()
+ 
++        viewModel.uiState.value.dataDeletionFailed shouldBe false
++        coVerify(exactly = 1) { authRepository.logout() }
++      }
++    }
++
++    /**
++     * Without the `finally` in `logout`, a repository throw left `isLoggingOut` stuck at `true`:
++     * every control on the screen disabled, no message, and no way out short of killing the app.
++     */
++    test("a logout that throws clears the busy flag and surfaces the failure") {
+       runTest(testDispatcher) {
+-        viewModel.deleteMyData()
++        val userRepository = mockk<UserRepository>()
++        every { userRepository.observeCurrentUser() } returns emptyFlow()
++        val authRepository = mockk<AuthRepository>()
++        coEvery { authRepository.logout() } throws IllegalStateException("session gone")
++
++        val viewModel = ProfileViewModel(signedInUser, authRepository, userRepository)
++        viewModel.logout()
+         advanceUntilIdle()
++
++        viewModel.uiState.value.isLoggingOut shouldBe false
++        viewModel.uiState.value.logoutFailed shouldBe true
++        // The screen is usable again, so the user can retry.
++        viewModel.uiState.value.isBusy shouldBe false
+       }
++    }
++
++    test("navigateBack emits NavigateBack") {
++      runTest(testDispatcher) {
++        val userRepository = mockk<UserRepository>()
++        every { userRepository.observeCurrentUser() } returns emptyFlow()
+ 
+-      viewModel.uiState.value.dataDeletionFailed shouldBe false
+-      coVerify(exactly = 1) { authRepository.logout() }
++        val viewModel = ProfileViewModel(signedInUser, mockk(), userRepository)
++        viewModel.navigateBack()
++        advanceUntilIdle()
++
++        viewModel.effects.test {
++          awaitItem() shouldBe ProfileContract.Event.NavigateBack
++          cancelAndIgnoreRemainingEvents()
++        }
++      }
+     }
+   })
+diff --git a/feature/settings/build.gradle.kts b/feature/settings/build.gradle.kts
+index 3bdf91e..be7e217 100644
+--- a/feature/settings/build.gradle.kts
++++ b/feature/settings/build.gradle.kts
+@@ -17,6 +17,16 @@ kotlin {
+       implementation(libs.jetbrains.lifecycle.viewmodel)
+       implementation(libs.jetbrains.lifecycle.viewmodel.compose)
+       implementation(libs.kermit)
++      implementation(libs.compose.components.uiToolingPreview)
++    }
++
++    jvmTest.dependencies {
++      implementation(libs.kotest.framework.engine)
++      implementation(libs.kotest.assertions.core)
++      implementation(libs.kotest.runner.junit5.jvm)
++      implementation(libs.kotlinx.coroutines.test)
++      implementation(libs.mockk.core)
++      implementation(libs.turbine)
+     }
+   }
+ }
+diff --git a/feature/settings/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/feature/settings/ui/SettingsScreen.kt b/feature/settings/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/feature/settings/ui/SettingsScreen.kt
+index 1cd0930..135bc05 100644
+--- a/feature/settings/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/feature/settings/ui/SettingsScreen.kt
++++ b/feature/settings/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/feature/settings/ui/SettingsScreen.kt
+@@ -12,6 +12,7 @@ import androidx.compose.runtime.Composable
+ import androidx.compose.ui.Alignment
+ import androidx.compose.ui.Modifier
+ import androidx.compose.ui.unit.dp
++import com.sermilion.kmpcomposestarter.core.designsystem.theme.StarterTheme
+ import com.sermilion.kmpcomposestarter.feature.settings.viewmodel.SettingsContract
+ import kmpcomposestarter.feature.settings.generated.resources.Res
+ import kmpcomposestarter.feature.settings.generated.resources.settings_email_label
+@@ -19,16 +20,12 @@ import kmpcomposestarter.feature.settings.generated.resources.settings_placehold
+ import kmpcomposestarter.feature.settings.generated.resources.settings_screen_title
+ import kmpcomposestarter.feature.settings.generated.resources.settings_user_label
+ import org.jetbrains.compose.resources.stringResource
++import org.jetbrains.compose.ui.tooling.preview.Preview
+ 
+ @Composable
+-fun SettingsScreen(uiState: SettingsContract.UiState) {
+-  SettingsScreenContent(uiState = uiState)
+-}
+-
+-@Composable
+-private fun SettingsScreenContent(uiState: SettingsContract.UiState) {
++fun SettingsScreen(uiState: SettingsContract.UiState, modifier: Modifier = Modifier) {
+   Column(
+-    modifier = Modifier
++    modifier = modifier
+       .fillMaxSize()
+       .padding(24.dp),
+     horizontalAlignment = Alignment.CenterHorizontally,
+@@ -59,3 +56,23 @@ private fun SettingsScreenContent(uiState: SettingsContract.UiState) {
+     )
+   }
+ }
++
++private val sampleSettingsState = SettingsContract.UiState(
++  userName = "Ada Lovelace",
++  userEmail = "ada@example.com",
++)
++
++@Composable
++private fun SettingsScreenPreviewHost(darkTheme: Boolean) {
++  StarterTheme(darkTheme = darkTheme) {
++    SettingsScreen(uiState = sampleSettingsState)
++  }
++}
++
++@Preview
++@Composable
++private fun SettingsScreenLightPreview() = SettingsScreenPreviewHost(darkTheme = false)
++
++@Preview
++@Composable
++private fun SettingsScreenDarkPreview() = SettingsScreenPreviewHost(darkTheme = true)
+diff --git a/feature/settings/src/jvmTest/kotlin/com/sermilion/kmpcomposestarter/feature/settings/viewmodel/SettingsViewModelTest.kt b/feature/settings/src/jvmTest/kotlin/com/sermilion/kmpcomposestarter/feature/settings/viewmodel/SettingsViewModelTest.kt
+new file mode 100644
+index 0000000..dcbed97
+--- /dev/null
++++ b/feature/settings/src/jvmTest/kotlin/com/sermilion/kmpcomposestarter/feature/settings/viewmodel/SettingsViewModelTest.kt
+@@ -0,0 +1,18 @@
++package com.sermilion.kmpcomposestarter.feature.settings.viewmodel
++
++import com.sermilion.kmpcomposestarter.core.domain.model.UserData
++import io.kotest.core.spec.style.FunSpec
++import io.kotest.matchers.shouldBe
++
++class SettingsViewModelTest :
++  FunSpec({
++
++    test("the injected user seeds the screen state") {
++      val viewModel = SettingsViewModel(
++        UserData(id = "user-1", email = "ada@example.com", name = "Ada Lovelace"),
++      )
++
++      viewModel.uiState.value shouldBe
++        SettingsContract.UiState(userName = "Ada Lovelace", userEmail = "ada@example.com")
++    }
++  })
+diff --git a/gradle/libs.versions.toml b/gradle/libs.versions.toml
+index 0d48fc6..e79ad33 100644
+--- a/gradle/libs.versions.toml
++++ b/gradle/libs.versions.toml
+@@ -48,6 +48,7 @@ minSdk = "26"
+ room3 = "3.0.0-alpha01"
+ sqliteBundled = "2.6.2"
+ spotless = "7.2.1"
++turbine = "1.2.1"
+ kermit = "2.0.8"
+ junitVersion = "1.3.0"
+ 
+@@ -89,6 +90,7 @@ kotest-runner-junit5-jvm = { module = "io.kotest:kotest-runner-junit5-jvm", vers
+ mockk-core = { module = "io.mockk:mockk", version.ref = "mockk" }
+ mockk-android = { module = "io.mockk:mockk-android", version.ref = "mockk" }
+ okio = { module = "com.squareup.okio:okio", version.ref = "okio" }
++turbine = { module = "app.cash.turbine:turbine", version.ref = "turbine" }
+ 
+ ktor-client-core = { group = "io.ktor", name = "ktor-client-core", version.ref = "ktor" }
+ ktor-client-okhttp = { group = "io.ktor", name = "ktor-client-okhttp", version.ref = "ktor" }

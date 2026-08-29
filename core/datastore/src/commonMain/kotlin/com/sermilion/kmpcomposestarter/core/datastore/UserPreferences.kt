@@ -10,7 +10,9 @@ import kotlinx.serialization.Serializable
  * user's token, and no partial session can survive a crash mid-write.
  */
 @Serializable
-data class UserPreferences(val session: PersistedSession? = null)
+data class UserPreferences(
+  val session: PersistedSession? = null,
+)
 
 /** The signed-in user plus the credentials that authorize their requests. */
 @Serializable

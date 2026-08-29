@@ -5,27 +5,31 @@ import com.tschuchort.compiletesting.SourceFile
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldContain
+import org.jetbrains.kotlin.compiler.plugin.ExperimentalCompilerApi
 
+@OptIn(ExperimentalCompilerApi::class)
 private fun viewModelSource(body: String) = SourceFile.kotlin("TestViewModels.kt", body)
 
+@OptIn(ExperimentalCompilerApi::class)
 class ViewModelInjectProcessorTest :
   FunSpec({
 
     test("a plain ViewModel gets one entry bound into its scope") {
-      val result = compileWithProcessor(
-        viewModelSource(
-          """
-          package com.example.testapp
+      val result =
+        compileWithProcessor(
+          viewModelSource(
+            """
+            package com.example.testapp
 
-          import androidx.lifecycle.ViewModel
-          import com.example.testapp.di.ContributesViewModel
-          import software.amazon.lastmile.kotlin.inject.anvil.AppScope
+            import androidx.lifecycle.ViewModel
+            import com.example.testapp.di.ContributesViewModel
+            import software.amazon.lastmile.kotlin.inject.anvil.AppScope
 
-          @ContributesViewModel(AppScope::class)
-          class PlainViewModel : ViewModel()
-          """.trimIndent(),
-        ),
-      )
+            @ContributesViewModel(AppScope::class)
+            class PlainViewModel : ViewModel()
+            """.trimIndent(),
+          ),
+        )
 
       result.exitCode shouldBe KotlinCompilation.ExitCode.OK
 
@@ -33,25 +37,28 @@ class ViewModelInjectProcessorTest :
       generated shouldContain "AppScope::class"
       generated shouldContain "multibinding = true"
       generated shouldContain "savedStateHandleArgName: String? = null"
-      generated shouldContain "return create()"
+      // KotlinPoet collapses the single return into an expression body; asserting the emitted
+      // form keeps this pinned to "a no-arg ViewModel is constructed with no assisted args".
+      generated shouldContain "override fun create(args: AssistedArgs): ViewModel = create()"
     }
 
     test("an assisted arg is looked up under its constructor parameter name") {
-      val result = compileWithProcessor(
-        viewModelSource(
-          """
-          package com.example.testapp
+      val result =
+        compileWithProcessor(
+          viewModelSource(
+            """
+            package com.example.testapp
 
-          import androidx.lifecycle.ViewModel
-          import com.example.testapp.di.ContributesViewModel
-          import com.example.testapp.di.ScreenScope
-          import me.tatarka.inject.annotations.Assisted
+            import androidx.lifecycle.ViewModel
+            import com.example.testapp.di.ContributesViewModel
+            import com.example.testapp.di.ScreenScope
+            import me.tatarka.inject.annotations.Assisted
 
-          @ContributesViewModel(ScreenScope::class)
-          class DetailViewModel(@Assisted private val itemId: String) : ViewModel()
-          """.trimIndent(),
-        ),
-      )
+            @ContributesViewModel(ScreenScope::class)
+            class DetailViewModel(@Assisted private val itemId: String) : ViewModel()
+            """.trimIndent(),
+          ),
+        )
 
       result.exitCode shouldBe KotlinCompilation.ExitCode.OK
 
@@ -61,22 +68,23 @@ class ViewModelInjectProcessorTest :
     }
 
     test("a SavedStateHandle is published and read under its own parameter name") {
-      val result = compileWithProcessor(
-        viewModelSource(
-          """
-          package com.example.testapp
+      val result =
+        compileWithProcessor(
+          viewModelSource(
+            """
+            package com.example.testapp
 
-          import androidx.lifecycle.SavedStateHandle
-          import androidx.lifecycle.ViewModel
-          import com.example.testapp.di.ContributesViewModel
-          import com.example.testapp.di.ScreenScope
-          import me.tatarka.inject.annotations.Assisted
+            import androidx.lifecycle.SavedStateHandle
+            import androidx.lifecycle.ViewModel
+            import com.example.testapp.di.ContributesViewModel
+            import com.example.testapp.di.ScreenScope
+            import me.tatarka.inject.annotations.Assisted
 
-          @ContributesViewModel(ScreenScope::class)
-          class StatefulViewModel(@Assisted private val handle: SavedStateHandle) : ViewModel()
-          """.trimIndent(),
-        ),
-      )
+            @ContributesViewModel(ScreenScope::class)
+            class StatefulViewModel(@Assisted private val handle: SavedStateHandle) : ViewModel()
+            """.trimIndent(),
+          ),
+        )
 
       result.exitCode shouldBe KotlinCompilation.ExitCode.OK
 
@@ -86,42 +94,44 @@ class ViewModelInjectProcessorTest :
     }
 
     test("a SavedStateHandle that is not @Assisted fails the build") {
-      val result = compileWithProcessor(
-        viewModelSource(
-          """
-          package com.example.testapp
+      val result =
+        compileWithProcessor(
+          viewModelSource(
+            """
+            package com.example.testapp
 
-          import androidx.lifecycle.SavedStateHandle
-          import androidx.lifecycle.ViewModel
-          import com.example.testapp.di.ContributesViewModel
-          import com.example.testapp.di.ScreenScope
+            import androidx.lifecycle.SavedStateHandle
+            import androidx.lifecycle.ViewModel
+            import com.example.testapp.di.ContributesViewModel
+            import com.example.testapp.di.ScreenScope
 
-          @ContributesViewModel(ScreenScope::class)
-          class ImplicitStateViewModel(private val handle: SavedStateHandle) : ViewModel()
-          """.trimIndent(),
-        ),
-      )
+            @ContributesViewModel(ScreenScope::class)
+            class ImplicitStateViewModel(private val handle: SavedStateHandle) : ViewModel()
+            """.trimIndent(),
+          ),
+        )
 
       result.exitCode shouldBe KotlinCompilation.ExitCode.COMPILATION_ERROR
       result.messages shouldContain "must be annotated @Assisted"
     }
 
     test("an unknown scope fails the build instead of silently defaulting") {
-      val result = compileWithProcessor(
-        viewModelSource(
-          """
-          package com.example.testapp
+      val result =
+        compileWithProcessor(
+          viewModelSource(
+            """
+            package com.example.testapp
 
-          import androidx.lifecycle.ViewModel
-          import com.example.testapp.di.ContributesViewModel
+            import androidx.lifecycle.ViewModel
+            import com.example.testapp.di.ContributesViewModel
 
-          annotation class MysteryScope
+            annotation class MysteryScope
 
-          @ContributesViewModel(MysteryScope::class)
-          class MysteriousViewModel : ViewModel()
-          """.trimIndent(),
-        ),
-      )
+            @ContributesViewModel(MysteryScope::class)
+            class MysteriousViewModel : ViewModel()
+            """.trimIndent(),
+          ),
+        )
 
       result.exitCode shouldBe KotlinCompilation.ExitCode.COMPILATION_ERROR
       result.messages shouldContain "MysteryScope"
@@ -129,22 +139,23 @@ class ViewModelInjectProcessorTest :
     }
 
     test("a symbol that only resolves in a later round is deferred, not dropped") {
-      val result = compileWithProcessor(
-        viewModelSource(
-          """
-          package com.example.testapp
+      val result =
+        compileWithProcessor(
+          viewModelSource(
+            """
+            package com.example.testapp
 
-          import androidx.lifecycle.ViewModel
-          import com.example.testapp.di.ContributesViewModel
-          import com.example.testapp.di.ScreenScope
-          import me.tatarka.inject.annotations.Assisted
+            import androidx.lifecycle.ViewModel
+            import com.example.testapp.di.ContributesViewModel
+            import com.example.testapp.di.ScreenScope
+            import me.tatarka.inject.annotations.Assisted
 
-          @ContributesViewModel(ScreenScope::class)
-          class DeferredViewModel(@Assisted private val late: LateType) : ViewModel()
-          """.trimIndent(),
-        ),
-        extraProcessors = listOf(LateTypeProcessorProvider()),
-      )
+            @ContributesViewModel(ScreenScope::class)
+            class DeferredViewModel(@Assisted private val late: LateType) : ViewModel()
+            """.trimIndent(),
+          ),
+          extraProcessors = listOf(LateTypeProcessorProvider()),
+        )
 
       result.exitCode shouldBe KotlinCompilation.ExitCode.OK
       result.generatedSource("DeferredViewModel_Entry.kt") shouldContain """args["late"]"""
@@ -152,21 +163,22 @@ class ViewModelInjectProcessorTest :
 
     test("the processor honours a non-default di.package option") {
       val diPackage = "com.other.project.wiring"
-      val result = compileWithProcessor(
-        viewModelSource(
-          """
-          package com.example.testapp
+      val result =
+        compileWithProcessor(
+          viewModelSource(
+            """
+            package com.example.testapp
 
-          import androidx.lifecycle.ViewModel
-          import com.other.project.wiring.ContributesViewModel
-          import software.amazon.lastmile.kotlin.inject.anvil.AppScope
+            import androidx.lifecycle.ViewModel
+            import com.other.project.wiring.ContributesViewModel
+            import software.amazon.lastmile.kotlin.inject.anvil.AppScope
 
-          @ContributesViewModel(AppScope::class)
-          class RelocatedViewModel : ViewModel()
-          """.trimIndent(),
-        ),
-        diPackage = diPackage,
-      )
+            @ContributesViewModel(AppScope::class)
+            class RelocatedViewModel : ViewModel()
+            """.trimIndent(),
+          ),
+          diPackage = diPackage,
+        )
 
       result.exitCode shouldBe KotlinCompilation.ExitCode.OK
       result.generatedSource("RelocatedViewModel_Entry.kt") shouldContain

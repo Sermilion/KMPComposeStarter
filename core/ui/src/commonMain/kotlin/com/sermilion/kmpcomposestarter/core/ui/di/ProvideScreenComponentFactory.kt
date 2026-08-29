@@ -13,9 +13,10 @@ fun ProvideScreenComponentFactory(content: @Composable () -> Unit) {
   val userComponentManager = LocalUserComponentManager.current
   val userComponent by userComponentManager.userComponentFlow.collectAsState()
 
-  val factory: (() -> ScreenComponentProvider)? = remember(userComponent) {
-    userComponent?.let { component -> { component.screenComponentFactory.create() } }
-  }
+  val factory: (() -> ScreenComponentProvider)? =
+    remember(userComponent) {
+      userComponent?.let { component -> { component.screenComponentFactory.create() } }
+    }
 
   CompositionLocalProvider(LocalScreenComponentFactory provides factory) {
     content()

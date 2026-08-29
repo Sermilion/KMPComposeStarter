@@ -37,7 +37,6 @@ class ViewModelInjectProcessor(
   private val logger: KSPLogger,
   private val diPackage: String,
 ) : SymbolProcessor {
-
   private companion object {
     const val VIEW_MODEL_CLASS = "androidx.lifecycle.ViewModel"
     const val SAVED_STATE_HANDLE_CLASS = "androidx.lifecycle.SavedStateHandle"
@@ -53,17 +52,19 @@ class ViewModelInjectProcessor(
   private val injectClass = ClassName("me.tatarka.inject.annotations", "Inject")
   private val contributesBindingClass = ClassName(ANVIL_PACKAGE, "ContributesBinding")
 
-  private val scopesByQualifiedName = mapOf(
-    APP_SCOPE_CLASS to ClassName(ANVIL_PACKAGE, "AppScope"),
-    "$diPackage.UserScope" to ClassName(diPackage, "UserScope"),
-    "$diPackage.ScreenScope" to ClassName(diPackage, "ScreenScope"),
-  )
+  private val scopesByQualifiedName =
+    mapOf(
+      APP_SCOPE_CLASS to ClassName(ANVIL_PACKAGE, "AppScope"),
+      "$diPackage.UserScope" to ClassName(diPackage, "UserScope"),
+      "$diPackage.ScreenScope" to ClassName(diPackage, "ScreenScope"),
+    )
 
   override fun process(resolver: Resolver): List<KSAnnotated> {
-    val symbols = resolver
-      .getSymbolsWithAnnotation(contributesViewModelAnnotation)
-      .filterIsInstance<KSClassDeclaration>()
-      .toList()
+    val symbols =
+      resolver
+        .getSymbolsWithAnnotation(contributesViewModelAnnotation)
+        .filterIsInstance<KSClassDeclaration>()
+        .toList()
 
     // Symbols that do not resolve yet depend on code another processor has still to emit; hand
     // them back so KSP retries them in a later round instead of failing on a half-built graph.
@@ -78,65 +79,103 @@ class ViewModelInjectProcessor(
     val viewModelClassName = classDeclaration.toClassName()
     val viewModelSimpleName = viewModelClassName.simpleName
 
+    val scopeClassName = resolveEntryScope(classDeclaration, viewModelSimpleName) ?: return
+    val assistedParams = resolveAssistedParams(classDeclaration, viewModelSimpleName) ?: return
+
+    writeEntryFile(classDeclaration, viewModelClassName, scopeClassName, assistedParams)
+  }
+
+  private fun resolveEntryScope(
+    classDeclaration: KSClassDeclaration,
+    viewModelSimpleName: String,
+  ): ClassName? {
     if (!isSubtypeOfViewModel(classDeclaration)) {
       logger.error(
         "@ContributesViewModel can only be applied to classes extending $VIEW_MODEL_CLASS. " +
           "$viewModelSimpleName does not extend ViewModel.",
         classDeclaration,
       )
-      return
+      return null
     }
+    return resolveScope(classDeclaration)
+  }
 
-    val scopeClassName = resolveScope(classDeclaration) ?: return
+  /**
+   * The named `@Assisted` constructor parameters, or null once the first problem has been reported.
+   * Reporting stops at the first problem so a single mistake produces a single message.
+   */
+  private fun resolveAssistedParams(
+    classDeclaration: KSClassDeclaration,
+    viewModelSimpleName: String,
+  ): List<Pair<String, KSValueParameter>>? {
+    val parameters = classDeclaration.primaryConstructor?.parameters
+    val assistedParams = parameters.orEmpty().filter(::isAssisted)
+    val namedAssistedParams =
+      assistedParams.mapNotNull { parameter ->
+        parameter.name?.asString()?.let { name -> name to parameter }
+      }
 
-    val constructor = classDeclaration.primaryConstructor
-    if (constructor == null) {
-      logger.error("No primary constructor found for $viewModelSimpleName", classDeclaration)
-      return
+    val error =
+      assistedParamsError(
+        parameters = parameters,
+        viewModelSimpleName = viewModelSimpleName,
+        assistedCount = assistedParams.size,
+        namedCount = namedAssistedParams.size,
+      )
+    if (error != null) {
+      logger.error(error, classDeclaration)
+      return null
     }
+    return namedAssistedParams
+  }
 
-    val assistedParams = constructor.parameters.filter(::isAssisted)
-    val unmarkedSavedStateHandle = constructor.parameters.firstOrNull { parameter ->
-      !isAssisted(parameter) && qualifiedTypeName(parameter) == SAVED_STATE_HANDLE_CLASS
-    }
-    if (unmarkedSavedStateHandle != null) {
-      logger.error(
+  private fun assistedParamsError(
+    parameters: List<KSValueParameter>?,
+    viewModelSimpleName: String,
+    assistedCount: Int,
+    namedCount: Int,
+  ): String? {
+    val unmarkedSavedStateHandle =
+      parameters?.firstOrNull { parameter ->
+        !isAssisted(parameter) && qualifiedTypeName(parameter) == SAVED_STATE_HANDLE_CLASS
+      }
+    return when {
+      parameters == null -> "No primary constructor found for $viewModelSimpleName"
+      unmarkedSavedStateHandle != null ->
         "SavedStateHandle parameter '${unmarkedSavedStateHandle.name?.asString()}' of " +
-          "$viewModelSimpleName must be annotated @Assisted.",
-        classDeclaration,
-      )
-      return
+          "$viewModelSimpleName must be annotated @Assisted."
+      namedCount != assistedCount ->
+        "Every @Assisted parameter of $viewModelSimpleName must have a name."
+      else -> null
     }
+  }
 
-    val namedAssistedParams = assistedParams.mapNotNull { parameter ->
-      parameter.name?.asString()?.let { name -> name to parameter }
-    }
-    if (namedAssistedParams.size != assistedParams.size) {
-      logger.error(
-        "Every @Assisted parameter of $viewModelSimpleName must have a name.",
-        classDeclaration,
-      )
-      return
-    }
-
-    val fileSpec = FileSpec
-      .builder(viewModelClassName.packageName, "${viewModelSimpleName}_Entry")
-      .addType(
-        buildEntryType(
-          entryName = "${viewModelSimpleName}_Entry",
-          viewModelClassName = viewModelClassName,
-          scopeClassName = scopeClassName,
-          assistedParams = namedAssistedParams,
-        ),
-      )
-      .build()
+  private fun writeEntryFile(
+    classDeclaration: KSClassDeclaration,
+    viewModelClassName: ClassName,
+    scopeClassName: ClassName,
+    assistedParams: List<Pair<String, KSValueParameter>>,
+  ) {
+    val entryName = "${viewModelClassName.simpleName}_Entry"
+    val fileSpec =
+      FileSpec
+        .builder(viewModelClassName.packageName, entryName)
+        .addType(
+          buildEntryType(
+            entryName = entryName,
+            viewModelClassName = viewModelClassName,
+            scopeClassName = scopeClassName,
+            assistedParams = assistedParams,
+          ),
+        ).build()
 
     val containingFile = classDeclaration.containingFile
-    val dependencies = if (containingFile == null) {
-      Dependencies(aggregating = false)
-    } else {
-      Dependencies(aggregating = false, containingFile)
-    }
+    val dependencies =
+      if (containingFile == null) {
+        Dependencies(aggregating = false)
+      } else {
+        Dependencies(aggregating = false, containingFile)
+      }
     fileSpec.writeTo(codeGenerator, dependencies)
   }
 
@@ -146,48 +185,50 @@ class ViewModelInjectProcessor(
     scopeClassName: ClassName,
     assistedParams: List<Pair<String, KSValueParameter>>,
   ): TypeSpec {
-    val assistedTypes = assistedParams
-      .map { (_, parameter) -> parameter.type.toTypeName() }
-      .toTypedArray()
-    val functionType = LambdaTypeName.get(
-      parameters = assistedTypes,
-      returnType = viewModelClassName,
-    )
-    val savedStateHandleArgName = assistedParams
-      .firstOrNull { (_, parameter) -> qualifiedTypeName(parameter) == SAVED_STATE_HANDLE_CLASS }
-      ?.first
+    val assistedTypes =
+      assistedParams
+        .map { (_, parameter) -> parameter.type.toTypeName() }
+        .toTypedArray()
+    val functionType =
+      LambdaTypeName.get(
+        parameters = assistedTypes,
+        returnType = viewModelClassName,
+      )
+    val savedStateHandleArgName =
+      assistedParams
+        .firstOrNull { (_, parameter) -> qualifiedTypeName(parameter) == SAVED_STATE_HANDLE_CLASS }
+        ?.first
 
-    return TypeSpec.classBuilder(entryName)
+    return TypeSpec
+      .classBuilder(entryName)
       .addAnnotation(injectClass)
       .addAnnotation(
-        AnnotationSpec.builder(contributesBindingClass)
+        AnnotationSpec
+          .builder(contributesBindingClass)
           .addMember("%T::class", scopeClassName)
           .addMember("multibinding = true")
           .build(),
-      )
-      .addSuperinterface(viewModelEntryClass)
+      ).addSuperinterface(viewModelEntryClass)
       .primaryConstructor(
-        FunSpec.constructorBuilder()
+        FunSpec
+          .constructorBuilder()
           .addParameter(ParameterSpec.builder("create", functionType).build())
           .build(),
-      )
-      .addProperty(
-        PropertySpec.builder("create", functionType, KModifier.PRIVATE)
+      ).addProperty(
+        PropertySpec
+          .builder("create", functionType, KModifier.PRIVATE)
           .initializer("create")
           .build(),
-      )
-      .addProperty(
+      ).addProperty(
         PropertySpec
           .builder(
             "kclass",
             ClassName("kotlin.reflect", "KClass")
               .parameterizedBy(WildcardTypeName.producerOf(viewModelClass)),
-          )
-          .addModifiers(KModifier.OVERRIDE)
+          ).addModifiers(KModifier.OVERRIDE)
           .initializer("%T::class", viewModelClassName)
           .build(),
-      )
-      .addProperty(
+      ).addProperty(
         PropertySpec
           .builder("savedStateHandleArgName", STRING_NULLABLE)
           .addModifiers(KModifier.OVERRIDE)
@@ -197,23 +238,22 @@ class ViewModelInjectProcessor(
             } else {
               initializer("%S", savedStateHandleArgName)
             }
-          }
-          .build(),
-      )
-      .addFunction(
+          }.build(),
+      ).addFunction(
         buildCreateFunction(viewModelClassName.simpleName, assistedParams),
-      )
-      .build()
+      ).build()
   }
 
   private fun buildCreateFunction(
     viewModelSimpleName: String,
     assistedParams: List<Pair<String, KSValueParameter>>,
   ): FunSpec {
-    val builder = FunSpec.builder("create")
-      .addModifiers(KModifier.OVERRIDE)
-      .addParameter("args", assistedArgsClass)
-      .returns(viewModelClass)
+    val builder =
+      FunSpec
+        .builder("create")
+        .addModifiers(KModifier.OVERRIDE)
+        .addParameter("args", assistedArgsClass)
+        .returns(viewModelClass)
 
     if (assistedParams.isEmpty()) {
       return builder.addStatement("return create()").build()
@@ -235,11 +275,12 @@ class ViewModelInjectProcessor(
   }
 
   private fun resolveScope(classDeclaration: KSClassDeclaration): ClassName? {
-    val scopeArgument = classDeclaration.annotations
-      .firstOrNull { it.shortName.asString() == "ContributesViewModel" }
-      ?.arguments
-      ?.firstOrNull()
-      ?.value as? KSType
+    val scopeArgument =
+      classDeclaration.annotations
+        .firstOrNull { it.shortName.asString() == "ContributesViewModel" }
+        ?.arguments
+        ?.firstOrNull()
+        ?.value as? KSType
     val scopeQualifiedName = scopeArgument?.declaration?.qualifiedName?.asString()
 
     return scopesByQualifiedName[scopeQualifiedName] ?: run {
@@ -254,12 +295,18 @@ class ViewModelInjectProcessor(
 
   private fun isAssisted(parameter: KSValueParameter): Boolean =
     parameter.annotations.any { annotation ->
-      annotation.annotationType.resolve().declaration.qualifiedName?.asString() ==
+      annotation.annotationType
+        .resolve()
+        .declaration.qualifiedName
+        ?.asString() ==
         ASSISTED_ANNOTATION
     }
 
   private fun qualifiedTypeName(parameter: KSValueParameter): String? =
-    parameter.type.resolve().declaration.qualifiedName?.asString()
+    parameter.type
+      .resolve()
+      .declaration.qualifiedName
+      ?.asString()
 
   private fun isSubtypeOfViewModel(declaration: KSDeclaration): Boolean {
     if (declaration.qualifiedName?.asString() == VIEW_MODEL_CLASS) return true

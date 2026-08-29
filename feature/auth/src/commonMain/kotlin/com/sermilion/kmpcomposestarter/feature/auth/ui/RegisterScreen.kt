@@ -54,11 +54,12 @@ fun RegisterScreen(
   modifier: Modifier = Modifier,
 ) {
   Column(
-    modifier = modifier
-      .fillMaxSize()
-      .imePadding()
-      .verticalScroll(rememberScrollState())
-      .padding(24.dp),
+    modifier =
+      modifier
+        .fillMaxSize()
+        .imePadding()
+        .verticalScroll(rememberScrollState())
+        .padding(24.dp),
     horizontalAlignment = Alignment.CenterHorizontally,
     verticalArrangement = Arrangement.Center,
   ) {
@@ -132,13 +133,14 @@ private fun RegisterFormFields(
 }
 
 @Composable
-private fun RegisterContract.Error.message(): String = stringResource(
-  when (this) {
-    RegisterContract.Error.RegistrationFailed -> Res.string.register_error_registration_failed
-    RegisterContract.Error.Network -> Res.string.register_error_network
-    RegisterContract.Error.Unknown -> Res.string.register_error_unknown
-  },
-)
+private fun RegisterContract.Error.message(): String =
+  stringResource(
+    when (this) {
+      RegisterContract.Error.RegistrationFailed -> Res.string.register_error_registration_failed
+      RegisterContract.Error.Network -> Res.string.register_error_network
+      RegisterContract.Error.Unknown -> Res.string.register_error_unknown
+    },
+  )
 
 @Composable
 private fun RegisterButtons(
@@ -151,13 +153,17 @@ private fun RegisterButtons(
     Button(
       onClick = onRegisterClick,
       modifier = Modifier.fillMaxWidth(),
-      enabled = !uiState.isLoading &&
-        uiState.name.isNotBlank() &&
-        uiState.email.isNotBlank() &&
-        uiState.password.isNotBlank(),
+      enabled =
+        !uiState.isLoading &&
+          uiState.name.isNotBlank() &&
+          uiState.email.isNotBlank() &&
+          uiState.password.isNotBlank(),
     ) {
       if (uiState.isLoading) {
-        ButtonBusyIndicator(stateDescription = stringResource(Res.string.register_busy_description))
+        ButtonBusyIndicator(
+          label = stringResource(Res.string.register_button_create_account),
+          stateDescription = stringResource(Res.string.register_busy_description),
+        )
       } else {
         Text(stringResource(Res.string.register_button_create_account))
       }
@@ -181,14 +187,18 @@ private fun RegisterButtons(
   }
 }
 
-private val filledRegisterState = RegisterContract.UiState(
-  name = "Ada Lovelace",
-  email = "ada@example.com",
-  password = "correct-horse",
-)
+private val filledRegisterState =
+  RegisterContract.UiState(
+    name = "Ada Lovelace",
+    email = "ada@example.com",
+    password = "correct-horse",
+  )
 
 @Composable
-private fun RegisterScreenPreviewHost(darkTheme: Boolean, uiState: RegisterContract.UiState) {
+private fun RegisterScreenPreviewHost(
+  darkTheme: Boolean,
+  uiState: RegisterContract.UiState,
+) {
   StarterTheme(darkTheme = darkTheme) {
     RegisterScreen(
       uiState = uiState,
@@ -204,27 +214,28 @@ private fun RegisterScreenPreviewHost(darkTheme: Boolean, uiState: RegisterContr
 
 @Preview
 @Composable
-private fun RegisterScreenEmptyPreview() =
+internal fun RegisterScreenEmptyPreview() =
   RegisterScreenPreviewHost(darkTheme = false, uiState = RegisterContract.UiState())
 
 @Preview
 @Composable
-private fun RegisterScreenLightPreview() =
+internal fun RegisterScreenLightPreview() =
   RegisterScreenPreviewHost(darkTheme = false, uiState = filledRegisterState)
 
 @Preview
 @Composable
-private fun RegisterScreenDarkPreview() =
+internal fun RegisterScreenDarkPreview() =
   RegisterScreenPreviewHost(darkTheme = true, uiState = filledRegisterState)
 
 @Preview
 @Composable
-private fun RegisterScreenLoadingPreview() =
+internal fun RegisterScreenLoadingPreview() =
   RegisterScreenPreviewHost(darkTheme = true, uiState = filledRegisterState.copy(isLoading = true))
 
 @Preview
 @Composable
-private fun RegisterScreenErrorPreview() = RegisterScreenPreviewHost(
-  darkTheme = false,
-  uiState = filledRegisterState.copy(error = RegisterContract.Error.RegistrationFailed),
-)
+internal fun RegisterScreenErrorPreview() =
+  RegisterScreenPreviewHost(
+    darkTheme = false,
+    uiState = filledRegisterState.copy(error = RegisterContract.Error.RegistrationFailed),
+  )

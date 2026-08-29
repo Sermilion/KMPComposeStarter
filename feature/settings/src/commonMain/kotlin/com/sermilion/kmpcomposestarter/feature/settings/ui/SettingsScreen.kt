@@ -23,11 +23,15 @@ import org.jetbrains.compose.resources.stringResource
 import org.jetbrains.compose.ui.tooling.preview.Preview
 
 @Composable
-fun SettingsScreen(uiState: SettingsContract.UiState, modifier: Modifier = Modifier) {
+fun SettingsScreen(
+  uiState: SettingsContract.UiState,
+  modifier: Modifier = Modifier,
+) {
   Column(
-    modifier = modifier
-      .fillMaxSize()
-      .padding(24.dp),
+    modifier =
+      modifier
+        .fillMaxSize()
+        .padding(24.dp),
     horizontalAlignment = Alignment.CenterHorizontally,
     verticalArrangement = Arrangement.Center,
   ) {
@@ -57,10 +61,11 @@ fun SettingsScreen(uiState: SettingsContract.UiState, modifier: Modifier = Modif
   }
 }
 
-private val sampleSettingsState = SettingsContract.UiState(
-  userName = "Ada Lovelace",
-  userEmail = "ada@example.com",
-)
+private val sampleSettingsState =
+  SettingsContract.UiState(
+    userName = "Ada Lovelace",
+    userEmail = "ada@example.com",
+  )
 
 @Composable
 private fun SettingsScreenPreviewHost(darkTheme: Boolean) {
@@ -71,8 +76,8 @@ private fun SettingsScreenPreviewHost(darkTheme: Boolean) {
 
 @Preview
 @Composable
-private fun SettingsScreenLightPreview() = SettingsScreenPreviewHost(darkTheme = false)
+internal fun SettingsScreenLightPreview() = SettingsScreenPreviewHost(darkTheme = false)
 
 @Preview
 @Composable
-private fun SettingsScreenDarkPreview() = SettingsScreenPreviewHost(darkTheme = true)
+internal fun SettingsScreenDarkPreview() = SettingsScreenPreviewHost(darkTheme = true)

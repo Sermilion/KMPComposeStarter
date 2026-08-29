@@ -12,4 +12,6 @@ import kotlinx.serialization.Serializable
  * route — `StarterNavigator.navigate` rejects those.
  */
 @Serializable
-data class DetailRoute(val id: String) : TopLevelRoute
+data class DetailRoute(
+  val id: String,
+) : TopLevelRoute

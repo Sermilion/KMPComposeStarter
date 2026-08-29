@@ -11,16 +11,18 @@ import okio.Path
 import okio.Path.Companion.toOkioPath
 import java.nio.file.Files
 
-private val storedSession = PersistedSession(
-  userId = "user-a",
-  email = "a@test.com",
-  name = "User A",
-  token = PersistedToken(
-    accessToken = "access-a",
-    refreshToken = "refresh-a",
-    expiresAtEpochMillis = 1_234L,
-  ),
-)
+private val storedSession =
+  PersistedSession(
+    userId = "user-a",
+    email = "a@test.com",
+    name = "User A",
+    token =
+      PersistedToken(
+        accessToken = "access-a",
+        refreshToken = "refresh-a",
+        expiresAtEpochMillis = 1_234L,
+      ),
+  )
 
 class UserPreferencesDataStoreTest :
   FunSpec({
