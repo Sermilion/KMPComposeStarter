@@ -1,0 +1,140 @@
+24
+shared-review-evidence/1
+8061
+diff --git a/core/data/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/core/data/db/DatabaseProvider.kt b/core/data/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/core/data/db/DatabaseProvider.kt
+index c0d33fe..3c6b3bb 100644
+--- a/core/data/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/core/data/db/DatabaseProvider.kt
++++ b/core/data/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/core/data/db/DatabaseProvider.kt
+@@ -14,6 +14,11 @@ interface DatabaseProvider {
+   /**
+    * Closes [userId]'s database and removes its files, sidecars included. Returns whether every
+    * file is gone; callers must not ignore a `false`, which means user data survived a deletion.
++   *
++   * The close happens before any file is touched and the instance is never reopened, so this call
++   * is terminal for the session's data reads whichever way it returns. On `false` the session
++   * stays signed in — reporting success over surviving data would be worse — but it can no longer
++   * read its own database, and callers must not treat it as if it could.
+    */
+   fun deleteDatabaseForUser(userId: String): Boolean
+ }
+diff --git a/core/data/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/core/data/db/room/StarterRoomDatabaseProvider.kt b/core/data/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/core/data/db/room/StarterRoomDatabaseProvider.kt
+index 94bf12c..e8e9df1 100644
+--- a/core/data/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/core/data/db/room/StarterRoomDatabaseProvider.kt
++++ b/core/data/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/core/data/db/room/StarterRoomDatabaseProvider.kt
+@@ -45,6 +45,10 @@ class StarterRoomDatabaseProvider(
+ 
+   override fun deleteDatabaseForUser(userId: String): Boolean {
+     val databaseFileName = userDatabaseFileName(userId)
++    // Closed before the files are touched: deleting a file an open connection still holds either
++    // fails outright or leaves that connection writing to an orphaned inode. The already-handed-out
++    // instance cannot be un-closed, which is what makes a failed deletion terminal for this
++    // session's reads rather than something the caller can retry into a working state.
+     synchronized(cacheLock) { databaseCache.remove(databaseFileName) }?.close()
+ 
+     val deleted = builderFactory.deleteDatabaseFile(databaseFileName)
+diff --git a/core/data/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/core/data/repository/StarterUserRepository.kt b/core/data/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/core/data/repository/StarterUserRepository.kt
+index 6594a6b..f354618 100644
+--- a/core/data/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/core/data/repository/StarterUserRepository.kt
++++ b/core/data/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/core/data/repository/StarterUserRepository.kt
+@@ -36,6 +36,13 @@ class StarterUserRepository(
+     userDao.insertUser(user.toLocalDataModel(createdAt = storedCreatedAt ?: Clock.System.now()))
+   }
+ 
++  /**
++   * Erases this session's database. Returns whether every file is gone.
++   *
++   * Terminal either way: the database is closed before deletion is attempted and this session's
++   * handle is never reopened, so a `false` leaves the user signed in with data still on disk that
++   * this session can no longer read. Callers report that failure; they must not sign out on it.
++   */
+   override suspend fun deleteMyData(): Boolean = withContext(dispatcherProvider.io) {
+     databaseProvider.deleteDatabaseForUser(userData.id)
+   }
+diff --git a/docs/architecture/persistence.md b/docs/architecture/persistence.md
+index a9fb5a1..4198a04 100644
+--- a/docs/architecture/persistence.md
++++ b/docs/architecture/persistence.md
+@@ -38,6 +38,15 @@ write-ahead log, so deleting only the main file would leave them recoverable. It
+ every file is gone; callers must not discard that result. `StarterUserRepository.deleteMyData()`
+ surfaces it, and the Profile screen refuses to report success on a `false`.
+ 
++The call is **terminal for the session's data reads whichever way it returns**. The database has to
++be closed before the files are touched — deleting a file an open connection still holds either
++fails outright or leaves that connection writing to an orphaned inode — and the instance handed to
++the session's `UserDatabase` and `StarterUserDao` cannot be un-closed. So a failed deletion leaves
++the user signed in with data still on disk that this session can no longer read. That is the
++deliberate trade: signing the user out would claim the data is gone, and retrying into a working
++handle is not something the caller can do. Profile stops following the stored row, keeps the values
++already on screen, and reports the failure; the next sign-in opens a fresh database.
++
+ ### Migrations
+ 
+ Every schema change bumps `UserDatabase`'s version, ships a numbered `Migration` registered on
+diff --git a/feature/profile/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/feature/profile/viewmodel/ProfileViewModel.kt b/feature/profile/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/feature/profile/viewmodel/ProfileViewModel.kt
+index e604a65..c0b3f0d 100644
+--- a/feature/profile/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/feature/profile/viewmodel/ProfileViewModel.kt
++++ b/feature/profile/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/feature/profile/viewmodel/ProfileViewModel.kt
+@@ -2,6 +2,7 @@ package com.sermilion.kmpcomposestarter.feature.profile.viewmodel
+ 
+ import androidx.lifecycle.ViewModel
+ import androidx.lifecycle.viewModelScope
++import co.touchlab.kermit.Logger
+ import com.sermilion.kmpcomposestarter.common.di.ContributesViewModel
+ import com.sermilion.kmpcomposestarter.common.di.ScreenScope
+ import com.sermilion.kmpcomposestarter.core.domain.model.UserData
+@@ -13,6 +14,7 @@ import kotlinx.coroutines.flow.SharedFlow
+ import kotlinx.coroutines.flow.StateFlow
+ import kotlinx.coroutines.flow.asSharedFlow
+ import kotlinx.coroutines.flow.asStateFlow
++import kotlinx.coroutines.flow.catch
+ import kotlinx.coroutines.flow.update
+ import kotlinx.coroutines.launch
+ import me.tatarka.inject.annotations.Inject
+@@ -41,13 +43,21 @@ class ProfileViewModel(
+     // The sign-in response seeds the screen so it is never blank, but the stored row is what it
+     // follows: a profile edited elsewhere in the session shows up here without a re-login.
+     viewModelScope.launch {
+-      userRepository.observeCurrentUser().collect { stored ->
+-        if (stored != null) {
+-          _uiState.update {
+-            it.copy(userName = stored.name, userEmail = stored.email, userId = stored.id)
++      userRepository.observeCurrentUser()
++        .catch { error ->
++          // Delete-my-data closes this session's database before it touches the files, so a
++          // failed deletion leaves the row unreadable for the rest of the session. Stop
++          // following it and keep what is already on screen: a stale profile is a better
++          // answer than taking the session down with an unhandled read failure.
++          Logger.w("ProfileViewModel", error) { "Stopped following the stored user row." }
++        }
++        .collect { stored ->
++          if (stored != null) {
++            _uiState.update {
++              it.copy(userName = stored.name, userEmail = stored.email, userId = stored.id)
++            }
+           }
+         }
+-      }
+     }
+   }
+ 
+@@ -72,7 +82,9 @@ class ProfileViewModel(
+    * so staying signed in would leave the screen reading a file that no longer exists.
+    *
+    * A failed deletion does not sign out. Reporting success while the data is still on disk is
+-   * the one outcome a delete-my-data control must never produce.
++   * the one outcome a delete-my-data control must never produce. The session survives it, but
++   * its database handle does not: the screen reports the failure and keeps the values it
++   * already has, because nothing in this session can read that row again.
+    */
+   fun deleteMyData() {
+     if (_uiState.value.isBusy) return
+40
+c6d67436e78a6e271fc21fd04e89d65316d19775
+40
+d8b5f855ba5bc39a250369f7e5299e8334dee5d7
+23
+SYNTHETIC_SUPPLIED_DIFF
+23
+non-commit review scope
+1
+0

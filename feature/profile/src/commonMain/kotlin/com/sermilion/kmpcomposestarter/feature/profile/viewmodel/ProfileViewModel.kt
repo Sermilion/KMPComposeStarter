@@ -2,6 +2,7 @@ package com.sermilion.kmpcomposestarter.feature.profile.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import co.touchlab.kermit.Logger
 import com.sermilion.kmpcomposestarter.common.di.ContributesViewModel
 import com.sermilion.kmpcomposestarter.common.di.ScreenScope
 import com.sermilion.kmpcomposestarter.core.domain.model.UserData
@@ -13,6 +14,7 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import me.tatarka.inject.annotations.Inject
@@ -41,13 +43,21 @@ class ProfileViewModel(
     // The sign-in response seeds the screen so it is never blank, but the stored row is what it
     // follows: a profile edited elsewhere in the session shows up here without a re-login.
     viewModelScope.launch {
-      userRepository.observeCurrentUser().collect { stored ->
-        if (stored != null) {
-          _uiState.update {
-            it.copy(userName = stored.name, userEmail = stored.email, userId = stored.id)
+      userRepository.observeCurrentUser()
+        .catch { error ->
+          // Delete-my-data closes this session's database before it touches the files, so a
+          // failed deletion leaves the row unreadable for the rest of the session. Stop
+          // following it and keep what is already on screen: a stale profile is a better
+          // answer than taking the session down with an unhandled read failure.
+          Logger.w("ProfileViewModel", error) { "Stopped following the stored user row." }
+        }
+        .collect { stored ->
+          if (stored != null) {
+            _uiState.update {
+              it.copy(userName = stored.name, userEmail = stored.email, userId = stored.id)
+            }
           }
         }
-      }
     }
   }
 
@@ -72,7 +82,9 @@ class ProfileViewModel(
    * so staying signed in would leave the screen reading a file that no longer exists.
    *
    * A failed deletion does not sign out. Reporting success while the data is still on disk is
-   * the one outcome a delete-my-data control must never produce.
+   * the one outcome a delete-my-data control must never produce. The session survives it, but
+   * its database handle does not: the screen reports the failure and keeps the values it
+   * already has, because nothing in this session can read that row again.
    */
   fun deleteMyData() {
     if (_uiState.value.isBusy) return

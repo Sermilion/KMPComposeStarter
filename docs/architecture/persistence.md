@@ -38,6 +38,15 @@ write-ahead log, so deleting only the main file would leave them recoverable. It
 every file is gone; callers must not discard that result. `StarterUserRepository.deleteMyData()`
 surfaces it, and the Profile screen refuses to report success on a `false`.
 
+The call is **terminal for the session's data reads whichever way it returns**. The database has to
+be closed before the files are touched — deleting a file an open connection still holds either
+fails outright or leaves that connection writing to an orphaned inode — and the instance handed to
+the session's `UserDatabase` and `StarterUserDao` cannot be un-closed. So a failed deletion leaves
+the user signed in with data still on disk that this session can no longer read. That is the
+deliberate trade: signing the user out would claim the data is gone, and retrying into a working
+handle is not something the caller can do. Profile stops following the stored row, keeps the values
+already on screen, and reports the failure; the next sign-in opens a fresh database.
+
 ### Migrations
 
 Every schema change bumps `UserDatabase`'s version, ships a numbered `Migration` registered on

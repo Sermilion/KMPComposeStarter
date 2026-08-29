@@ -36,6 +36,13 @@ class StarterUserRepository(
     userDao.insertUser(user.toLocalDataModel(createdAt = storedCreatedAt ?: Clock.System.now()))
   }
 
+  /**
+   * Erases this session's database. Returns whether every file is gone.
+   *
+   * Terminal either way: the database is closed before deletion is attempted and this session's
+   * handle is never reopened, so a `false` leaves the user signed in with data still on disk that
+   * this session can no longer read. Callers report that failure; they must not sign out on it.
+   */
   override suspend fun deleteMyData(): Boolean = withContext(dispatcherProvider.io) {
     databaseProvider.deleteDatabaseForUser(userData.id)
   }
