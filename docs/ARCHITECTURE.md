@@ -78,7 +78,9 @@ Read: `docs/architecture/build-and-tooling.md`
 ### Conventions
 
 - Reusable starter-safe contribution rules
-- State hoisting and preview guidance
+- State hoisting, `Modifier`, lifecycle-aware collection and preview guidance
+- The single `Channel`-backed `Effect` idiom for one-off events
+- The `StarterTheme` contract: complete light/dark schemes, `dynamicColor`, measured contrast
 - Repository and source-of-truth rules
 - Networking, base URL, and credential-handling rules
 - Documentation update expectations

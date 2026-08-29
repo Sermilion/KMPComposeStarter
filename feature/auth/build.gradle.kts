@@ -17,6 +17,7 @@ kotlin {
       implementation(libs.jetbrains.lifecycle.viewmodel)
       implementation(libs.jetbrains.lifecycle.viewmodel.compose)
       implementation(libs.kermit)
+      implementation(libs.compose.components.uiToolingPreview)
     }
 
     jvmTest.dependencies {
@@ -25,6 +26,7 @@ kotlin {
       implementation(libs.kotest.runner.junit5.jvm)
       implementation(libs.kotlinx.coroutines.test)
       implementation(libs.mockk.core)
+      implementation(libs.turbine)
     }
   }
 }

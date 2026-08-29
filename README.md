@@ -18,6 +18,9 @@ This repository gives you a modern baseline for app development with Compose Mul
 - Room 3 persistence with shared schemas, a per-user database, and platform-specific builders
 - Session persistence in DataStore, restored at launch so returning users skip the login screen
 - One shared Ktor client with bearer auth, sanitized logging, and a build-configurable base URL
+- Complete light and dark Material 3 schemes generated from one brand seed, with light/dark
+  previews for every screen and design-system component
+- One `Channel`-backed `Effect` idiom for one-off navigation and UI events
 - Shared Gradle convention plugins in `build-logic/`
 - Kotest, MockK, Detekt, Spotless, Kover coverage, and GitHub automation
 

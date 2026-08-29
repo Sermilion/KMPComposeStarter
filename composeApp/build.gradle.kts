@@ -37,6 +37,7 @@ kotlin {
       implementation(libs.androidx.savedstate.compose)
       implementation(libs.jetbrains.lifecycle.viewmodel)
       implementation(libs.jetbrains.lifecycle.viewmodel.compose)
+      implementation(libs.jetbrains.lifecycle.runtime.compose)
     }
 
     jvmMain.dependencies {

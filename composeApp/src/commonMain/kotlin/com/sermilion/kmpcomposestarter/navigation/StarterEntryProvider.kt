@@ -1,9 +1,8 @@
 package com.sermilion.kmpcomposestarter.navigation
 
-import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation3.runtime.entryProvider
 import com.sermilion.kmpcomposestarter.common.navigation.Route
 import com.sermilion.kmpcomposestarter.core.ui.navigation.ViewModelScope
@@ -42,14 +41,13 @@ import com.sermilion.kmpcomposestarter.feature.settings.viewmodel.SettingsViewMo
  * process-death restore fails on it. `StarterRouteSerializationTest` is the check for that.
  */
 @Suppress("LongMethod")
-@Composable
 fun createStarterEntryProvider(navigator: StarterNavigator) =
   entryProvider<Route> {
     entry<LoginRoute> {
       val viewModel = injectViewModel<LoginViewModel>(scope = ViewModelScope.PreAuth)
-      val uiState by viewModel.uiState.collectAsState()
+      val uiState by viewModel.uiState.collectAsStateWithLifecycle()
       LaunchedEffect(Unit) {
-        viewModel.events.collect { event ->
+        viewModel.effects.collect { event ->
           when (event) {
             LoginContract.Event.NavigateToRegister -> navigator.navigate(RegisterRoute)
           }
@@ -67,9 +65,9 @@ fun createStarterEntryProvider(navigator: StarterNavigator) =
 
     entry<RegisterRoute> {
       val viewModel = injectViewModel<RegisterViewModel>(scope = ViewModelScope.PreAuth)
-      val uiState by viewModel.uiState.collectAsState()
+      val uiState by viewModel.uiState.collectAsStateWithLifecycle()
       LaunchedEffect(Unit) {
-        viewModel.events.collect { event ->
+        viewModel.effects.collect { event ->
           when (event) {
             RegisterContract.Event.NavigateBack -> navigator.goBack()
           }
@@ -77,6 +75,10 @@ fun createStarterEntryProvider(navigator: StarterNavigator) =
       }
       RegisterScreen(
         uiState = uiState,
+        onNameChange = viewModel::onNameChange,
+        onEmailChange = viewModel::onEmailChange,
+        onPasswordChange = viewModel::onPasswordChange,
+        onRegisterClick = viewModel::register,
         onRegisterDemo = viewModel::registerDemo,
         onNavigateBack = viewModel::navigateBack,
       )
@@ -84,9 +86,9 @@ fun createStarterEntryProvider(navigator: StarterNavigator) =
 
     entry<HomeRoute> {
       val viewModel = injectViewModel<HomeViewModel>()
-      val uiState by viewModel.uiState.collectAsState()
+      val uiState by viewModel.uiState.collectAsStateWithLifecycle()
       LaunchedEffect(Unit) {
-        viewModel.events.collect { event ->
+        viewModel.effects.collect { event ->
           when (event) {
             HomeContract.Event.NavigateToProfile -> navigator.navigateToTopLevel(
               TopLevelTab.PROFILE,
@@ -106,7 +108,7 @@ fun createStarterEntryProvider(navigator: StarterNavigator) =
       // The assisted key must match DetailViewModel's constructor parameter name exactly: that
       // name is the contract the generated entry reads the argument back out under.
       val viewModel = injectViewModel<DetailViewModel>(assisted = mapOf("id" to route.id))
-      val uiState by viewModel.uiState.collectAsState()
+      val uiState by viewModel.uiState.collectAsStateWithLifecycle()
       DetailScreen(
         uiState = uiState,
         onNoteChange = viewModel::onNoteChange,
@@ -116,9 +118,9 @@ fun createStarterEntryProvider(navigator: StarterNavigator) =
 
     entry<ProfileRoute> {
       val viewModel = injectViewModel<ProfileViewModel>()
-      val uiState by viewModel.uiState.collectAsState()
+      val uiState by viewModel.uiState.collectAsStateWithLifecycle()
       LaunchedEffect(Unit) {
-        viewModel.events.collect { event ->
+        viewModel.effects.collect { event ->
           when (event) {
             ProfileContract.Event.NavigateBack -> navigator.goBack()
           }
@@ -134,7 +136,7 @@ fun createStarterEntryProvider(navigator: StarterNavigator) =
 
     entry<SettingsRoute> {
       val viewModel = injectViewModel<SettingsViewModel>()
-      val uiState by viewModel.uiState.collectAsState()
+      val uiState by viewModel.uiState.collectAsStateWithLifecycle()
       SettingsScreen(
         uiState = uiState,
       )

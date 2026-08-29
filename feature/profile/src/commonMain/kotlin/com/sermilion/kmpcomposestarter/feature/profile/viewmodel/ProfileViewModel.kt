@@ -3,21 +3,21 @@ package com.sermilion.kmpcomposestarter.feature.profile.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import co.touchlab.kermit.Logger
+import com.sermilion.kmpcomposestarter.common.coroutines.Effect
 import com.sermilion.kmpcomposestarter.common.di.ContributesViewModel
 import com.sermilion.kmpcomposestarter.common.di.ScreenScope
 import com.sermilion.kmpcomposestarter.core.domain.model.UserData
 import com.sermilion.kmpcomposestarter.core.domain.repository.AuthRepository
 import com.sermilion.kmpcomposestarter.core.domain.repository.UserRepository
-import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import me.tatarka.inject.annotations.Inject
+import kotlin.coroutines.cancellation.CancellationException
 
 @Inject
 @ContributesViewModel(ScreenScope::class)
@@ -36,8 +36,8 @@ class ProfileViewModel(
   )
   val uiState: StateFlow<ProfileContract.UiState> = _uiState.asStateFlow()
 
-  private val _events = MutableSharedFlow<ProfileContract.Event>()
-  val events: SharedFlow<ProfileContract.Event> = _events.asSharedFlow()
+  private val _effects = Effect<ProfileContract.Event>()
+  val effects: Flow<ProfileContract.Event> = _effects.flow
 
   init {
     // The sign-in response seeds the screen so it is never blank, but the stored row is what it
@@ -49,7 +49,7 @@ class ProfileViewModel(
           // failed deletion leaves the row unreadable for the rest of the session. Stop
           // following it and keep what is already on screen: a stale profile is a better
           // answer than taking the session down with an unhandled read failure.
-          Logger.w("ProfileViewModel", error) { "Stopped following the stored user row." }
+          Logger.w(TAG, error) { "Stopped following the stored user row." }
         }
         .collect { stored ->
           if (stored != null) {
@@ -63,17 +63,31 @@ class ProfileViewModel(
 
   fun navigateBack() {
     viewModelScope.launch {
-      _events.emit(ProfileContract.Event.NavigateBack)
+      _effects.emit(ProfileContract.Event.NavigateBack)
     }
   }
 
+  /**
+   * Signing out is the whole action: the session flow carries the app back to the auth stack.
+   *
+   * The `finally` is the point. Without it a repository that throws left `isLoggingOut` stuck at
+   * `true`, and the screen stayed busy with every control disabled and no way back out.
+   */
   fun logout() {
     if (_uiState.value.isBusy) return
 
     viewModelScope.launch {
-      _uiState.update { it.copy(isLoggingOut = true) }
-      // Signing out is the whole action: the session flow carries the app back to the auth stack.
-      authRepository.logout()
+      _uiState.update { it.copy(isLoggingOut = true, logoutFailed = false) }
+      try {
+        authRepository.logout()
+      } catch (e: CancellationException) {
+        throw e
+      } catch (e: Exception) {
+        Logger.e(TAG, e) { "Sign-out failed." }
+        _uiState.update { it.copy(logoutFailed = true) }
+      } finally {
+        _uiState.update { it.copy(isLoggingOut = false) }
+      }
     }
   }
 
@@ -97,5 +111,9 @@ class ProfileViewModel(
         _uiState.update { it.copy(isDeletingData = false, dataDeletionFailed = true) }
       }
     }
+  }
+
+  private companion object {
+    const val TAG = "ProfileViewModel"
   }
 }

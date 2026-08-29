@@ -82,3 +82,6 @@ This keeps platform hosts thin while still letting shared UI resolve screen-scop
 - Prefer injecting stable managers or IDs over passing around heavy graph objects manually.
 - Register every ViewModel with `@ContributesViewModel(scope)`; the KSP processor generates its
   `ViewModelEntry` multibinding. Do not hand-write a registration module or add a second factory.
+- A ViewModel reports one-off effects — navigation, snackbars — through the single `Effect<T>`
+  idiom in `core:common`, never a `MutableSharedFlow`. See
+  [One-Off Effects](conventions.md#one-off-effects) for why and for the shape to copy.

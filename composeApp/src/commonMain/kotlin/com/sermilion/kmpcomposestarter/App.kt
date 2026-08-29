@@ -51,9 +51,7 @@ fun StarterApp(
   )
 
   Scaffold(
-    modifier = Modifier
-      .fillMaxSize()
-      .then(modifier),
+    modifier = modifier.fillMaxSize(),
     bottomBar = {
       if (canRenderAuthenticatedScreens && shouldShowBottomNavigation(navigationState)) {
         StarterBottomBar(

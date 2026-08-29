@@ -31,6 +31,66 @@ Adapted from the kinds of practices that scale well in larger Compose apps:
 - Hoist display state into reusable content composables where practical.
 - Make previewable UI easy to render with sample state and minimal wiring.
 - Keep side effects and navigation triggers explicit instead of burying them in deeply nested UI code.
+- Every public screen composable takes a `modifier: Modifier = Modifier` and applies it at its own
+  root — `modifier.fillMaxSize()`, never `Modifier.fillMaxSize().then(modifier)`, which lets the
+  screen's own sizing win over the caller's.
+- Collect a `StateFlow` in composeApp with `collectAsStateWithLifecycle()`, not `collectAsState()`.
+- Stateless content composables and the design-system components carry light and dark `@Preview`
+  functions. They use `org.jetbrains.compose.ui.tooling.preview.Preview` so they live in
+  `commonMain`, and `check` compiles them — a broken preview fails the same gate as a broken screen.
+
+### One-Off Effects
+
+There is exactly one one-off-effect idiom in this app: `Effect<T>` in
+`core:common` (`com.sermilion.kmpcomposestarter.common.coroutines.Effect`). It wraps a
+`Channel(Channel.BUFFERED)` and exposes a `Flow<T>`.
+
+Use it for things that happen once — navigate, show a snackbar, dismiss a sheet. State that a
+screen re-reads on every recomposition belongs in a `StateFlow` instead.
+
+A `MutableSharedFlow()` is not an acceptable substitute, and none remain in the tree. Its default
+replay is zero, so anything emitted while no collector is attached is dropped — and a screen has no
+collector between leaving the composition and re-entering it. A navigation request made in that
+window was silently lost and the user simply stayed where they were. The channel buffers instead,
+and hands each value to exactly one collector.
+
+The shape every feature ViewModel uses:
+
+```kotlin
+private val _effects = Effect<MyContract.Event>()
+val effects: Flow<MyContract.Event> = _effects.flow
+```
+
+A ViewModel with no one-off effects — `SettingsViewModel` — declares no `Effect` at all. Do not add
+one for symmetry.
+
+### Theming
+
+`StarterTheme(darkTheme: Boolean = isSystemInDarkTheme(), dynamicColor: Boolean = false)` is the one
+theme every host renders through.
+
+- Both schemes are complete: every Material 3 role the app renders is assigned explicitly. An unset
+  role falls back to the Material baseline purple, which is how non-brand colour reaches a screen
+  nobody previewed.
+- Both are tonal ramps of one brand seed, `Green600` (`#92B215`). A fork rebrands by regenerating
+  from a new seed, not by hand-editing forty roles. The light `primary` is a darker tone of that
+  seed, because the raw seed carries white text at only 2.2:1.
+- `dynamicColor` defaults to `false` so a fork sees the template's own scheme first. On Android 12+
+  it opts into the wallpaper palette; every other target ignores it.
+- `secondaryContainer` and the `surfaceContainer*` ramp are deliberately distinct from `surface` in
+  both schemes. Flattening them removes Material's tonal elevation and makes the selected
+  bottom-bar tab indistinguishable from the bar behind it.
+- Measured WCAG contrast ratios (AA needs 4.5:1 for body text):
+
+  | Pairing | Light | Dark |
+  | --- | --- | --- |
+  | `primary` / `onPrimary` | 6.41:1 | 7.72:1 |
+  | `onSurface` / `surface` | 16.36:1 | 14.42:1 |
+
+- On Android the window theme is a DayNight pair (`values/themes.xml` plus
+  `values-night/themes.xml`), so the window background painted before the first Compose frame
+  follows the system setting. `MainActivity` calls `enableEdgeToEdge()`, which owns system-bar
+  transparency and icon contrast; the theme deliberately does not set those attributes.
 
 ## Navigation Guidance
 

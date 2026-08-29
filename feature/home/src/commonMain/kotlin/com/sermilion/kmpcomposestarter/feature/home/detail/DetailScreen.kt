@@ -15,34 +15,24 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.sermilion.kmpcomposestarter.core.designsystem.theme.StarterTheme
 import kmpcomposestarter.feature.home.generated.resources.Res
 import kmpcomposestarter.feature.home.generated.resources.detail_button_back
 import kmpcomposestarter.feature.home.generated.resources.detail_id_label
 import kmpcomposestarter.feature.home.generated.resources.detail_note_label
 import kmpcomposestarter.feature.home.generated.resources.detail_screen_title
 import org.jetbrains.compose.resources.stringResource
+import org.jetbrains.compose.ui.tooling.preview.Preview
 
 @Composable
 fun DetailScreen(
   uiState: DetailContract.UiState,
   onNoteChange: (String) -> Unit,
   onNavigateBack: () -> Unit,
-) {
-  DetailScreenContent(
-    uiState = uiState,
-    onNoteChange = onNoteChange,
-    onNavigateBack = onNavigateBack,
-  )
-}
-
-@Composable
-private fun DetailScreenContent(
-  uiState: DetailContract.UiState,
-  onNoteChange: (String) -> Unit,
-  onNavigateBack: () -> Unit,
+  modifier: Modifier = Modifier,
 ) {
   Column(
-    modifier = Modifier
+    modifier = modifier
       .fillMaxSize()
       .padding(24.dp),
     horizontalAlignment = Alignment.CenterHorizontally,
@@ -77,3 +67,20 @@ private fun DetailScreenContent(
     }
   }
 }
+
+private val sampleDetailState = DetailContract.UiState(id = "item-1", note = "Remember this")
+
+@Composable
+private fun DetailScreenPreviewHost(darkTheme: Boolean) {
+  StarterTheme(darkTheme = darkTheme) {
+    DetailScreen(uiState = sampleDetailState, onNoteChange = {}, onNavigateBack = {})
+  }
+}
+
+@Preview
+@Composable
+private fun DetailScreenLightPreview() = DetailScreenPreviewHost(darkTheme = false)
+
+@Preview
+@Composable
+private fun DetailScreenDarkPreview() = DetailScreenPreviewHost(darkTheme = true)

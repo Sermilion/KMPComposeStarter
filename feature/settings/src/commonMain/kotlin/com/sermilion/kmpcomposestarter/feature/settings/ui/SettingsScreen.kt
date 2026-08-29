@@ -12,6 +12,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.sermilion.kmpcomposestarter.core.designsystem.theme.StarterTheme
 import com.sermilion.kmpcomposestarter.feature.settings.viewmodel.SettingsContract
 import kmpcomposestarter.feature.settings.generated.resources.Res
 import kmpcomposestarter.feature.settings.generated.resources.settings_email_label
@@ -19,16 +20,12 @@ import kmpcomposestarter.feature.settings.generated.resources.settings_placehold
 import kmpcomposestarter.feature.settings.generated.resources.settings_screen_title
 import kmpcomposestarter.feature.settings.generated.resources.settings_user_label
 import org.jetbrains.compose.resources.stringResource
+import org.jetbrains.compose.ui.tooling.preview.Preview
 
 @Composable
-fun SettingsScreen(uiState: SettingsContract.UiState) {
-  SettingsScreenContent(uiState = uiState)
-}
-
-@Composable
-private fun SettingsScreenContent(uiState: SettingsContract.UiState) {
+fun SettingsScreen(uiState: SettingsContract.UiState, modifier: Modifier = Modifier) {
   Column(
-    modifier = Modifier
+    modifier = modifier
       .fillMaxSize()
       .padding(24.dp),
     horizontalAlignment = Alignment.CenterHorizontally,
@@ -59,3 +56,23 @@ private fun SettingsScreenContent(uiState: SettingsContract.UiState) {
     )
   }
 }
+
+private val sampleSettingsState = SettingsContract.UiState(
+  userName = "Ada Lovelace",
+  userEmail = "ada@example.com",
+)
+
+@Composable
+private fun SettingsScreenPreviewHost(darkTheme: Boolean) {
+  StarterTheme(darkTheme = darkTheme) {
+    SettingsScreen(uiState = sampleSettingsState)
+  }
+}
+
+@Preview
+@Composable
+private fun SettingsScreenLightPreview() = SettingsScreenPreviewHost(darkTheme = false)
+
+@Preview
+@Composable
+private fun SettingsScreenDarkPreview() = SettingsScreenPreviewHost(darkTheme = true)

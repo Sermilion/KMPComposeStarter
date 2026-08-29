@@ -15,6 +15,7 @@ kotlin {
       api(libs.compose.ui)
       api(libs.compose.animation)
       api(libs.compose.components.resources)
+      api(libs.compose.components.uiToolingPreview)
       api(libs.kotlinx.collections.immutable)
     }
 

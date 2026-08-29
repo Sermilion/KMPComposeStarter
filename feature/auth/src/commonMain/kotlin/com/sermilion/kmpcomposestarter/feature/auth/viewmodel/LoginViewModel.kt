@@ -2,16 +2,15 @@ package com.sermilion.kmpcomposestarter.feature.auth.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.sermilion.kmpcomposestarter.common.coroutines.Effect
 import com.sermilion.kmpcomposestarter.common.di.ContributesViewModel
 import com.sermilion.kmpcomposestarter.core.domain.model.AuthError
 import com.sermilion.kmpcomposestarter.core.domain.model.DemoCredentials
 import com.sermilion.kmpcomposestarter.core.domain.model.LoginResult
 import com.sermilion.kmpcomposestarter.core.domain.repository.AuthRepository
-import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -28,8 +27,8 @@ class LoginViewModel(
   private val _uiState = MutableStateFlow(LoginContract.UiState())
   val uiState: StateFlow<LoginContract.UiState> = _uiState.asStateFlow()
 
-  private val _events = MutableSharedFlow<LoginContract.Event>()
-  val events: SharedFlow<LoginContract.Event> = _events.asSharedFlow()
+  private val _effects = Effect<LoginContract.Event>()
+  val effects: Flow<LoginContract.Event> = _effects.flow
 
   fun onEmailChange(email: String) {
     _uiState.update { it.copy(email = email, error = null) }
@@ -66,7 +65,7 @@ class LoginViewModel(
 
   fun navigateToRegister() {
     viewModelScope.launch {
-      _events.emit(LoginContract.Event.NavigateToRegister)
+      _effects.emit(LoginContract.Event.NavigateToRegister)
     }
   }
 

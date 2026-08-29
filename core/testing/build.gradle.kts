@@ -1,3 +1,6 @@
+// A dependency-only module: it carries no source of its own and exists to `api`-export one test
+// stack (kotest, coroutines-test, MockK) to :core:data, :core:datastore and :core:domain. Deleting
+// it because it looks empty takes those three modules' test dependencies with it.
 plugins {
   alias(libs.plugins.kmp.library)
 }

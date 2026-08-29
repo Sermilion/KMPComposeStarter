@@ -3,8 +3,8 @@ package com.sermilion.kmpcomposestarter
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.sermilion.kmpcomposestarter.common.di.LocalPreAuthViewModelFactory
 import com.sermilion.kmpcomposestarter.common.di.LocalScreenComponentFactory
 import com.sermilion.kmpcomposestarter.core.designsystem.theme.StarterTheme
@@ -17,7 +17,7 @@ import com.sermilion.kmpcomposestarter.ui.rememberStarterAppState
 /** The single host wiring block. Android, iOS and desktop all render through this. */
 @Composable
 fun StarterRoot(component: AppComponent) {
-  val sessionState by component.sessionRestorer.state.collectAsState()
+  val sessionState by component.sessionRestorer.state.collectAsStateWithLifecycle()
 
   LaunchedEffect(Unit) {
     component.sessionRestorer.restore()

@@ -33,7 +33,10 @@ fun StarterNavDisplay(
   navigationState: StarterNavigationState,
   navigator: StarterNavigator,
   modifier: Modifier = Modifier,
-  entryProvider: (Route) -> NavEntry<Route> = createStarterEntryProvider(navigator),
+  // Remembered, not rebuilt: the default expression re-ran on every recomposition, throwing
+  // away and re-registering all six entries each frame.
+  entryProvider: (Route) -> NavEntry<Route> =
+    remember(navigator) { createStarterEntryProvider(navigator) },
 ) {
   // Nav-entry state is keyed by route, so without a session-scoped owner the next user's Home
   // entry would inherit the previous session's screen component, ViewModels and saved UI state.
