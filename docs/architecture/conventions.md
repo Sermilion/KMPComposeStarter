@@ -59,6 +59,10 @@ Adapted from the kinds of practices that scale well in larger Compose apps:
   new sensitive header must be added there too.
 - Repositories talk to data-source interfaces, never to `HttpClient` directly. The starter ships one
   `@ContributesBinding` implementation, `MockAuthRemoteDataSource`; a fork swaps that single binding.
+- Because that binding is a fake, no shipped code path issues a real request. The client is still
+  built, configured and tested — `StarterHttpClientTest` pins bearer-token attachment and base-URL
+  resolution — but nothing injects it until a fork replaces the mock. Treat it as wired-and-tested
+  scaffolding for that swap, not as a feature path this template exercises.
 
 ## Documentation Workflow
 

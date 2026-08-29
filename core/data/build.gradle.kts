@@ -178,3 +178,11 @@ val generateNetworkConfig by tasks.registering {
 kotlin.sourceSets.commonMain {
   kotlin.srcDir(generateNetworkConfig)
 }
+
+// The Kotlin compile tasks inherit the generator dependency from the source set, but the KSP tasks
+// read the same source roots through a file collection that does not always carry it, so they can
+// run before `NetworkConfig.kt` exists and fail on the unresolved reference in `HttpClientProvider`.
+// Declared explicitly rather than left to inference.
+tasks.matching { it.name.startsWith("ksp") }.configureEach {
+  dependsOn(generateNetworkConfig)
+}
