@@ -47,10 +47,9 @@ class LoginViewModel(
       _uiState.update { it.copy(isLoading = true, error = null) }
 
       when (val result = authRepository.login(state.email, state.password)) {
-        is LoginResult.Success -> {
-          _uiState.update { it.copy(isLoading = false) }
-          _events.emit(LoginContract.Event.LoginSuccess)
-        }
+        // No success event: the session flow the repository writes is the single signal that
+        // moves the app to the signed-in shell.
+        is LoginResult.Success -> _uiState.update { it.copy(isLoading = false) }
         is LoginResult.Failure -> {
           _uiState.update { it.copy(isLoading = false, error = result.error.toUiError()) }
         }

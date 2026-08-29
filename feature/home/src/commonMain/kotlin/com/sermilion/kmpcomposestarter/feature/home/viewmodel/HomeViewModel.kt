@@ -34,4 +34,11 @@ class HomeViewModel(private val userData: UserData) : ViewModel() {
       _events.emit(HomeContract.Event.NavigateToProfile)
     }
   }
+
+  /** Sends the id, not the object: the detail screen resolves it from the source of truth. */
+  fun openDetail() {
+    viewModelScope.launch {
+      _events.emit(HomeContract.Event.NavigateToDetail(userData.id))
+    }
+  }
 }

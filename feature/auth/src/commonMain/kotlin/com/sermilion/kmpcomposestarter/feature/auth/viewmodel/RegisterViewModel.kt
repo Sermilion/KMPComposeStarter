@@ -51,10 +51,9 @@ class RegisterViewModel(
       _uiState.update { it.copy(isLoading = true, error = null) }
 
       when (val result = authRepository.register(state.email, state.password, state.name)) {
-        is LoginResult.Success -> {
-          _uiState.update { it.copy(isLoading = false) }
-          _events.emit(RegisterContract.Event.RegisterSuccess)
-        }
+        // No success event: the session flow the repository writes is the single signal that
+        // moves the app to the signed-in shell.
+        is LoginResult.Success -> _uiState.update { it.copy(isLoading = false) }
         is LoginResult.Failure -> {
           _uiState.update { it.copy(isLoading = false, error = result.error.toUiError()) }
         }

@@ -17,7 +17,6 @@ object RegisterContract {
   }
 
   sealed interface Event {
-    data object RegisterSuccess : Event
     data object NavigateBack : Event
   }
 }

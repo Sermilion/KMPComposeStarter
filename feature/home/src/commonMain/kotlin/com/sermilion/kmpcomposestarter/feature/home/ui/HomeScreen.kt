@@ -17,20 +17,30 @@ import androidx.compose.ui.unit.dp
 import com.sermilion.kmpcomposestarter.feature.home.viewmodel.HomeContract
 import kmpcomposestarter.feature.home.generated.resources.Res
 import kmpcomposestarter.feature.home.generated.resources.home_button_go_to_profile
+import kmpcomposestarter.feature.home.generated.resources.home_button_open_detail
 import kmpcomposestarter.feature.home.generated.resources.home_screen_title
 import kmpcomposestarter.feature.home.generated.resources.home_welcome_message
 import org.jetbrains.compose.resources.stringResource
 
 @Composable
-fun HomeScreen(uiState: HomeContract.UiState, onNavigateToProfile: () -> Unit) {
+fun HomeScreen(
+  uiState: HomeContract.UiState,
+  onNavigateToProfile: () -> Unit,
+  onOpenDetail: () -> Unit,
+) {
   HomeScreenContent(
     uiState = uiState,
     onNavigateToProfile = onNavigateToProfile,
+    onOpenDetail = onOpenDetail,
   )
 }
 
 @Composable
-private fun HomeScreenContent(uiState: HomeContract.UiState, onNavigateToProfile: () -> Unit) {
+private fun HomeScreenContent(
+  uiState: HomeContract.UiState,
+  onNavigateToProfile: () -> Unit,
+  onOpenDetail: () -> Unit,
+) {
   Column(
     modifier = Modifier
       .fillMaxSize()
@@ -63,6 +73,15 @@ private fun HomeScreenContent(uiState: HomeContract.UiState, onNavigateToProfile
       modifier = Modifier.fillMaxWidth(),
     ) {
       Text(stringResource(Res.string.home_button_go_to_profile))
+    }
+
+    Spacer(modifier = Modifier.height(16.dp))
+
+    Button(
+      onClick = onOpenDetail,
+      modifier = Modifier.fillMaxWidth(),
+    ) {
+      Text(stringResource(Res.string.home_button_open_detail))
     }
   }
 }

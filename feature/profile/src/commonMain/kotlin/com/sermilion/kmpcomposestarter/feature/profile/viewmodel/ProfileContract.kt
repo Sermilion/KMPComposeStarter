@@ -16,6 +16,5 @@ object ProfileContract {
 
   sealed interface Event {
     data object NavigateBack : Event
-    data object LogoutSuccess : Event
   }
 }

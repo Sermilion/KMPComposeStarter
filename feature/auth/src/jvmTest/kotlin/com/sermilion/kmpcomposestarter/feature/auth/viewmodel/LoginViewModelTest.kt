@@ -6,6 +6,7 @@ import com.sermilion.kmpcomposestarter.core.domain.model.LoginResult
 import com.sermilion.kmpcomposestarter.core.domain.model.UserData
 import com.sermilion.kmpcomposestarter.core.domain.repository.AuthRepository
 import io.kotest.core.spec.style.FunSpec
+import io.kotest.matchers.collections.shouldBeEmpty
 import io.kotest.matchers.shouldBe
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -91,7 +92,7 @@ class LoginViewModelTest :
       viewModel.uiState.value.error shouldBe null
     }
 
-    test("login with valid credentials emits LoginSuccess event") {
+    test("a successful login clears the spinner and emits no navigation event") {
       val userData = UserData(id = "123", email = "test@email.com", name = "Test User")
       val authRepository = mockk<AuthRepository>()
       coEvery { authRepository.login("test@email.com", "password123") } returns
@@ -108,8 +109,11 @@ class LoginViewModelTest :
         viewModel.login()
         advanceUntilIdle()
 
-        events shouldBe listOf(LoginContract.Event.LoginSuccess)
+        // The session flow the repository writes is the only thing that moves the app to the
+        // signed-in shell. A second, screen-driven signal would race it.
+        events.shouldBeEmpty()
         viewModel.uiState.value.isLoading shouldBe false
+        viewModel.uiState.value.error shouldBe null
 
         job.cancel()
       }

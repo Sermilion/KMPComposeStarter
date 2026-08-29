@@ -72,8 +72,8 @@ class ProfileViewModel(
 
     viewModelScope.launch {
       _uiState.update { it.copy(isLoggingOut = true) }
+      // Signing out is the whole action: the session flow carries the app back to the auth stack.
       authRepository.logout()
-      _events.emit(ProfileContract.Event.LogoutSuccess)
     }
   }
 
@@ -93,7 +93,6 @@ class ProfileViewModel(
       _uiState.update { it.copy(isDeletingData = true, dataDeletionFailed = false) }
       if (userRepository.deleteMyData()) {
         authRepository.logout()
-        _events.emit(ProfileContract.Event.LogoutSuccess)
       } else {
         _uiState.update { it.copy(isDeletingData = false, dataDeletionFailed = true) }
       }

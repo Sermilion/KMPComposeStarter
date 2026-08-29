@@ -16,7 +16,6 @@ object LoginContract {
   }
 
   sealed interface Event {
-    data object LoginSuccess : Event
     data object NavigateToRegister : Event
   }
 }

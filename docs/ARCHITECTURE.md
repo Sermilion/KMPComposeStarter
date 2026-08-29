@@ -51,6 +51,7 @@ Read: `docs/architecture/di-and-scoping.md`
 - Typed route conventions
 - Explicit back stack ownership
 - Auth flow vs authenticated tabs
+- Per-tab retention and process-death restore
 - Navigation rules for new features
 
 Read: `docs/architecture/navigation.md`

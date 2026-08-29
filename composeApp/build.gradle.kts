@@ -32,6 +32,9 @@ kotlin {
       implementation(libs.kermit)
       implementation(libs.navigation3.ui)
       implementation(libs.lifecycle.viewmodel.navigation3)
+      implementation(libs.navigationevent.compose)
+      implementation(libs.androidx.savedstate)
+      implementation(libs.androidx.savedstate.compose)
       implementation(libs.jetbrains.lifecycle.viewmodel)
       implementation(libs.jetbrains.lifecycle.viewmodel.compose)
     }

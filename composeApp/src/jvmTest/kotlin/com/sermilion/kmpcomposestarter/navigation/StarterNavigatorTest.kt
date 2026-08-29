@@ -1,14 +1,17 @@
 package com.sermilion.kmpcomposestarter.navigation
 
 import androidx.compose.runtime.mutableStateOf
+import com.sermilion.kmpcomposestarter.common.navigation.Route
 import com.sermilion.kmpcomposestarter.feature.auth.navigation.LoginRoute
 import com.sermilion.kmpcomposestarter.feature.auth.navigation.RegisterRoute
+import com.sermilion.kmpcomposestarter.feature.home.detail.DetailRoute
 import com.sermilion.kmpcomposestarter.feature.home.navigation.HomeRoute
 import com.sermilion.kmpcomposestarter.feature.profile.navigation.ProfileRoute
 import com.sermilion.kmpcomposestarter.feature.settings.navigation.SettingsRoute
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
+import io.kotest.matchers.types.shouldBeSameInstanceAs
 
 class StarterNavigatorTest :
   FunSpec({
@@ -25,7 +28,7 @@ class StarterNavigatorTest :
       val state = mutableStateOf(StarterNavigationState())
       val navigator = StarterNavigator(state)
 
-      navigator.navigate(RegisterRoute)
+      navigator.navigate(RegisterRoute) shouldBe true
 
       state.value.authBackStack.size shouldBe 2
       state.value.currentRoute.shouldBeInstanceOf<RegisterRoute>()
@@ -89,13 +92,67 @@ class StarterNavigatorTest :
       val state = mutableStateOf(StarterNavigationState())
       val navigator = StarterNavigator(state)
       navigator.onLoginStateChanged(true)
-      navigator.navigate(ProfileRoute)
+      navigator.navigate(DetailRoute("item-1"))
 
       state.value.tabBackStacks[TopLevelTab.HOME]?.size shouldBe 2
 
       navigator.navigateToTopLevel(TopLevelTab.HOME)
 
       state.value.tabBackStacks[TopLevelTab.HOME]?.size shouldBe 1
+    }
+
+    test("navigate pushes a parameterised route onto the current tab") {
+      val state = mutableStateOf(StarterNavigationState())
+      val navigator = StarterNavigator(state)
+      navigator.onLoginStateChanged(true)
+
+      navigator.navigate(DetailRoute("item-1")) shouldBe true
+
+      state.value.currentTab shouldBe TopLevelTab.HOME
+      state.value.tabBackStacks[TopLevelTab.HOME]?.size shouldBe 2
+      state.value.currentRoute shouldBe DetailRoute("item-1")
+    }
+
+    test("navigate to another tab's root is rejected and leaves the stack untouched") {
+      val state = mutableStateOf(StarterNavigationState())
+      val rejections = mutableListOf<Pair<Route, Boolean>>()
+      val navigator = StarterNavigator(state) { route, rejectedIn ->
+        rejections += route to rejectedIn.isAuthenticated
+      }
+      navigator.onLoginStateChanged(true)
+      val homeStackBefore = state.value.tabBackStacks.getValue(TopLevelTab.HOME)
+
+      // Pushing ProfileRoute here would give it the same content key as the PROFILE tab's own
+      // root, so the two entries would share — and then lose — each other's saved state.
+      navigator.navigate(ProfileRoute) shouldBe false
+
+      rejections shouldBe listOf<Pair<Route, Boolean>>(ProfileRoute to true)
+      state.value.tabBackStacks.getValue(TopLevelTab.HOME) shouldBeSameInstanceAs homeStackBefore
+      state.value.tabBackStacks.getValue(TopLevelTab.HOME).size shouldBe 1
+    }
+
+    test("navigate to an auth route while signed in is rejected") {
+      val state = mutableStateOf(StarterNavigationState())
+      val rejections = mutableListOf<Route>()
+      val navigator = StarterNavigator(state) { route, _ -> rejections += route }
+      navigator.onLoginStateChanged(true)
+
+      navigator.navigate(RegisterRoute) shouldBe false
+
+      rejections shouldBe listOf<Route>(RegisterRoute)
+      state.value.tabBackStacks.getValue(TopLevelTab.HOME).size shouldBe 1
+      state.value.currentRoute.shouldBeInstanceOf<HomeRoute>()
+    }
+
+    test("navigate to a top-level route while signed out is rejected") {
+      val state = mutableStateOf(StarterNavigationState())
+      val rejections = mutableListOf<Route>()
+      val navigator = StarterNavigator(state) { route, _ -> rejections += route }
+
+      navigator.navigate(DetailRoute("item-1")) shouldBe false
+
+      rejections shouldBe listOf<Route>(DetailRoute("item-1"))
+      state.value.authBackStack.size shouldBe 1
     }
 
     test("onLoginStateChanged to false resets to auth flow") {
@@ -110,35 +167,44 @@ class StarterNavigatorTest :
       state.value.currentRoute.shouldBeInstanceOf<LoginRoute>()
     }
 
+    test("signing out leaves nothing of the previous session's tabs behind") {
+      val state = mutableStateOf(StarterNavigationState())
+      val navigator = StarterNavigator(state)
+      navigator.onLoginStateChanged(true)
+      navigator.navigateToTopLevel(TopLevelTab.PROFILE)
+      navigator.navigate(DetailRoute("item-1"))
+
+      navigator.onLoginStateChanged(false)
+
+      // The next user must not sign in onto the previous user's tab, showing their pushed route.
+      state.value.currentTab shouldBe TopLevelTab.HOME
+      TopLevelTab.entries.forEach { tab ->
+        state.value.tabBackStacks.getValue(tab).size shouldBe 1
+      }
+    }
+
     test("tab backstacks are preserved when switching tabs") {
       val state = mutableStateOf(StarterNavigationState())
       val navigator = StarterNavigator(state)
       navigator.onLoginStateChanged(true)
+      val profileStack = state.value.tabBackStacks.getValue(TopLevelTab.PROFILE)
+      val homeStack = state.value.tabBackStacks.getValue(TopLevelTab.HOME)
 
       navigator.navigateToTopLevel(TopLevelTab.PROFILE)
       navigator.navigateToTopLevel(TopLevelTab.HOME)
 
-      state.value.tabBackStacks[TopLevelTab.PROFILE]?.size shouldBe 1
-      state.value.tabBackStacks[TopLevelTab.HOME]?.size shouldBe 1
-    }
-
-    test("navigate within tab adds to current tab backstack") {
-      val state = mutableStateOf(StarterNavigationState())
-      val navigator = StarterNavigator(state)
-      navigator.onLoginStateChanged(true)
-
-      navigator.navigate(ProfileRoute)
-
-      state.value.currentTab shouldBe TopLevelTab.HOME
-      state.value.tabBackStacks[TopLevelTab.HOME]?.size shouldBe 2
-      state.value.currentRoute.shouldBeInstanceOf<ProfileRoute>()
+      // Instance identity, not just contents: the display keys each tab's decorated entries on
+      // the list it was handed, so a navigator that rebuilt the untouched tabs on every switch
+      // would recreate their entries and drop the ViewModel stores hanging off them.
+      state.value.tabBackStacks.getValue(TopLevelTab.PROFILE) shouldBeSameInstanceAs profileStack
+      state.value.tabBackStacks.getValue(TopLevelTab.HOME) shouldBeSameInstanceAs homeStack
     }
 
     test("goBack in tab flow removes last route") {
       val state = mutableStateOf(StarterNavigationState())
       val navigator = StarterNavigator(state)
       navigator.onLoginStateChanged(true)
-      navigator.navigate(ProfileRoute)
+      navigator.navigate(DetailRoute("item-1"))
 
       val result = navigator.goBack()
 

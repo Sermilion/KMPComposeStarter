@@ -9,5 +9,8 @@ object HomeContract {
 
   sealed interface Event {
     data object NavigateToProfile : Event
+
+    /** Carries the id alone; the detail screen resolves it. */
+    data class NavigateToDetail(val id: String) : Event
   }
 }

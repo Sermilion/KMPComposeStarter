@@ -18,5 +18,11 @@ kotlin {
       implementation(libs.jetbrains.lifecycle.viewmodel.compose)
       implementation(libs.kermit)
     }
+
+    jvmTest.dependencies {
+      implementation(libs.kotest.framework.engine)
+      implementation(libs.kotest.assertions.core)
+      implementation(libs.kotest.runner.junit5.jvm)
+    }
   }
 }

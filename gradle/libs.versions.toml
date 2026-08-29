@@ -15,6 +15,10 @@ androidxLifecycle = "2.10.0"
 navigation3 = "1.0.0-alpha06"
 # Pre-release pin: the ViewModel integration for Navigation 3 tracks the same alpha line.
 lifecycleViewmodelNavigation3 = "2.10.0-alpha06"
+# Pre-release pin: navigationevent-compose is the back-gesture API Navigation 3 itself dispatches
+# through, and it has not shipped a stable release; it moves with the Navigation 3 line.
+navigationEvent = "1.0.0-rc01"
+androidxSavedState = "1.4.0"
 coil = "3.4.0"
 compileSdk = "36"
 detekt = "1.23.8"
@@ -60,6 +64,9 @@ jetbrains-lifecycle-viewmodel-compose = { group = "org.jetbrains.androidx.lifecy
 jetbrains-lifecycle-runtime-compose = { group = "org.jetbrains.androidx.lifecycle", name = "lifecycle-runtime-compose", version.ref = "androidxLifecycle" }
 navigation3-ui = { group = "org.jetbrains.androidx.navigation3", name = "navigation3-ui", version.ref = "navigation3" }
 lifecycle-viewmodel-navigation3 = { group = "org.jetbrains.androidx.lifecycle", name = "lifecycle-viewmodel-navigation3", version.ref = "lifecycleViewmodelNavigation3" }
+navigationevent-compose = { group = "org.jetbrains.androidx.navigationevent", name = "navigationevent-compose", version.ref = "navigationEvent" }
+androidx-savedstate = { group = "androidx.savedstate", name = "savedstate", version.ref = "androidxSavedState" }
+androidx-savedstate-compose = { group = "androidx.savedstate", name = "savedstate-compose", version.ref = "androidxSavedState" }
 coil-kt = { group = "io.coil-kt.coil3", name = "coil", version.ref = "coil" }
 coil-kt-compose = { group = "io.coil-kt.coil3", name = "coil-compose", version.ref = "coil" }
 coil-kt-network-ktor3 = { group = "io.coil-kt.coil3", name = "coil-network-ktor3", version.ref = "coil" }

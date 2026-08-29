@@ -40,7 +40,6 @@ fun StarterRoot(component: AppComponent) {
           )
           StarterApp(
             appState = appState,
-            isLoggedIn = appState.isAuthenticated,
             screenComponentFactory = screenComponentFactory,
           )
         }

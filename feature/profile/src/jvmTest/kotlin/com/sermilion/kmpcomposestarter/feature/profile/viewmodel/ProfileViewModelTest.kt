@@ -13,7 +13,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.flowOf
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
@@ -79,17 +78,11 @@ class ProfileViewModelTest :
       val viewModel = ProfileViewModel(signedInUser, authRepository, userRepository)
 
       runTest(testDispatcher) {
-        val events = mutableListOf<ProfileContract.Event>()
-        val job = launch { viewModel.events.collect { events.add(it) } }
-
         viewModel.deleteMyData()
         advanceUntilIdle()
-
-        events shouldBe listOf(ProfileContract.Event.LogoutSuccess)
-        viewModel.uiState.value.dataDeletionFailed shouldBe false
-        job.cancel()
       }
 
+      viewModel.uiState.value.dataDeletionFailed shouldBe false
       coVerify(exactly = 1) { authRepository.logout() }
     }
   })

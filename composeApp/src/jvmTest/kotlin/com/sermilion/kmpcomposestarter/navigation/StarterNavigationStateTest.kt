@@ -5,6 +5,7 @@ import com.sermilion.kmpcomposestarter.common.navigation.AuthFlowRoute
 import com.sermilion.kmpcomposestarter.common.navigation.TopLevelRoute
 import com.sermilion.kmpcomposestarter.feature.auth.navigation.LoginRoute
 import com.sermilion.kmpcomposestarter.feature.auth.navigation.RegisterRoute
+import com.sermilion.kmpcomposestarter.feature.home.detail.DetailRoute
 import com.sermilion.kmpcomposestarter.feature.home.navigation.HomeRoute
 import com.sermilion.kmpcomposestarter.feature.profile.navigation.ProfileRoute
 import com.sermilion.kmpcomposestarter.feature.settings.navigation.SettingsRoute
@@ -74,5 +75,47 @@ class StarterNavigationStateTest :
       TopLevelTab.entries.forEach { tab ->
         state.tabBackStacks[tab]?.size shouldBe 1
       }
+    }
+
+    test("back at a non-HOME tab root returns to HOME") {
+      val state = StarterNavigationState(
+        isAuthenticated = true,
+        currentTab = TopLevelTab.PROFILE,
+      )
+
+      state.backAtTabRootShouldReturnHome shouldBe true
+    }
+
+    test("back at the HOME root falls through to the system") {
+      val state = StarterNavigationState(isAuthenticated = true)
+
+      // False here is what lets the system close the app instead of the app swallowing back.
+      state.backAtTabRootShouldReturnHome shouldBe false
+    }
+
+    test("back mid-stack pops rather than returning to HOME") {
+      val profileStack = SnapshotStateList<TopLevelRoute>().apply {
+        add(ProfileRoute)
+        add(DetailRoute("item-1"))
+      }
+      val state = StarterNavigationState(
+        isAuthenticated = true,
+        tabBackStacks = TopLevelTab.entries.associateWith { tab ->
+          if (tab == TopLevelTab.PROFILE) {
+            profileStack
+          } else {
+            SnapshotStateList<TopLevelRoute>().apply { add(tab.startRoute) }
+          }
+        },
+        currentTab = TopLevelTab.PROFILE,
+      )
+
+      state.backAtTabRootShouldReturnHome shouldBe false
+    }
+
+    test("back on the auth stack never returns to HOME") {
+      val state = StarterNavigationState(currentTab = TopLevelTab.PROFILE)
+
+      state.backAtTabRootShouldReturnHome shouldBe false
     }
   })
