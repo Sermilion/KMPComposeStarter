@@ -2,32 +2,10 @@ plugins {
   alias(libs.plugins.kmp.application)
   alias(libs.plugins.kotlin.serialization)
   alias(libs.plugins.ksp)
-  alias(libs.plugins.kmp.kotlininject)
 }
 
 kotlin {
-  android {
-    namespace = "com.sermilion.kmpcomposestarter.composeapp"
-    compileSdk =
-      libs.versions.compileSdk
-        .get()
-        .toInt()
-    minSdk =
-      libs.versions.minSdk
-        .get()
-        .toInt()
-    withHostTestBuilder {}
-    androidResources {
-      enable = true
-    }
-  }
-
   sourceSets {
-    all {
-      languageSettings.optIn("kotlinx.coroutines.ExperimentalCoroutinesApi")
-      languageSettings.optIn("androidx.compose.material3.ExperimentalMaterial3Api")
-    }
-
     commonMain.dependencies {
       implementation(libs.compose.runtime)
       implementation(libs.compose.foundation)
@@ -80,32 +58,6 @@ kotlin {
   }
 }
 
-tasks.named<Test>("jvmTest") {
-  useJUnitPlatform()
-}
-
-tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
-  if (name.contains("IosSimulatorArm64")) {
-    dependsOn("kspKotlinIosSimulatorArm64")
-  }
-  if (name.contains("IosArm64") && !name.contains("Simulator")) {
-    dependsOn("kspKotlinIosArm64")
-  }
-  if (name.contains("Jvm")) {
-    dependsOn("kspKotlinJvm")
-  }
-}
-
-kotlin.sourceSets.named("iosSimulatorArm64Main") {
-  kotlin.srcDir("build/generated/ksp/iosSimulatorArm64/iosSimulatorArm64Main/kotlin")
-}
-kotlin.sourceSets.named("iosArm64Main") {
-  kotlin.srcDir("build/generated/ksp/iosArm64/iosArm64Main/kotlin")
-}
-kotlin.sourceSets.named("jvmMain") {
-  kotlin.srcDir("build/generated/ksp/jvm/jvmMain/kotlin")
-}
-
 compose.desktop {
   application {
     mainClass = "com.sermilion.kmpcomposestarter.MainKt"
@@ -119,12 +71,14 @@ compose.desktop {
       packageName = "KMPComposeStarter"
       packageVersion = "1.0.0"
 
+      // Only the JDK modules the desktop app needs are bundled: `java.sql` for the JVM SQLite and
+      // Room stack, `jdk.unsupported` for the `sun.misc.Unsafe` access several Kotlin and Compose
+      // dependencies still rely on. `includeAllModules = true` shipped the entire JDK instead,
+      // which is what made the distributables large enough to be worth curating.
       modules(
         "java.sql",
         "jdk.unsupported",
       )
-
-      includeAllModules = true
     }
   }
 }

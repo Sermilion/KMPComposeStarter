@@ -25,7 +25,10 @@ class KmpComposeConventionPlugin : Plugin<Project> {
       dependencies {
         add("commonMainImplementation", libs.findLibrary("compose.components.resources").get())
         add("commonMainImplementation", libs.findLibrary("kotlinx.collections.immutable").get())
-        add("commonMainImplementation", libs.findLibrary("jetbrains.lifecycle.runtime.compose").get())
+        add(
+          "commonMainImplementation",
+          libs.findLibrary("jetbrains.lifecycle.runtime.compose").get(),
+        )
       }
     }
   }

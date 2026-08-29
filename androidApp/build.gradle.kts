@@ -4,8 +4,12 @@ plugins {
   alias(libs.plugins.compose.compiler)
   alias(libs.plugins.ksp)
   alias(libs.plugins.kmp.kotlininject)
+  alias(libs.plugins.kmp.lint)
+  alias(libs.plugins.kmp.detekt)
 }
 
+// The one android block outside build-logic: `com.android.application` carries the applicationId,
+// build types and packaging rules that the shared KMP android target cannot express.
 android {
   namespace = "com.sermilion.kmpcomposestarter"
   compileSdk =
@@ -25,8 +29,6 @@ android {
         .toInt()
     versionCode = 1
     versionName = "1.0.0"
-
-    testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
   }
 
   buildFeatures {
@@ -72,9 +74,7 @@ dependencies {
   implementation(projects.feature.profile)
   implementation(projects.feature.settings)
 
-  implementation(
-    "org.jetbrains.compose.runtime:runtime:${libs.versions.composeMultiplatform.get()}",
-  )
+  implementation(libs.compose.runtime)
 
   implementation(libs.androidx.activity.compose)
   implementation(libs.androidx.lifecycle.viewmodel)
@@ -84,7 +84,5 @@ dependencies {
   implementation(libs.kotlin.inject.anvil.runtime)
   implementation(libs.kotlin.inject.anvil.runtime.optional)
 
-  debugImplementation(
-    "org.jetbrains.compose.ui:ui-tooling:${libs.versions.composeMultiplatform.get()}",
-  )
+  debugImplementation(libs.compose.ui.tooling)
 }

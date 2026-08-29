@@ -1,0 +1,2084 @@
+24
+shared-review-evidence/1
+81326
+diff --git a/.editorconfig b/.editorconfig
+index c1d3daa..ea1f089 100644
+--- a/.editorconfig
++++ b/.editorconfig
+@@ -12,6 +12,10 @@ indent_size = 2
+ max_line_length = 100
+ ij_kotlin_allow_trailing_comma = true
+ ij_kotlin_allow_trailing_comma_on_call_site = true
++# ktlint reads its own settings from here too, so spotless needs no editorConfigOverride map that
++# could drift away from what the IDE applies.
++ktlint_function_naming_ignore_when_annotated_with = Composable
++ktlint_standard_no-wildcard-imports = disabled
+ 
+ [*.xml]
+ indent_size = 2
+diff --git a/.github/dependabot.yml b/.github/dependabot.yml
+index 9af0acf..6efec11 100644
+--- a/.github/dependabot.yml
++++ b/.github/dependabot.yml
+@@ -4,8 +4,27 @@ updates:
+     directory: "/"
+     schedule:
+       interval: "weekly"
++    open-pull-requests-limit: 5
++    groups:
++      # Kotlin and KSP have to move together: KSP is versioned against a specific Kotlin release.
++      kotlin:
++        patterns:
++          - "org.jetbrains.kotlin*"
++          - "com.google.devtools.ksp*"
++      androidx:
++        patterns:
++          - "androidx.*"
++      all-minor-patch:
++        update-types:
++          - "minor"
++          - "patch"
+ 
+   - package-ecosystem: "github-actions"
+     directory: "/"
+     schedule:
+       interval: "weekly"
++    open-pull-requests-limit: 3
++    groups:
++      actions:
++        patterns:
++          - "*"
+diff --git a/.github/workflows/check.yml b/.github/workflows/check.yml
+index a5719eb..6acf042 100644
+--- a/.github/workflows/check.yml
++++ b/.github/workflows/check.yml
+@@ -6,9 +6,18 @@ on:
+     branches:
+       - main
+ 
++permissions:
++  contents: read
++
++concurrency:
++  group: ${{ github.workflow }}-${{ github.ref }}
++  cancel-in-progress: true
++
+ jobs:
+   check:
+-    runs-on: macos-latest
++    name: Check and assemble
++    runs-on: ubuntu-latest
++    timeout-minutes: 60
+ 
+     steps:
+       - name: Checkout
+@@ -26,5 +35,49 @@ jobs:
+       - name: Run Gradle check
+         run: ./gradlew check
+ 
++      - name: Assemble Android debug
++        run: ./gradlew :androidApp:assembleDebug
++
++      - name: Upload reports
++        if: failure()
++        uses: actions/upload-artifact@v4
++        with:
++          name: check-reports
++          path: |
++            **/build/reports/detekt/**
++            **/build/reports/lint-results-*.*
++            **/build/reports/tests/**
++            **/build/reports/kover/**
++          retention-days: 7
++          if-no-files-found: ignore
++
++  ios:
++    name: iOS framework link
++    runs-on: macos-latest
++    timeout-minutes: 60
++
++    steps:
++      - name: Checkout
++        uses: actions/checkout@v6
++
++      - name: Set up JDK 17
++        uses: actions/setup-java@v5
++        with:
++          distribution: temurin
++          java-version: "17"
++
++      - name: Set up Gradle
++        uses: gradle/actions/setup-gradle@v6
++
+       - name: Verify iOS framework linkability
+         run: ./gradlew :composeApp:linkDebugFrameworkIosArm64
++
++      - name: Upload reports
++        if: failure()
++        uses: actions/upload-artifact@v4
++        with:
++          name: ios-reports
++          path: |
++            **/build/reports/**
++          retention-days: 7
++          if-no-files-found: ignore
+diff --git a/AGENTS.md b/AGENTS.md
+index 41aa805..57f8d7c 100644
+--- a/AGENTS.md
++++ b/AGENTS.md
+@@ -41,7 +41,8 @@ The repository is organized as a Kotlin Multiplatform application starter:
+ 
+ - Keep module boundaries clean: `data` implements contracts, `domain` stays framework-light, and `feature` code should not bypass shared abstractions without a strong reason.
+ - Keep the starter generic and reusable. Avoid product-specific naming, secrets, endpoints, or release workflows.
+-- Prefer shared configuration in `build-logic` and `gradle/libs.versions.toml` over duplicated per-module Gradle setup.
++- Prefer shared configuration in `build-logic` and `gradle/libs.versions.toml` over duplicated per-module Gradle setup. A module build file should declare plugins and dependencies only: the Android target, namespace, compiler arguments, test platform and KSP processors all come from the conventions.
++- Every catalog alias must be referenced by something. Do not leave an unused alias behind "for later", and keep every version literal in `[versions]` with a reason comment on each pre-release pin.
+ 
+ ## Dependency and Build Guidance
+ 
+@@ -70,10 +71,17 @@ The repository is organized as a Kotlin Multiplatform application starter:
+ 
+ ## Testing and Quality Standards
+ 
+-- `./gradlew check` is the default release gate for this starter.
+-- CI should also validate at least one iOS framework link task.
+-- Do not add suppressions to hide real build, lint, or test failures unless the template intentionally documents them.
+-- `core:data` intentionally disables `RestrictedApi` lint while Room 3 `alpha01` reports false positives on generated KSP code and `RoomDatabase` usage in KMP lint tasks. Revisit that workaround on future Room upgrades.
++- `./gradlew check` is the default release gate for this starter. It runs detekt against the shared
++  `config/detekt/detekt.yml` over every source set of every module, ktlint, Android lint, the Kotest
++  suites, and the merged Kover report at `build/reports/kover/`.
++- CI runs two jobs: `check` plus `:androidApp:assembleDebug` on ubuntu, and the iOS framework link
++  on macOS. Keep the iOS link task in CI so multiplatform breakages surface early.
++- Do not add suppressions to hide real build, lint, or test failures unless the template intentionally documents them. In particular, do not add a detekt baseline file: fix the finding or scope the rule narrowly with a comment.
++- The configuration cache is enabled. New build logic must be configuration-cache safe; do not relax
++  `org.gradle.configuration-cache.problems` to get a green run.
++- Kover instruments JVM bytecode only, so the coverage report covers the JVM and Android unit tests
++  and not the iOS targets. Do not describe it as project-wide coverage.
++- `core:data` intentionally disables `RestrictedApi` lint while Room 3 `alpha01` reports false positives on generated KSP code and `RoomDatabase` usage in KMP lint tasks. Keep it to the one commented disable plus the path-scoped `core/data/lint.xml` ignore, and revisit on future Room upgrades.
+ - Prefer Kotest assertions and MockK annotations over ad-hoc mocking setup when practical.
+ - When adding repository APIs, prefer both single-item and bulk write operations instead of forcing callers into item-by-item loops.
+ - Treat DataStore file renames as migrations. Renaming a file without a migration path can strand existing user data.
+diff --git a/CLAUDE.md b/CLAUDE.md
+index 41aa805..57f8d7c 100644
+--- a/CLAUDE.md
++++ b/CLAUDE.md
+@@ -41,7 +41,8 @@ The repository is organized as a Kotlin Multiplatform application starter:
+ 
+ - Keep module boundaries clean: `data` implements contracts, `domain` stays framework-light, and `feature` code should not bypass shared abstractions without a strong reason.
+ - Keep the starter generic and reusable. Avoid product-specific naming, secrets, endpoints, or release workflows.
+-- Prefer shared configuration in `build-logic` and `gradle/libs.versions.toml` over duplicated per-module Gradle setup.
++- Prefer shared configuration in `build-logic` and `gradle/libs.versions.toml` over duplicated per-module Gradle setup. A module build file should declare plugins and dependencies only: the Android target, namespace, compiler arguments, test platform and KSP processors all come from the conventions.
++- Every catalog alias must be referenced by something. Do not leave an unused alias behind "for later", and keep every version literal in `[versions]` with a reason comment on each pre-release pin.
+ 
+ ## Dependency and Build Guidance
+ 
+@@ -70,10 +71,17 @@ The repository is organized as a Kotlin Multiplatform application starter:
+ 
+ ## Testing and Quality Standards
+ 
+-- `./gradlew check` is the default release gate for this starter.
+-- CI should also validate at least one iOS framework link task.
+-- Do not add suppressions to hide real build, lint, or test failures unless the template intentionally documents them.
+-- `core:data` intentionally disables `RestrictedApi` lint while Room 3 `alpha01` reports false positives on generated KSP code and `RoomDatabase` usage in KMP lint tasks. Revisit that workaround on future Room upgrades.
++- `./gradlew check` is the default release gate for this starter. It runs detekt against the shared
++  `config/detekt/detekt.yml` over every source set of every module, ktlint, Android lint, the Kotest
++  suites, and the merged Kover report at `build/reports/kover/`.
++- CI runs two jobs: `check` plus `:androidApp:assembleDebug` on ubuntu, and the iOS framework link
++  on macOS. Keep the iOS link task in CI so multiplatform breakages surface early.
++- Do not add suppressions to hide real build, lint, or test failures unless the template intentionally documents them. In particular, do not add a detekt baseline file: fix the finding or scope the rule narrowly with a comment.
++- The configuration cache is enabled. New build logic must be configuration-cache safe; do not relax
++  `org.gradle.configuration-cache.problems` to get a green run.
++- Kover instruments JVM bytecode only, so the coverage report covers the JVM and Android unit tests
++  and not the iOS targets. Do not describe it as project-wide coverage.
++- `core:data` intentionally disables `RestrictedApi` lint while Room 3 `alpha01` reports false positives on generated KSP code and `RoomDatabase` usage in KMP lint tasks. Keep it to the one commented disable plus the path-scoped `core/data/lint.xml` ignore, and revisit on future Room upgrades.
+ - Prefer Kotest assertions and MockK annotations over ad-hoc mocking setup when practical.
+ - When adding repository APIs, prefer both single-item and bulk write operations instead of forcing callers into item-by-item loops.
+ - Treat DataStore file renames as migrations. Renaming a file without a migration path can strand existing user data.
+diff --git a/README.md b/README.md
+index e09da71..755a021 100644
+--- a/README.md
++++ b/README.md
+@@ -19,7 +19,7 @@ This repository gives you a modern baseline for app development with Compose Mul
+ - Session persistence in DataStore, restored at launch so returning users skip the login screen
+ - One shared Ktor client with bearer auth, sanitized logging, and a build-configurable base URL
+ - Shared Gradle convention plugins in `build-logic/`
+-- Kotest, MockK, Detekt, Spotless, and GitHub automation
++- Kotest, MockK, Detekt, Spotless, Kover coverage, and GitHub automation
+ 
+ ## Repository Layout
+ 
+@@ -74,7 +74,7 @@ The root `ARCHITECTURE.md` remains as a lightweight entry point for tools and hu
+ ### Main Commands
+ 
+ ```bash
+-# Main quality gate
++# Main quality gate: detekt, ktlint, Android lint, tests, and the merged Kover report
+ ./gradlew check
+ 
+ # Android app
+@@ -110,7 +110,14 @@ The project is updated to AGP 9.1.0 and Gradle 9.4.0.
+ 
+ Android now lives in a dedicated `androidApp` module, while shared multiplatform modules use the Android KMP library plugin.
+ 
+-`core:data` intentionally disables the `RestrictedApi` lint check because Room 3 `alpha01` currently reports false positives for both generated KSP code and `RoomDatabase` usage in KMP lint tasks. See `docs/architecture/build-and-tooling.md` for details.
++`core:data` intentionally disables the `RestrictedApi` lint check because Room 3 `alpha01` currently reports false positives for both generated KSP code and `RoomDatabase` usage in KMP lint tasks. That is one commented suppression in the module plus the path-scoped ignore in `core/data/lint.xml`. See `docs/architecture/build-and-tooling.md` for details.
++
++`./gradlew check` runs detekt over every source set of every module against the shared
++`config/detekt/detekt.yml`, and aggregates coverage into `build/reports/kover/`. Kover instruments
++JVM bytecode only, so the report covers the JVM and Android unit tests and not the iOS targets —
++`docs/architecture/build-and-tooling.md` has the full story.
++
++The configuration cache is enabled, so keep new build logic configuration-cache safe.
+ 
+ ### Configuration properties
+ 
+diff --git a/androidApp/build.gradle.kts b/androidApp/build.gradle.kts
+index d10cea2..6a3b3f0 100644
+--- a/androidApp/build.gradle.kts
++++ b/androidApp/build.gradle.kts
+@@ -4,8 +4,12 @@ plugins {
+   alias(libs.plugins.compose.compiler)
+   alias(libs.plugins.ksp)
+   alias(libs.plugins.kmp.kotlininject)
++  alias(libs.plugins.kmp.lint)
++  alias(libs.plugins.kmp.detekt)
+ }
+ 
++// The one android block outside build-logic: `com.android.application` carries the applicationId,
++// build types and packaging rules that the shared KMP android target cannot express.
+ android {
+   namespace = "com.sermilion.kmpcomposestarter"
+   compileSdk =
+@@ -25,8 +29,6 @@ android {
+         .toInt()
+     versionCode = 1
+     versionName = "1.0.0"
+-
+-    testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+   }
+ 
+   buildFeatures {
+@@ -72,9 +74,7 @@ dependencies {
+   implementation(projects.feature.profile)
+   implementation(projects.feature.settings)
+ 
+-  implementation(
+-    "org.jetbrains.compose.runtime:runtime:${libs.versions.composeMultiplatform.get()}",
+-  )
++  implementation(libs.compose.runtime)
+ 
+   implementation(libs.androidx.activity.compose)
+   implementation(libs.androidx.lifecycle.viewmodel)
+@@ -84,7 +84,5 @@ dependencies {
+   implementation(libs.kotlin.inject.anvil.runtime)
+   implementation(libs.kotlin.inject.anvil.runtime.optional)
+ 
+-  debugImplementation(
+-    "org.jetbrains.compose.ui:ui-tooling:${libs.versions.composeMultiplatform.get()}",
+-  )
++  debugImplementation(libs.compose.ui.tooling)
+ }
+diff --git a/build-logic/convention/build.gradle.kts b/build-logic/convention/build.gradle.kts
+index 04a6d59..a223e9c 100644
+--- a/build-logic/convention/build.gradle.kts
++++ b/build-logic/convention/build.gradle.kts
+@@ -3,6 +3,8 @@ import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
+ 
+ plugins {
+   `kotlin-dsl`
++  alias(libs.plugins.detekt)
++  alias(libs.plugins.spotless)
+ }
+ 
+ group = "com.sermilion.kmpcomposestarter.buildlogic"
+@@ -24,6 +26,27 @@ dependencies {
+   compileOnly(libs.ksp.gradlePlugin)
+   compileOnly(libs.detekt.gradlePlugin)
+   implementation(libs.compose.gradle.plugin)
++  // The shared config declares the Compose ruleset, and detekt's `config.validation` rejects a
++  // ruleset it cannot resolve, so the rules have to be on this build's detekt classpath too.
++  detektPlugins(libs.detekt.compose.rules)
++}
++
++detekt {
++  // build-logic is its own included build, so the shared config lives one directory up.
++  config.setFrom(rootDir.parentFile.resolve("config/detekt/detekt.yml"))
++  basePath = rootDir.parentFile.absolutePath
++  buildUponDefaultConfig = true
++}
++
++spotless {
++  kotlin {
++    target("src/**/*.kt")
++    ktlint()
++  }
++  kotlinGradle {
++    target("*.gradle.kts")
++    ktlint()
++  }
+ }
+ 
+ tasks {
+@@ -47,6 +70,10 @@ gradlePlugin {
+       id = "kmp.application"
+       implementationClass = "KmpApplicationConventionPlugin"
+     }
++    register("jvmLibrary") {
++      id = "jvm.library"
++      implementationClass = "JvmLibraryConventionPlugin"
++    }
+     register("kmpLint") {
+       id = "kmp.lint"
+       implementationClass = "KmpLintConventionPlugin"
+diff --git a/build-logic/convention/src/main/kotlin/DetektConventionPlugin.kt b/build-logic/convention/src/main/kotlin/DetektConventionPlugin.kt
+index 8ffa78e..8187ac8 100644
+--- a/build-logic/convention/src/main/kotlin/DetektConventionPlugin.kt
++++ b/build-logic/convention/src/main/kotlin/DetektConventionPlugin.kt
+@@ -1,4 +1,5 @@
+ import com.sermilion.kmpcomposestarter.configureDetekt
++import com.sermilion.kmpcomposestarter.libs
+ import org.gradle.api.Plugin
+ import org.gradle.api.Project
+ import org.gradle.kotlin.dsl.dependencies
+@@ -12,7 +13,7 @@ class DetektConventionPlugin : Plugin<Project> {
+       configureDetekt()
+ 
+       dependencies {
+-        add("detektPlugins", "com.twitter.compose.rules:detekt:0.0.26")
++        add("detektPlugins", libs.findLibrary("detekt.compose.rules").get())
+       }
+     }
+   }
+diff --git a/build-logic/convention/src/main/kotlin/JvmLibraryConventionPlugin.kt b/build-logic/convention/src/main/kotlin/JvmLibraryConventionPlugin.kt
+new file mode 100644
+index 0000000..eded974
+--- /dev/null
++++ b/build-logic/convention/src/main/kotlin/JvmLibraryConventionPlugin.kt
+@@ -0,0 +1,21 @@
++import com.sermilion.kmpcomposestarter.configureTests
++import org.gradle.api.Plugin
++import org.gradle.api.Project
++
++/**
++ * Plain JVM modules (today only `codegen:viewmodel-inject-processor`) get the same static analysis
++ * and test-platform wiring as the multiplatform modules. Android lint is deliberately not applied:
++ * there is no Android code here for it to check.
++ */
++class JvmLibraryConventionPlugin : Plugin<Project> {
++  override fun apply(target: Project) {
++    with(target) {
++      with(pluginManager) {
++        apply("org.jetbrains.kotlin.jvm")
++        apply("kmp.detekt")
++      }
++
++      configureTests()
++    }
++  }
++}
+diff --git a/build-logic/convention/src/main/kotlin/KmpApplicationConventionPlugin.kt b/build-logic/convention/src/main/kotlin/KmpApplicationConventionPlugin.kt
+index e43ac12..913867c 100644
+--- a/build-logic/convention/src/main/kotlin/KmpApplicationConventionPlugin.kt
++++ b/build-logic/convention/src/main/kotlin/KmpApplicationConventionPlugin.kt
+@@ -4,7 +4,6 @@ import org.gradle.api.Plugin
+ import org.gradle.api.Project
+ import org.gradle.kotlin.dsl.configure
+ import org.gradle.kotlin.dsl.dependencies
+-import org.jetbrains.compose.ComposeExtension
+ import org.jetbrains.kotlin.gradle.dsl.KotlinMultiplatformExtension
+ 
+ class KmpApplicationConventionPlugin : Plugin<Project> {
+@@ -17,20 +16,24 @@ class KmpApplicationConventionPlugin : Plugin<Project> {
+         apply("org.jetbrains.kotlin.plugin.compose")
+         apply("kmp.lint")
+         apply("kmp.detekt")
++        apply("kmp.kotlininject")
+       }
+ 
+       extensions.configure<KotlinMultiplatformExtension> {
+         configureKotlinMultiplatformApplication(this)
+       }
+ 
+-      extensions.configure<ComposeExtension> {
+-      }
+-
+       dependencies {
+         add("commonMainImplementation", libs.findLibrary("kotlinx.collections.immutable").get())
+-        add("commonMainImplementation", libs.findLibrary("jetbrains.lifecycle.runtime.compose").get())
++        add(
++          "commonMainImplementation",
++          libs.findLibrary("jetbrains.lifecycle.runtime.compose").get(),
++        )
+         add("commonMainImplementation", libs.findLibrary("jetbrains.lifecycle.viewmodel").get())
+-        add("commonMainImplementation", libs.findLibrary("jetbrains.lifecycle.viewmodel.compose").get())
++        add(
++          "commonMainImplementation",
++          libs.findLibrary("jetbrains.lifecycle.viewmodel.compose").get(),
++        )
+         add("commonMainImplementation", libs.findLibrary("navigation3.ui").get())
+         add("commonMainImplementation", libs.findLibrary("lifecycle.viewmodel.navigation3").get())
+       }
+diff --git a/build-logic/convention/src/main/kotlin/KmpComposeConventionPlugin.kt b/build-logic/convention/src/main/kotlin/KmpComposeConventionPlugin.kt
+index 9f27ec8..c4f3893 100644
+--- a/build-logic/convention/src/main/kotlin/KmpComposeConventionPlugin.kt
++++ b/build-logic/convention/src/main/kotlin/KmpComposeConventionPlugin.kt
+@@ -25,7 +25,10 @@ class KmpComposeConventionPlugin : Plugin<Project> {
+       dependencies {
+         add("commonMainImplementation", libs.findLibrary("compose.components.resources").get())
+         add("commonMainImplementation", libs.findLibrary("kotlinx.collections.immutable").get())
+-        add("commonMainImplementation", libs.findLibrary("jetbrains.lifecycle.runtime.compose").get())
++        add(
++          "commonMainImplementation",
++          libs.findLibrary("jetbrains.lifecycle.runtime.compose").get(),
++        )
+       }
+     }
+   }
+diff --git a/build-logic/convention/src/main/kotlin/KmpKotlinInjectConventionPlugin.kt b/build-logic/convention/src/main/kotlin/KmpKotlinInjectConventionPlugin.kt
+index e9a8bb1..ec91007 100644
+--- a/build-logic/convention/src/main/kotlin/KmpKotlinInjectConventionPlugin.kt
++++ b/build-logic/convention/src/main/kotlin/KmpKotlinInjectConventionPlugin.kt
+@@ -4,12 +4,16 @@ import org.gradle.api.Plugin
+ import org.gradle.api.Project
+ import org.gradle.kotlin.dsl.configure
+ import org.gradle.kotlin.dsl.dependencies
++import org.gradle.kotlin.dsl.findByType
++import org.jetbrains.kotlin.gradle.dsl.KotlinMultiplatformExtension
++import org.jetbrains.kotlin.gradle.plugin.KotlinPlatformType
+ 
+ class KmpKotlinInjectConventionPlugin : Plugin<Project> {
+ 
+   private companion object {
+     const val KOTLIN_MULTIPLATFORM_PLUGIN = "org.jetbrains.kotlin.multiplatform"
+     const val KSP_PLUGIN = "com.google.devtools.ksp"
++    const val ROOM_PLUGIN = "androidx.room3"
+ 
+     /**
+      * Package the ViewModel processor resolves its DI types from. It lives here rather than in the
+@@ -18,15 +22,6 @@ class KmpKotlinInjectConventionPlugin : Plugin<Project> {
+      */
+     const val DI_PACKAGE_OPTION = "di.package"
+     const val DI_PACKAGE = "com.sermilion.kmpcomposestarter.common.di"
+-
+-    val KMP_KSP_CONFIGURATIONS = listOf(
+-      "kspCommonMainMetadata",
+-      "kspAndroid",
+-      "kspIosArm64",
+-      "kspIosSimulatorArm64",
+-      "kspJvm",
+-    )
+-    val JVM_KSP_CONFIGURATIONS = listOf("ksp")
+   }
+ 
+   override fun apply(target: Project) {
+@@ -47,11 +42,7 @@ class KmpKotlinInjectConventionPlugin : Plugin<Project> {
+           arg(DI_PACKAGE_OPTION, DI_PACKAGE)
+         }
+ 
+-        val kspConfigurations = if (pluginManager.hasPlugin(KOTLIN_MULTIPLATFORM_PLUGIN)) {
+-          KMP_KSP_CONFIGURATIONS
+-        } else {
+-          JVM_KSP_CONFIGURATIONS
+-        }
++        val kspConfigurations = kspConfigurationNames()
+ 
+         dependencies {
+           val kotlinInjectCompiler = libs.findLibrary("kotlin.inject.compiler").get()
+@@ -64,7 +55,31 @@ class KmpKotlinInjectConventionPlugin : Plugin<Project> {
+             add(config, viewModelProcessor)
+           }
+         }
++
++        // Room's processor has to run on every target that compiles the database, or schema
++        // generation silently stops for the ones it misses. It rides the same derived
++        // configuration list so a module applying the Room plugin declares no KSP wiring at all.
++        pluginManager.withPlugin(ROOM_PLUGIN) {
++          dependencies {
++            val roomCompiler = libs.findLibrary("room3.compiler").get()
++            kspConfigurations.forEach { config -> add(config, roomCompiler) }
++          }
++        }
+       }
+     }
+   }
++
++  /**
++   * KSP configuration names derived from the targets the module actually declares, instead of a
++   * hardcoded list that drifts the moment a target is added or dropped. The `metadata` (common)
++   * target is skipped deliberately: `kspCommonMainMetadata` used to be wired up here, but its
++   * output was never added to any compilation, so the processors ran for nothing.
++   */
++  private fun Project.kspConfigurationNames(): List<String> {
++    val multiplatform = extensions.findByType<KotlinMultiplatformExtension>()
++      ?: return listOf("ksp")
++    return multiplatform.targets
++      .filter { it.platformType != KotlinPlatformType.common }
++      .map { "ksp${it.name.replaceFirstChar(Char::uppercaseChar)}" }
++  }
+ }
+diff --git a/build-logic/convention/src/main/kotlin/KmpLintConventionPlugin.kt b/build-logic/convention/src/main/kotlin/KmpLintConventionPlugin.kt
+index 7434c35..073b93a 100644
+--- a/build-logic/convention/src/main/kotlin/KmpLintConventionPlugin.kt
++++ b/build-logic/convention/src/main/kotlin/KmpLintConventionPlugin.kt
+@@ -10,23 +10,25 @@ class KmpLintConventionPlugin : Plugin<Project> {
+     with(target) {
+       when {
+         pluginManager.hasPlugin("com.android.application") ->
+-          configure<ApplicationExtension> { lint { configure(project) } }
++          // Only the app aggregates: it is the one place where a library's lint findings actually
++          // ship, and letting every library re-check its dependencies multiplies the same work.
++          configure<ApplicationExtension> { lint { configure(project, checkDependencies = true) } }
+ 
+         pluginManager.hasPlugin("com.android.library") ->
+-          configure<LibraryExtension> { lint { configure(project) } }
++          configure<LibraryExtension> { lint { configure(project, checkDependencies = false) } }
+ 
+         else -> {
+           pluginManager.apply("com.android.lint")
+-          configure<Lint> { configure(project) }
++          configure<Lint> { configure(project, checkDependencies = false) }
+         }
+       }
+     }
+   }
+ }
+ 
+-private fun Lint.configure(project: Project) {
++private fun Lint.configure(project: Project, checkDependencies: Boolean) {
+   xmlReport = true
+-  checkDependencies = true
++  this.checkDependencies = checkDependencies
+   checkGeneratedSources = false
+   val lintConfigFile = project.file("lint.xml")
+   if (lintConfigFile.exists()) {
+diff --git a/build-logic/convention/src/main/kotlin/com/sermilion/kmpcomposestarter/Detekt.kt b/build-logic/convention/src/main/kotlin/com/sermilion/kmpcomposestarter/Detekt.kt
+index 97341dc..59bd00c 100644
+--- a/build-logic/convention/src/main/kotlin/com/sermilion/kmpcomposestarter/Detekt.kt
++++ b/build-logic/convention/src/main/kotlin/com/sermilion/kmpcomposestarter/Detekt.kt
+@@ -1,14 +1,15 @@
+ package com.sermilion.kmpcomposestarter
+ 
+ import io.gitlab.arturbosch.detekt.Detekt
+-import io.gitlab.arturbosch.detekt.DetektPlugin
+ import io.gitlab.arturbosch.detekt.extensions.DetektExtension
+ import io.gitlab.arturbosch.detekt.report.ReportMergeTask
++import java.io.File
+ import org.gradle.api.JavaVersion
+ import org.gradle.api.Project
+ import org.gradle.api.tasks.TaskProvider
+ import org.gradle.kotlin.dsl.configure
+ import org.gradle.kotlin.dsl.withType
++import org.gradle.language.base.plugins.LifecycleBasePlugin
+ 
+ internal fun Project.configureDetekt() {
+   val reportMerge: TaskProvider<ReportMergeTask> =
+@@ -18,40 +19,44 @@ internal fun Project.configureDetekt() {
+     }
+ 
+   configure<DetektExtension> {
+-    val moduleConfig = file("$projectDir/detekt.yml")
+-    if (moduleConfig.exists()) {
+-      config.setFrom("$rootDir/config/detekt/detekt.yml", moduleConfig)
+-    }
+-    baseline = file("$rootDir/config/detekt/detekt-baseline.xml")
++    // The shared config is always loaded; a module-level detekt.yml only layers on top of it.
++    // Loading it only when a module config existed is what left config/detekt/detekt.yml dead
++    // across the whole repository, with detekt silently running on its defaults instead.
++    val moduleConfig = file("detekt.yml")
++    config.setFrom(
++      listOfNotNull(
++        rootProject.file("config/detekt/detekt.yml"),
++        moduleConfig.takeIf(File::exists),
++      ),
++    )
+     basePath = rootDir.absolutePath
+     buildUponDefaultConfig = true
+     ignoredBuildTypes = listOf("release")
+-    ignoredFlavors = listOf("production")
+   }
+ 
+   tasks.withType<Detekt>().configureEach {
+     jvmTarget = JavaVersion.VERSION_11.toString()
+     exclude {
+-      it.file.absolutePath.contains("/build/") ||
+-        it.file.absolutePath.contains("/generated/") ||
+-        it.file.absolutePath.contains("/build-logic/")
++      // Separator-safe: absolutePath uses `\` on Windows, so the literal "/build/" checks that
++      // used to live here matched nothing there and analysed generated code instead.
++      val path = it.file.invariantSeparatorsPath
++      path.contains("/build/") || path.contains("/generated/")
+     }
+     reports {
+       html.required.set(true)
+       xml.required.set(true)
+     }
+-  }
+-
+-  plugins.withType<DetektPlugin> {
+-    tasks.withType<Detekt> {
+-      finalizedBy(reportMerge)
+-      reportMerge.configure {
+-        input.from(xmlReportFile)
+-      }
++    finalizedBy(reportMerge)
++    reportMerge.configure {
++      input.from(xmlReportFile)
+     }
++  }
+ 
+-    tasks.matching { it.name == "detekt" }.configureEach {
+-      dependsOn(tasks.matching { it.name == "detektMetadataCommonMain" })
++  // `check` used to reach only the `detekt` task, so androidMain, jvmMain, both iOS targets and
++  // every test source set went unanalysed. Depend on all of them instead.
++  plugins.withType<LifecycleBasePlugin> {
++    tasks.named(LifecycleBasePlugin.CHECK_TASK_NAME).configure {
++      dependsOn(tasks.withType<Detekt>())
+     }
+   }
+ }
+diff --git a/build-logic/convention/src/main/kotlin/com/sermilion/kmpcomposestarter/KotlinMultiplatform.kt b/build-logic/convention/src/main/kotlin/com/sermilion/kmpcomposestarter/KotlinMultiplatform.kt
+index 3a0ce77..91673f6 100644
+--- a/build-logic/convention/src/main/kotlin/com/sermilion/kmpcomposestarter/KotlinMultiplatform.kt
++++ b/build-logic/convention/src/main/kotlin/com/sermilion/kmpcomposestarter/KotlinMultiplatform.kt
+@@ -1,177 +1,123 @@
+ package com.sermilion.kmpcomposestarter
+ 
+-import org.gradle.api.JavaVersion
++import com.android.build.api.dsl.KotlinMultiplatformAndroidLibraryExtension
+ import org.gradle.api.Project
++import org.gradle.api.tasks.testing.Test
++import org.gradle.kotlin.dsl.configure
+ import org.gradle.kotlin.dsl.provideDelegate
+ import org.gradle.kotlin.dsl.withType
+ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+ import org.jetbrains.kotlin.gradle.dsl.KotlinMultiplatformExtension
+ import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
+ 
+-internal fun Project.configureKotlinMultiplatform(
+-  extension: KotlinMultiplatformExtension
+-) {
+-  extension.apply {
+-    jvmToolchain(17)
+-
+-    compilerOptions {
+-      freeCompilerArgs.addAll(
+-        listOf(
+-          "-opt-in=kotlin.RequiresOptIn",
+-          "-opt-in=kotlinx.coroutines.ExperimentalCoroutinesApi",
+-          "-opt-in=kotlinx.coroutines.FlowPreview",
+-          "-opt-in=kotlin.ExperimentalMultiplatform",
+-          "-Xexpect-actual-classes",
+-        )
+-      )
+-    }
+-
+-    jvm()
+-
+-    iosArm64()
+-    iosSimulatorArm64()
+-
+-    applyDefaultHierarchyTemplate()
+-
+-    sourceSets.apply {
+-      commonMain {
+-        dependencies {
+-        }
+-      }
+-
+-      commonTest {
+-        dependencies {
+-        }
+-      }
+-    }
+-  }
+-
+-  configureKotlin()
++/**
++ * Opt-ins and language flags shared by every module. They are declared once, on the multiplatform
++ * extension, because that is the only level that also reaches the native compilations — setting
++ * them on [KotlinCompile] would silently skip the iOS targets.
++ */
++private val SHARED_COMPILER_ARGS = listOf(
++  "-opt-in=kotlin.RequiresOptIn",
++  "-opt-in=kotlinx.coroutines.ExperimentalCoroutinesApi",
++  "-opt-in=kotlinx.coroutines.FlowPreview",
++  "-opt-in=kotlin.ExperimentalMultiplatform",
++  "-Xexpect-actual-classes",
++)
++
++/** Opt-ins that only make sense where the Compose Multiplatform UI dependencies are present. */
++private val COMPOSE_COMPILER_ARGS = listOf(
++  "-opt-in=androidx.compose.material3.ExperimentalMaterial3Api",
++)
++
++/**
++ * Root package the Android namespaces are derived from. Deriving them keeps the Android target
++ * declared in exactly one place: `:core:data` becomes `com.sermilion.kmpcomposestarter.core.data`,
++ * so a module's build file carries no `android { }` block at all. `androidApp` is the exception —
++ * it applies `com.android.application`, whose `android { }` block also carries the applicationId,
++ * build types and packaging rules that cannot be shared, so it sets its own namespace.
++ */
++private const val ANDROID_NAMESPACE_PREFIX = "com.sermilion.kmpcomposestarter"
++
++internal fun Project.configureKotlinMultiplatform(extension: KotlinMultiplatformExtension) {
++  configureShared(extension)
++
++  extension.jvm()
++  extension.iosArm64()
++  extension.iosSimulatorArm64()
++  extension.applyDefaultHierarchyTemplate()
+ }
+ 
+-internal fun Project.configureKotlinMultiplatformCompose(
+-  extension: KotlinMultiplatformExtension
+-) {
+-  extension.apply {
+-    jvmToolchain(17)
+-
+-    compilerOptions {
+-      freeCompilerArgs.addAll(
+-        listOf(
+-          "-opt-in=kotlin.RequiresOptIn",
+-          "-opt-in=kotlinx.coroutines.ExperimentalCoroutinesApi",
+-          "-opt-in=kotlinx.coroutines.FlowPreview",
+-          "-opt-in=kotlin.ExperimentalMultiplatform",
+-          "-Xexpect-actual-classes",
+-        )
+-      )
+-    }
+-
+-    jvm()
+-
+-    iosArm64()
+-    iosSimulatorArm64()
+-
+-    applyDefaultHierarchyTemplate()
+-
+-    sourceSets.apply {
+-      commonMain {
+-        dependencies {
+-        }
+-      }
+-
+-      androidMain {
+-        dependencies {
+-        }
+-      }
+-
+-      iosMain {
+-        dependencies {
+-        }
+-      }
+-    }
++internal fun Project.configureKotlinMultiplatformCompose(extension: KotlinMultiplatformExtension) {
++  configureKotlinMultiplatform(extension)
++  extension.compilerOptions {
++    freeCompilerArgs.addAll(COMPOSE_COMPILER_ARGS)
+   }
+-
+-  configureKotlin()
+ }
+ 
+ internal fun Project.configureKotlinMultiplatformApplication(
+-  extension: KotlinMultiplatformExtension
++  extension: KotlinMultiplatformExtension,
+ ) {
+-  extension.apply {
+-    jvmToolchain(17)
+-
+-    compilerOptions {
+-      freeCompilerArgs.addAll(
+-        listOf(
+-          "-opt-in=kotlin.RequiresOptIn",
+-          "-opt-in=kotlinx.coroutines.ExperimentalCoroutinesApi",
+-          "-opt-in=kotlinx.coroutines.FlowPreview",
+-          "-opt-in=kotlin.ExperimentalMultiplatform",
+-          "-Xexpect-actual-classes",
+-        )
+-      )
+-    }
+-
+-    jvm()
+-
+-    listOf(
+-      iosArm64(),
+-      iosSimulatorArm64(),
+-    ).forEach { iosTarget ->
+-      iosTarget.binaries.framework {
+-        baseName = "ComposeApp"
+-        isStatic = true
+-      }
++  configureShared(extension)
++
++  extension.jvm()
++  listOf(
++    extension.iosArm64(),
++    extension.iosSimulatorArm64(),
++  ).forEach { iosTarget ->
++    iosTarget.binaries.framework {
++      baseName = "ComposeApp"
++      isStatic = true
+     }
++  }
++  extension.applyDefaultHierarchyTemplate()
+ 
+-    applyDefaultHierarchyTemplate()
+-
+-    sourceSets.apply {
+-      commonMain {
+-        dependencies {
+-        }
+-      }
++  extension.compilerOptions {
++    freeCompilerArgs.addAll(COMPOSE_COMPILER_ARGS)
++  }
++}
+ 
+-      androidMain {
+-        dependencies {
+-        }
+-      }
++/** The single Android target declaration plus the Kotlin settings every KMP module inherits. */
++private fun Project.configureShared(extension: KotlinMultiplatformExtension) {
++  extension.jvmToolchain(17)
+ 
+-      iosMain {
+-        dependencies {
+-        }
+-      }
++  extension.compilerOptions {
++    freeCompilerArgs.addAll(SHARED_COMPILER_ARGS)
++  }
+ 
+-      jvmMain {
+-        dependencies {
+-        }
+-      }
++  extension.extensions.configure<KotlinMultiplatformAndroidLibraryExtension> {
++    namespace = androidNamespace
++    compileSdk = libs.findVersion("compileSdk").get().requiredVersion.toInt()
++    minSdk = libs.findVersion("minSdk").get().requiredVersion.toInt()
++    withHostTestBuilder {}
++    androidResources {
++      enable = true
+     }
+   }
+ 
+-  configureKotlin()
++  configureJvmBytecodeTarget()
++  configureTests()
+ }
+ 
+-private fun Project.configureKotlin() {
++private val Project.androidNamespace: String
++  get() = (
++    listOf(ANDROID_NAMESPACE_PREFIX) + path.split(":").filter(String::isNotEmpty)
++    ).joinToString(".") { it.lowercase() }
++
++private fun Project.configureJvmBytecodeTarget() {
++  val warningsAsErrors: String? by project
+   tasks.withType<KotlinCompile>().configureEach {
+     compilerOptions {
+       jvmTarget.set(JvmTarget.JVM_11)
+-      val warningsAsErrors: String? by project
+       allWarningsAsErrors.set(warningsAsErrors.toBoolean())
+-      freeCompilerArgs.addAll(
+-        listOf(
+-          "-opt-in=kotlin.RequiresOptIn",
+-          "-opt-in=kotlinx.coroutines.ExperimentalCoroutinesApi",
+-          "-opt-in=kotlinx.coroutines.FlowPreview",
+-          "-opt-in=kotlin.ExperimentalMultiplatform",
+-          "-Xexpect-actual-classes",
+-        )
+-      )
+     }
+   }
+ }
+ 
+-private fun Project.findVersion(alias: String): String {
+-  return libs.findVersion(alias).get().requiredVersion
++/**
++ * Kotest specs are discovered through the JUnit Platform. Declared here so no module has to repeat
++ * it, and applied to every `Test` task so `androidHostTest` and `jvmTest` are both covered.
++ */
++internal fun Project.configureTests() {
++  tasks.withType<Test>().configureEach {
++    useJUnitPlatform()
++  }
+ }
+diff --git a/build.gradle.kts b/build.gradle.kts
+index 167c572..e80b6d4 100644
+--- a/build.gradle.kts
++++ b/build.gradle.kts
+@@ -1,4 +1,5 @@
+ plugins {
++  base
+   alias(libs.plugins.android.application) apply false
+   alias(libs.plugins.android.kmp.library) apply false
+   alias(libs.plugins.android.library) apply false
+@@ -11,20 +12,7 @@ plugins {
+   alias(libs.plugins.compose.compiler) apply false
+   alias(libs.plugins.compose.multiplatform) apply false
+   alias(libs.plugins.room3) apply false
+-  alias(libs.plugins.kover) apply false
+-}
+-
+-gradle.startParameter.excludedTaskNames.addAll(listOf(":build-logic:convention:testClasses"))
+-
+-buildscript {
+-  repositories {
+-    google()
+-    mavenCentral()
+-  }
+-  dependencies {
+-    classpath(libs.kotlin.gradlePlugin)
+-    classpath(libs.ksp.gradlePlugin)
+-  }
++  alias(libs.plugins.kover)
+ }
+ 
+ spotless {
+@@ -39,22 +27,16 @@ configure<com.diffplug.gradle.spotless.SpotlessExtensionPredeclare> {
+ 
+ subprojects {
+   apply(plugin = "com.diffplug.spotless")
++  apply(plugin = "org.jetbrains.kotlinx.kover")
+ 
+   configure<com.diffplug.gradle.spotless.SpotlessExtension> {
+     kotlin {
+       target("**/*.kt")
+-      targetExclude("${layout.buildDirectory}/**/*.kt")
+-      targetExclude("bin/**/*.kt")
+-      ktlint().editorConfigOverride(
+-        mapOf(
+-          "indent_size" to 2,
+-          "ij_kotlin_allow_trailing_comma" to true,
+-          "ij_kotlin_allow_trailing_comma_on_call_site" to true,
+-          "ktlint_function_naming_ignore_when_annotated_with" to "Composable",
+-          "max_line_length" to 100,
+-          "ktlint_standard_no-wildcard-imports" to "disabled",
+-        ),
+-      )
++      // Two targetExclude calls replace each other rather than adding up, which is how the build
++      // directory pattern used to go missing. Shared style lives in .editorconfig, which ktlint
++      // reads directly, so there is no override map to drift from it here.
++      targetExclude("**/build/**/*.kt", "bin/**/*.kt")
++      ktlint()
+     }
+     kotlinGradle {
+       target("*.gradle.kts")
+@@ -62,3 +44,28 @@ subprojects {
+     }
+   }
+ }
++
++// Coverage is aggregated here so `check` produces one merged report instead of per-module
++// fragments. build-logic is a separate included build and is deliberately outside this.
++dependencies {
++  subprojects.forEach { kover(it) }
++}
++
++kover {
++  reports {
++    total {
++      xml {
++        onCheck.set(true)
++      }
++      html {
++        onCheck.set(true)
++      }
++    }
++  }
++}
++
++// build-logic is an included build, so its detekt and spotless tasks are invisible to the root
++// gate unless they are wired in explicitly.
++tasks.named("check") {
++  dependsOn(gradle.includedBuild("build-logic").task(":convention:check"))
++}
+diff --git a/codegen/viewmodel-inject-processor/build.gradle.kts b/codegen/viewmodel-inject-processor/build.gradle.kts
+index 1e1d0d2..38557bf 100644
+--- a/codegen/viewmodel-inject-processor/build.gradle.kts
++++ b/codegen/viewmodel-inject-processor/build.gradle.kts
+@@ -1,5 +1,5 @@
+ plugins {
+-  alias(libs.plugins.kotlin.jvm)
++  alias(libs.plugins.jvm.library)
+ }
+ 
+ dependencies {
+@@ -15,7 +15,3 @@ dependencies {
+   testImplementation(libs.kotest.assertions.core)
+   testImplementation(libs.kotest.runner.junit5.jvm)
+ }
+-
+-tasks.named<Test>("test") {
+-  useJUnitPlatform()
+-}
+diff --git a/composeApp/build.gradle.kts b/composeApp/build.gradle.kts
+index 17f047f..78a771b 100644
+--- a/composeApp/build.gradle.kts
++++ b/composeApp/build.gradle.kts
+@@ -2,32 +2,10 @@ plugins {
+   alias(libs.plugins.kmp.application)
+   alias(libs.plugins.kotlin.serialization)
+   alias(libs.plugins.ksp)
+-  alias(libs.plugins.kmp.kotlininject)
+ }
+ 
+ kotlin {
+-  android {
+-    namespace = "com.sermilion.kmpcomposestarter.composeapp"
+-    compileSdk =
+-      libs.versions.compileSdk
+-        .get()
+-        .toInt()
+-    minSdk =
+-      libs.versions.minSdk
+-        .get()
+-        .toInt()
+-    withHostTestBuilder {}
+-    androidResources {
+-      enable = true
+-    }
+-  }
+-
+   sourceSets {
+-    all {
+-      languageSettings.optIn("kotlinx.coroutines.ExperimentalCoroutinesApi")
+-      languageSettings.optIn("androidx.compose.material3.ExperimentalMaterial3Api")
+-    }
+-
+     commonMain.dependencies {
+       implementation(libs.compose.runtime)
+       implementation(libs.compose.foundation)
+@@ -80,32 +58,6 @@ kotlin {
+   }
+ }
+ 
+-tasks.named<Test>("jvmTest") {
+-  useJUnitPlatform()
+-}
+-
+-tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
+-  if (name.contains("IosSimulatorArm64")) {
+-    dependsOn("kspKotlinIosSimulatorArm64")
+-  }
+-  if (name.contains("IosArm64") && !name.contains("Simulator")) {
+-    dependsOn("kspKotlinIosArm64")
+-  }
+-  if (name.contains("Jvm")) {
+-    dependsOn("kspKotlinJvm")
+-  }
+-}
+-
+-kotlin.sourceSets.named("iosSimulatorArm64Main") {
+-  kotlin.srcDir("build/generated/ksp/iosSimulatorArm64/iosSimulatorArm64Main/kotlin")
+-}
+-kotlin.sourceSets.named("iosArm64Main") {
+-  kotlin.srcDir("build/generated/ksp/iosArm64/iosArm64Main/kotlin")
+-}
+-kotlin.sourceSets.named("jvmMain") {
+-  kotlin.srcDir("build/generated/ksp/jvm/jvmMain/kotlin")
+-}
+-
+ compose.desktop {
+   application {
+     mainClass = "com.sermilion.kmpcomposestarter.MainKt"
+@@ -119,12 +71,14 @@ compose.desktop {
+       packageName = "KMPComposeStarter"
+       packageVersion = "1.0.0"
+ 
++      // Only the JDK modules the desktop app needs are bundled: `java.sql` for the JVM SQLite and
++      // Room stack, `jdk.unsupported` for the `sun.misc.Unsafe` access several Kotlin and Compose
++      // dependencies still rely on. `includeAllModules = true` shipped the entire JDK instead,
++      // which is what made the distributables large enough to be worth curating.
+       modules(
+         "java.sql",
+         "jdk.unsupported",
+       )
+-
+-      includeAllModules = true
+     }
+   }
+ }
+diff --git a/config/detekt/detekt.yml b/config/detekt/detekt.yml
+index 74ca86e..694998e 100644
+--- a/config/detekt/detekt.yml
++++ b/config/detekt/detekt.yml
+@@ -363,7 +363,9 @@ potential-bugs:
+   WrongEqualsTypeParameter:
+     active: true
+ 
+-TwitterCompose:
++# Ruleset id of io.nlopez.compose.rules:detekt, the maintained successor to the abandoned
++# com.twitter.compose.rules artifact this config was originally written against.
++Compose:
+   CompositionLocalAllowlist:
+     active: true
+     allowedCompositionLocals:
+diff --git a/core/common/build.gradle.kts b/core/common/build.gradle.kts
+index 2c5b164..195e227 100644
+--- a/core/common/build.gradle.kts
++++ b/core/common/build.gradle.kts
+@@ -7,26 +7,6 @@ plugins {
+ }
+ 
+ kotlin {
+-  android {
+-    namespace = "com.sermilion.kmpcomposestarter.core.common"
+-    compileSdk =
+-      libs.versions.compileSdk
+-        .get()
+-        .toInt()
+-    minSdk =
+-      libs.versions.minSdk
+-        .get()
+-        .toInt()
+-    withHostTestBuilder {}
+-    androidResources {
+-      enable = true
+-    }
+-  }
+-
+-  compilerOptions {
+-    freeCompilerArgs.add("-Xexpect-actual-classes")
+-  }
+-
+   sourceSets {
+     commonMain.dependencies {
+       implementation(libs.kotlinx.coroutines.core)
+@@ -43,7 +23,6 @@ kotlin {
+ 
+     androidMain.dependencies {
+       implementation(libs.kotlinx.coroutines.android)
+-      implementation(libs.core.ktx)
+     }
+ 
+     commonTest.dependencies {
+@@ -64,18 +43,3 @@ kotlin {
+     }
+   }
+ }
+-
+-dependencies {
+-  add("kspAndroid", libs.kotlin.inject.compiler)
+-  add("kspAndroid", libs.kotlin.inject.anvil.compiler)
+-  add("kspIosArm64", libs.kotlin.inject.compiler)
+-  add("kspIosArm64", libs.kotlin.inject.anvil.compiler)
+-  add("kspIosSimulatorArm64", libs.kotlin.inject.compiler)
+-  add("kspIosSimulatorArm64", libs.kotlin.inject.anvil.compiler)
+-  add("kspJvm", libs.kotlin.inject.compiler)
+-  add("kspJvm", libs.kotlin.inject.anvil.compiler)
+-}
+-
+-tasks.named<Test>("jvmTest") {
+-  useJUnitPlatform()
+-}
+diff --git a/core/data/build.gradle.kts b/core/data/build.gradle.kts
+index 2b6c3e1..938bfd9 100644
+--- a/core/data/build.gradle.kts
++++ b/core/data/build.gradle.kts
+@@ -13,28 +13,10 @@ room3 {
+ }
+ 
+ kotlin {
+-  android {
+-    namespace = "com.sermilion.kmpcomposestarter.core.data"
+-    compileSdk =
+-      libs.versions.compileSdk
+-        .get()
+-        .toInt()
+-    minSdk =
+-      libs.versions.minSdk
+-        .get()
+-        .toInt()
+-    withHostTestBuilder {}
+-    lint {
+-      disable += "RestrictedApi"
+-    }
+-    androidResources {
+-      enable = true
+-    }
+-  }
+-
+   compilerOptions {
++    // Room 3 alpha01 generates code that trips Kotlin's version warnings. Module-scoped on
++    // purpose: this is a Room-alpha workaround, not shared build policy. Drop it with the pin.
+     freeCompilerArgs.add("-Xsuppress-version-warnings")
+-    freeCompilerArgs.add("-Xexpect-actual-classes")
+   }
+ 
+   sourceSets {
+@@ -57,27 +39,14 @@ kotlin {
+       implementation(libs.room3.runtime)
+       implementation(libs.sqlite.bundled)
+ 
+-      implementation(libs.paging.common)
+-
+-      implementation(libs.ksoup)
+-
+       implementation(libs.kotlinx.datetime)
+       implementation(libs.kotlinx.atomicfu)
+     }
+ 
+     androidMain.dependencies {
+       implementation(libs.androidx.datastore)
+-
+-      implementation(libs.okhttp.debug.logger)
+-      implementation(libs.pluto)
+-
+       implementation(libs.androidx.activity.compose)
+-      implementation(libs.core.ktx)
+-
+       implementation(libs.ktor.client.okhttp)
+-
+-      implementation(libs.paging.runtime)
+-      implementation(libs.paging.compose)
+     }
+ 
+     iosMain.dependencies {
+@@ -111,28 +80,14 @@ kotlin {
+   }
+ }
+ 
+-dependencies {
+-  add("kspAndroid", libs.room3.compiler)
+-  add("kspIosArm64", libs.room3.compiler)
+-  add("kspIosSimulatorArm64", libs.room3.compiler)
+-  add("kspJvm", libs.room3.compiler)
+-
+-  add("kspAndroid", libs.kotlin.inject.compiler)
+-  add("kspAndroid", libs.kotlin.inject.anvil.compiler)
+-  add("kspIosArm64", libs.kotlin.inject.compiler)
+-  add("kspIosArm64", libs.kotlin.inject.anvil.compiler)
+-  add("kspIosSimulatorArm64", libs.kotlin.inject.compiler)
+-  add("kspIosSimulatorArm64", libs.kotlin.inject.anvil.compiler)
+-  add("kspJvm", libs.kotlin.inject.compiler)
+-  add("kspJvm", libs.kotlin.inject.anvil.compiler)
+-}
+-
++// The single RestrictedApi suppression for this module. Room 3 alpha01 reports false positives on
++// `RoomDatabase` usage under the KMP lint tasks; lint.xml narrows the generated-KSP half of the
++// same problem by path. Revisit both when the Room pin moves off alpha.
+ configure<Lint> {
+   disable += "RestrictedApi"
+ }
+ 
+ tasks.withType<Test>().configureEach {
+-  useJUnitPlatform()
+   // Keeps the desktop data directory (databases and the preferences file) inside the build
+   // directory, so running tests never writes into the developer's home directory.
+   systemProperty(
+@@ -181,7 +136,8 @@ kotlin.sourceSets.commonMain {
+ 
+ // The Kotlin compile tasks inherit the generator dependency from the source set, but the KSP tasks
+ // read the same source roots through a file collection that does not always carry it, so they can
+-// run before `NetworkConfig.kt` exists and fail on the unresolved reference in `HttpClientProvider`.
++// run before `NetworkConfig.kt` exists and fail on the unresolved reference in
++// `HttpClientProvider`.
+ // Declared explicitly rather than left to inference.
+ tasks.matching { it.name.startsWith("ksp") }.configureEach {
+   dependsOn(generateNetworkConfig)
+diff --git a/core/datastore/build.gradle.kts b/core/datastore/build.gradle.kts
+index 3d59ad2..b708145 100644
+--- a/core/datastore/build.gradle.kts
++++ b/core/datastore/build.gradle.kts
+@@ -5,22 +5,6 @@ plugins {
+ }
+ 
+ kotlin {
+-  android {
+-    namespace = "com.sermilion.kmpcomposestarter.core.datastore"
+-    compileSdk =
+-      libs.versions.compileSdk
+-        .get()
+-        .toInt()
+-    minSdk =
+-      libs.versions.minSdk
+-        .get()
+-        .toInt()
+-    withHostTestBuilder {}
+-    androidResources {
+-      enable = true
+-    }
+-  }
+-
+   sourceSets {
+     commonMain.dependencies {
+       implementation(projects.core.domain)
+@@ -58,18 +42,3 @@ kotlin {
+     }
+   }
+ }
+-
+-dependencies {
+-  add("kspAndroid", libs.kotlin.inject.compiler)
+-  add("kspAndroid", libs.kotlin.inject.anvil.compiler)
+-  add("kspIosArm64", libs.kotlin.inject.compiler)
+-  add("kspIosArm64", libs.kotlin.inject.anvil.compiler)
+-  add("kspIosSimulatorArm64", libs.kotlin.inject.compiler)
+-  add("kspIosSimulatorArm64", libs.kotlin.inject.anvil.compiler)
+-  add("kspJvm", libs.kotlin.inject.compiler)
+-  add("kspJvm", libs.kotlin.inject.anvil.compiler)
+-}
+-
+-tasks.named<Test>("jvmTest") {
+-  useJUnitPlatform()
+-}
+diff --git a/core/designsystem/build.gradle.kts b/core/designsystem/build.gradle.kts
+index b71c819..93628ef 100644
+--- a/core/designsystem/build.gradle.kts
++++ b/core/designsystem/build.gradle.kts
+@@ -5,22 +5,6 @@ plugins {
+ }
+ 
+ kotlin {
+-  android {
+-    namespace = "com.sermilion.kmpcomposestarter.core.designsystem"
+-    compileSdk =
+-      libs.versions.compileSdk
+-        .get()
+-        .toInt()
+-    minSdk =
+-      libs.versions.minSdk
+-        .get()
+-        .toInt()
+-    withHostTestBuilder {}
+-    androidResources {
+-      enable = true
+-    }
+-  }
+-
+   sourceSets {
+     commonMain.dependencies {
+       api(projects.core.common)
+@@ -39,11 +23,5 @@ kotlin {
+       implementation(libs.androidx.core.ktx)
+       api(libs.coil.kt.compose)
+     }
+-
+-    iosMain.dependencies {
+-    }
+-
+-    jvmMain.dependencies {
+-    }
+   }
+ }
+diff --git a/core/domain/build.gradle.kts b/core/domain/build.gradle.kts
+index 550d479..0740946 100644
+--- a/core/domain/build.gradle.kts
++++ b/core/domain/build.gradle.kts
+@@ -4,22 +4,6 @@ plugins {
+ }
+ 
+ kotlin {
+-  android {
+-    namespace = "com.sermilion.kmpcomposestarter.core.domain"
+-    compileSdk =
+-      libs.versions.compileSdk
+-        .get()
+-        .toInt()
+-    minSdk =
+-      libs.versions.minSdk
+-        .get()
+-        .toInt()
+-    withHostTestBuilder {}
+-    androidResources {
+-      enable = true
+-    }
+-  }
+-
+   sourceSets {
+     commonMain.dependencies {
+       // api: core:common types (scopes, ScreenComponentProvider) appear in this module's own
+@@ -29,22 +13,11 @@ kotlin {
+       // (AuthRepository, UserComponentManager, UserSessionScope).
+       api(libs.kotlinx.coroutines.core)
+     }
++
+     androidMain.dependencies {
+       implementation(libs.kotlinx.coroutines.android)
+     }
+-  }
+-
+-  compilerOptions {
+-    freeCompilerArgs.add("-Xexpect-actual-classes")
+-  }
+-}
+-
+-tasks.named<Test>("jvmTest") {
+-  useJUnitPlatform()
+-}
+ 
+-kotlin {
+-  sourceSets {
+     jvmTest.dependencies {
+       implementation(projects.core.testing)
+       implementation(libs.kotest.framework.engine)
+@@ -55,14 +28,3 @@ kotlin {
+     }
+   }
+ }
+-
+-dependencies {
+-  add("kspAndroid", libs.kotlin.inject.compiler)
+-  add("kspAndroid", libs.kotlin.inject.anvil.compiler)
+-  add("kspIosArm64", libs.kotlin.inject.compiler)
+-  add("kspIosArm64", libs.kotlin.inject.anvil.compiler)
+-  add("kspIosSimulatorArm64", libs.kotlin.inject.compiler)
+-  add("kspIosSimulatorArm64", libs.kotlin.inject.anvil.compiler)
+-  add("kspJvm", libs.kotlin.inject.compiler)
+-  add("kspJvm", libs.kotlin.inject.anvil.compiler)
+-}
+diff --git a/core/testing/build.gradle.kts b/core/testing/build.gradle.kts
+index 3ca2551..e0fde43 100644
+--- a/core/testing/build.gradle.kts
++++ b/core/testing/build.gradle.kts
+@@ -3,22 +3,6 @@ plugins {
+ }
+ 
+ kotlin {
+-  android {
+-    namespace = "com.sermilion.kmpcomposestarter.core.testing"
+-    compileSdk =
+-      libs.versions.compileSdk
+-        .get()
+-        .toInt()
+-    minSdk =
+-      libs.versions.minSdk
+-        .get()
+-        .toInt()
+-    withHostTestBuilder {}
+-    androidResources {
+-      enable = true
+-    }
+-  }
+-
+   sourceSets {
+     commonMain.dependencies {
+       api(projects.core.common)
+@@ -36,9 +20,9 @@ kotlin {
+       api(libs.mockk.core)
+     }
+ 
+-    // Note: iOS testing doesn't include MockK as it's not supported on Kotlin Native
++    // Note: iOS testing doesn't include MockK as it's not supported on Kotlin Native.
+     // Options for iOS mocking:
+-    // 1. Use Mokkery (multiplatform mocking library) - already in version catalog
++    // 1. Add a multiplatform mocking library such as Mokkery to the version catalog
+     // 2. Create manual test doubles
+     // 3. Use real implementations with test configurations
+     // 4. Use fake implementations that implement the same interface
+diff --git a/core/ui/build.gradle.kts b/core/ui/build.gradle.kts
+index 647d6ac..6a30380 100644
+--- a/core/ui/build.gradle.kts
++++ b/core/ui/build.gradle.kts
+@@ -3,7 +3,7 @@ plugins {
+   alias(libs.plugins.compose.multiplatform)
+   alias(libs.plugins.compose.compiler)
+   alias(libs.plugins.ksp)
+-  id("org.jetbrains.kotlin.plugin.serialization")
++  alias(libs.plugins.kotlin.serialization)
+ }
+ 
+ compose.resources {
+@@ -11,22 +11,6 @@ compose.resources {
+ }
+ 
+ kotlin {
+-  android {
+-    namespace = "com.sermilion.kmpcomposestarter.core.ui"
+-    compileSdk =
+-      libs.versions.compileSdk
+-        .get()
+-        .toInt()
+-    minSdk =
+-      libs.versions.minSdk
+-        .get()
+-        .toInt()
+-    withHostTestBuilder {}
+-    androidResources {
+-      enable = true
+-    }
+-  }
+-
+   sourceSets {
+     commonMain.dependencies {
+       implementation(projects.core.common)
+@@ -45,9 +29,6 @@ kotlin {
+       implementation(libs.coil.kt.compose)
+       implementation(libs.coil.kt.network.ktor3)
+       implementation(libs.kotlinx.datetime)
+-      implementation(libs.paging.common)
+-      implementation(libs.paging.compose)
+-      implementation(libs.androidx.navigation.compose)
+       implementation(libs.jetbrains.lifecycle.viewmodel)
+       implementation(libs.jetbrains.lifecycle.viewmodel.compose)
+       implementation(libs.kotlin.inject.runtime)
+@@ -62,20 +43,18 @@ kotlin {
+   }
+ }
+ 
+-tasks.named<Test>("jvmTest") {
+-  useJUnitPlatform()
+-}
+-
+-dependencies {
+-  add("kspAndroid", libs.kotlin.inject.compiler)
+-  add("kspIosArm64", libs.kotlin.inject.compiler)
+-  add("kspIosSimulatorArm64", libs.kotlin.inject.compiler)
+-  add("kspJvm", libs.kotlin.inject.compiler)
++// Compose generates the `Res` accessors into commonMain, but the KSP tasks read the source roots
++// through a file collection that does not always carry the generator dependency, so KSP can run
++// before `Res` exists. Compose's generator tasks are `internal` to its Gradle plugin and cannot be
++// referenced by type from here, so they are matched by name. Mirrors the explicit ordering
++// core:data declares for its generated NetworkConfig.
++val composeResourceGenerators = tasks.matching {
++  it.name.startsWith("generateResourceAccessors") ||
++    it.name.startsWith("generateComposeResClass") ||
++    it.name.startsWith("generateExpectResourceCollectors") ||
++    it.name.startsWith("generateActualResourceCollectors")
+ }
+ 
+-tasks.matching { it.name.contains("ksp") && it.name.contains("Kotlin") }.configureEach {
+-  dependsOn(tasks.matching { it.name.startsWith("generateResourceAccessors") })
+-  dependsOn(tasks.matching { it.name.contains("generateComposeResClass") })
+-  dependsOn(tasks.matching { it.name.contains("generateActualResourceCollectors") })
+-  dependsOn(tasks.matching { it.name.contains("generateExpectResourceCollectors") })
++tasks.matching { it.name.startsWith("ksp") }.configureEach {
++  dependsOn(composeResourceGenerators)
+ }
+diff --git a/docs/architecture/build-and-tooling.md b/docs/architecture/build-and-tooling.md
+index 03228c2..59b3c9f 100644
+--- a/docs/architecture/build-and-tooling.md
++++ b/docs/architecture/build-and-tooling.md
+@@ -11,12 +11,37 @@ Important convention plugins include:
+ | `kmp.application` | Shared app-shell setup for `composeApp` |
+ | `kmp.library` | Shared KMP library module setup |
+ | `kmp.compose` | Shared Compose Multiplatform module setup |
++| `jvm.library` | Plain JVM module setup (`codegen:viewmodel-inject-processor`) |
+ | `kmp.kotlininject` | Common KSP DI wiring |
+ | `kmp.detekt` | Static analysis configuration |
+ | `kmp.lint` | Android lint configuration |
+ 
+ Keep shared build behavior in these plugins rather than repeating Gradle setup per module.
+ 
++### What the conventions own
++
++A module build file declares its plugins, its dependencies and nothing else. The conventions own:
++
++- **The Android target.** `compileSdk`, `minSdk`, the host-test compilation and android resources
++  are declared once, in `KotlinMultiplatform.kt`. Namespaces are derived from the Gradle path, so
++  `:core:data` becomes `com.sermilion.kmpcomposestarter.core.data` and no module repeats one.
++  `androidApp` is the single exception: it applies `com.android.application`, whose `android { }`
++  block also carries the applicationId, build types and packaging rules that cannot be shared.
++- **Compiler arguments.** The shared opt-ins and `-Xexpect-actual-classes` are set on the
++  multiplatform extension, which is the only level that also reaches the native compilations.
++  `core:data`'s `-Xsuppress-version-warnings` stays module-scoped because it is a Room-alpha
++  workaround, not shared policy.
++- **Test wiring.** `useJUnitPlatform()` is applied to every `Test` task so Kotest specs are
++  discovered in `jvmTest` and `androidHostTest` alike.
++- **KSP processors.** The `kmp.kotlininject` convention derives the KSP configuration names from
++  the targets a module declares, then adds the kotlin-inject, Anvil and ViewModel processors to
++  each. If a module also applies the Room plugin, the Room processor rides the same list. No module
++  declares a `ksp*` dependency of its own.
++
++`kspCommonMainMetadata` is deliberately **not** wired. The processors used to be added to it, but
++its output was never fed into any compilation, so they ran and produced nothing. The metadata
++target is skipped when the configuration list is derived.
++
+ ## Version Management
+ 
+ All dependency and plugin versions are centralized in `gradle/libs.versions.toml`.
+@@ -36,7 +61,8 @@ Prefer updating the version catalog first, then adjusting convention logic only
+ 
+ - Build with JDK 17.
+ - Keep Android and JVM bytecode targets on Java 11 unless the starter deliberately raises its runtime baseline.
+-- Supported KSP targets currently include Android, `iosArm64`, `iosSimulatorArm64`, and JVM.
++- KSP configurations are derived from the declared targets, which today means Android,
++  `iosArm64`, `iosSimulatorArm64` and JVM. Adding or removing a target changes them automatically.
+ 
+ ## Repository Policy
+ 
+@@ -63,7 +89,12 @@ This keeps Android app bootstrap separate from shared multiplatform code and avo
+ 
+ Room 3 `3.0.0-alpha01` currently triggers `RestrictedApi` lint false positives in `core:data` for both generated KSP code and `RoomDatabase` usage under KMP lint tasks.
+ 
+-The module intentionally disables `RestrictedApi` to keep the repository gate focused on actionable issues. Revisit that workaround when upgrading Room.
++The module carries exactly one suppression for this: a commented `disable += "RestrictedApi"` in
++`core/data/build.gradle.kts`, narrowed for the generated-KSP half by the path-scoped ignore in
++`core/data/lint.xml`. Revisit both when the Room pin moves off alpha.
++
++Libraries run lint with `checkDependencies = false`; only `androidApp` aggregates across its
++dependencies, so a finding is reported once instead of once per consumer.
+ 
+ ## Quality Gates
+ 
+@@ -77,29 +108,85 @@ Main commands:
+ ./gradlew :composeApp:linkDebugFrameworkIosArm64
+ ```
+ 
+-`./gradlew check` is the default repository gate.
++`./gradlew check` is the default repository gate. It runs detekt, ktlint, Android lint, the Kotest
++suites and the merged Kover report.
++
++The configuration cache is on (`org.gradle.configuration-cache=true` in `gradle.properties`), so a
++second `check` reuses the stored configuration instead of re-running it. Build logic that reads
++project state at execution time will fail the build rather than silently disabling the cache — keep
++new wiring configuration-cache safe.
++
++### Detekt
++
++`config/detekt/detekt.yml` is loaded unconditionally by the `kmp.detekt` convention; a module-level
++`detekt.yml` only layers on top of it. `check` depends on every `Detekt` task in a project, so the
++androidMain, jvmMain, `iosArm64`, `iosSimulatorArm64` and test source sets are all analysed —
++previously only the default `detekt` task ran, and the shared config was never loaded at all.
++
++Detekt reaches every module, including `androidApp` and `codegen:viewmodel-inject-processor`.
++`build-logic` is a separate included build, so it applies detekt and spotless itself and the root
++`check` depends on `:convention:check` explicitly.
++
++The Compose rules come from `io.nlopez.compose.rules:detekt` via the `detekt-compose-rules` catalog
++alias — the maintained successor to the abandoned `com.twitter.compose.rules` artifact that was
++previously hardcoded in the convention plugin. Its ruleset id is `Compose`.
++
++There is no detekt baseline file. `config.validation` is on, so an unknown ruleset or rule key fails
++the build rather than being silently ignored.
++
++### Formatting
+ 
+-CI should also keep verifying at least one iOS framework link task so multiplatform breakages are caught early.
++Spotless runs ktlint. Shared style — indentation, line length, trailing commas and the
++ktlint-specific keys — lives in `.editorconfig`, which ktlint reads directly, so there is no
++override map in the Gradle build that can drift away from what the IDE applies.
+ 
+ ## Automation
+ 
+ ### GitHub Actions
+ 
+-CI lives in `.github/workflows/check.yml`.
++CI lives in `.github/workflows/check.yml` and runs two jobs:
+ 
+-It intentionally stays lightweight and template-safe:
++| Job | Runner | Runs |
++|-----|--------|------|
++| `check` | `ubuntu-latest` | `./gradlew check`, then `:androidApp:assembleDebug` |
++| `ios` | `macos-latest` | `:composeApp:linkDebugFrameworkIosArm64` |
+ 
+-- checkout
+-- JDK 17 setup
+-- Gradle setup
+-- repository `check`
+-- iOS framework link verification
++Splitting them keeps the expensive macOS runner scoped to the one task that needs it. Both jobs
++have `timeout-minutes`, the workflow declares `permissions: contents: read`, and a `concurrency`
++group keyed on workflow and ref cancels superseded runs. On failure each job uploads its detekt,
++lint, test and Kover reports as artifacts so a red build can be diagnosed without re-running it.
+ 
+ ### Dependabot
+ 
+-Dependabot configuration lives in `.github/dependabot.yml` and currently tracks:
++Dependabot configuration lives in `.github/dependabot.yml` and tracks Gradle dependencies and
++GitHub Actions versions. Updates are grouped so related upgrades arrive as one reviewable PR:
+ 
+-- Gradle dependencies
+-- GitHub Actions versions
++- `kotlin` — Kotlin and KSP, which are versioned against each other and must move together
++- `androidx` — the AndroidX artifacts
++- `all-minor-patch` — everything else, by update type
++
++Both ecosystems set `open-pull-requests-limit` so the queue stays reviewable.
+ 
+ Keep automation generic and reusable. Do not add org-specific secrets, deploy steps, or proprietary checks.
++
++## Coverage
++
++Kover is applied to every subproject from the root build and aggregated there, so `./gradlew check`
++produces one merged report:
++
++| Report | Path |
++|--------|------|
++| XML | `build/reports/kover/report.xml` |
++| HTML | `build/reports/kover/html/index.html` |
++
++Both are wired to `check` via `onCheck`, so no separate command is needed.
++
++**What it actually covers.** Kover instruments JVM bytecode. In this repository that means the
++`jvm` target's tests and the Android unit tests — the iOS targets produce no coverage data and do
++not appear in the report. A module whose logic is only exercised from a native test will read as
++uncovered even though it is tested. Read the number as "JVM-side coverage", not project coverage.
++
++No coverage threshold is configured. The report exists to be looked at, not to fail the build on an
++arbitrary percentage.
++
++`build-logic` is a separate included build and is deliberately outside the aggregation.
+diff --git a/feature/auth/build.gradle.kts b/feature/auth/build.gradle.kts
+index a912bcf..cc43ae2 100644
+--- a/feature/auth/build.gradle.kts
++++ b/feature/auth/build.gradle.kts
+@@ -6,22 +6,6 @@ plugins {
+ }
+ 
+ kotlin {
+-  android {
+-    namespace = "com.sermilion.kmpcomposestarter.feature.auth"
+-    compileSdk =
+-      libs.versions.compileSdk
+-        .get()
+-        .toInt()
+-    minSdk =
+-      libs.versions.minSdk
+-        .get()
+-        .toInt()
+-    withHostTestBuilder {}
+-    androidResources {
+-      enable = true
+-    }
+-  }
+-
+   sourceSets {
+     commonMain.dependencies {
+       implementation(projects.core.common)
+@@ -43,12 +27,4 @@ kotlin {
+       implementation(libs.mockk.core)
+     }
+   }
+-
+-  compilerOptions {
+-    freeCompilerArgs.add("-Xexpect-actual-classes")
+-  }
+-}
+-
+-tasks.named<Test>("jvmTest") {
+-  useJUnitPlatform()
+ }
+diff --git a/feature/home/build.gradle.kts b/feature/home/build.gradle.kts
+index 8f04d5a..3bdf91e 100644
+--- a/feature/home/build.gradle.kts
++++ b/feature/home/build.gradle.kts
+@@ -6,22 +6,6 @@ plugins {
+ }
+ 
+ kotlin {
+-  android {
+-    namespace = "com.sermilion.kmpcomposestarter.feature.home"
+-    compileSdk =
+-      libs.versions.compileSdk
+-        .get()
+-        .toInt()
+-    minSdk =
+-      libs.versions.minSdk
+-        .get()
+-        .toInt()
+-    withHostTestBuilder {}
+-    androidResources {
+-      enable = true
+-    }
+-  }
+-
+   sourceSets {
+     commonMain.dependencies {
+       implementation(projects.core.common)
+@@ -35,8 +19,4 @@ kotlin {
+       implementation(libs.kermit)
+     }
+   }
+-
+-  compilerOptions {
+-    freeCompilerArgs.add("-Xexpect-actual-classes")
+-  }
+ }
+diff --git a/feature/profile/build.gradle.kts b/feature/profile/build.gradle.kts
+index 3bc5055..cc43ae2 100644
+--- a/feature/profile/build.gradle.kts
++++ b/feature/profile/build.gradle.kts
+@@ -6,22 +6,6 @@ plugins {
+ }
+ 
+ kotlin {
+-  android {
+-    namespace = "com.sermilion.kmpcomposestarter.feature.profile"
+-    compileSdk =
+-      libs.versions.compileSdk
+-        .get()
+-        .toInt()
+-    minSdk =
+-      libs.versions.minSdk
+-        .get()
+-        .toInt()
+-    withHostTestBuilder {}
+-    androidResources {
+-      enable = true
+-    }
+-  }
+-
+   sourceSets {
+     commonMain.dependencies {
+       implementation(projects.core.common)
+@@ -43,12 +27,4 @@ kotlin {
+       implementation(libs.mockk.core)
+     }
+   }
+-
+-  compilerOptions {
+-    freeCompilerArgs.add("-Xexpect-actual-classes")
+-  }
+-}
+-
+-tasks.named<Test>("jvmTest") {
+-  useJUnitPlatform()
+ }
+diff --git a/feature/settings/build.gradle.kts b/feature/settings/build.gradle.kts
+index 165bc16..3bdf91e 100644
+--- a/feature/settings/build.gradle.kts
++++ b/feature/settings/build.gradle.kts
+@@ -6,22 +6,6 @@ plugins {
+ }
+ 
+ kotlin {
+-  android {
+-    namespace = "com.sermilion.kmpcomposestarter.feature.settings"
+-    compileSdk =
+-      libs.versions.compileSdk
+-        .get()
+-        .toInt()
+-    minSdk =
+-      libs.versions.minSdk
+-        .get()
+-        .toInt()
+-    withHostTestBuilder {}
+-    androidResources {
+-      enable = true
+-    }
+-  }
+-
+   sourceSets {
+     commonMain.dependencies {
+       implementation(projects.core.common)
+@@ -35,8 +19,4 @@ kotlin {
+       implementation(libs.kermit)
+     }
+   }
+-
+-  compilerOptions {
+-    freeCompilerArgs.add("-Xexpect-actual-classes")
+-  }
+ }
+diff --git a/gradle.properties b/gradle.properties
+index e781967..57121fc 100644
+--- a/gradle.properties
++++ b/gradle.properties
+@@ -3,13 +3,7 @@
+ #
+ # Specifies the JVM arguments used for the daemon process.
+ # The setting is particularly useful for tweaking memory settings.
+-# Note: CI overrides these with GRADLE_OPTS for higher memory (8GB heap, 4GB metaspace)
+ org.gradle.jvmargs=-Xmx6g -XX:MaxMetaspaceSize=1g -Dkotlin.daemon.jvm.options\="-Xmx3g" -XX\:+HeapDumpOnOutOfMemoryError -Dfile.encoding\=UTF-8 -XX\:+UseParallelGC
+-# When configured, Gradle will run in incubating parallel mode.
+-# This option should only be used with decoupled projects. For more details, visit
+-# https://developer.android.com/r/tools/gradle-multi-project-decoupled-projects
+-# org.gradle.parallel=true
+-android.enableJetifier=false
+ android.nonTransitiveRClass=true
+ android.useAndroidX=true
+ kotlin.code.style=official
+@@ -17,7 +11,7 @@ org.gradle.configureondemand=false
+ org.gradle.daemon=true
+ org.gradle.parallel=true
+ org.gradle.caching=true
+-org.gradle.configuration-cache.problems=warn
++org.gradle.configuration-cache=true
+ 
+ # Kotlin incremental compilation
+ kotlin.incremental.multiplatform=true
+@@ -27,7 +21,8 @@ kotlin.incremental=true
+ ksp.incremental=true
+ ksp.incremental.log=false
+ 
+-# Enabled parallel sync for Gradle 9.4+
++# Parallel model building for IDE sync (Gradle 9.4+). Kept on: sync is the slowest thing a
++# contributor does on this repository, and the build has no cross-project model side effects.
+ org.gradle.tooling.parallel=true
+ 
+ # Base URL for the starter's HTTP client. The default host is intentionally fake: this
+diff --git a/gradle/libs.versions.toml b/gradle/libs.versions.toml
+index 5c380dc..2c3f6e2 100644
+--- a/gradle/libs.versions.toml
++++ b/gradle/libs.versions.toml
+@@ -2,20 +2,23 @@
+ androidGradlePlugin = "9.1.0"
+ kotlinpoet = "2.2.0"
+ composeMultiplatform = "1.10.2"
++# Pre-release pin: org.jetbrains.compose.material3 is published on its own alpha-only line for the
++# Compose Multiplatform 1.10 cycle; there is no stable release to move to yet.
+ composeMaterial3 = "1.10.0-alpha05"
+ composeMaterialIcons = "1.7.3"
+ androidxActivity = "1.11.0"
+-androidxAppCompat = "1.7.1"
+ androidxCore = "1.17.0"
+ androidxDataStore = "1.2.1"
+ androidxLifecycle = "2.10.0"
+-androidxNavigation = "2.9.1"
++# Pre-release pin: Navigation 3 has not shipped a stable release. The starter's navigation is built
++# on it deliberately (see docs/architecture/navigation.md); revisit on the first stable tag.
+ navigation3 = "1.0.0-alpha06"
++# Pre-release pin: the ViewModel integration for Navigation 3 tracks the same alpha line.
++lifecycleViewmodelNavigation3 = "2.10.0-alpha06"
+ coil = "3.4.0"
+ compileSdk = "36"
+ detekt = "1.23.8"
+ detektCompose = "0.4.22"
+-ksoup = "0.2.5"
+ kotlin = "2.3.10"
+ kotlinCompileTesting = "0.12.1"
+ okio = "3.17.0"
+@@ -23,48 +26,40 @@ kotlinxCoroutines = "1.10.2"
+ kotlinxCoroutinesTest = "1.10.2"
+ kotlinxDatetime = "0.6.2"
+ kotlinxAtomicfu = "0.29.0"
++kotlinxSerializationJson = "1.9.0"
++kotlinxCollectionsImmutable = "0.4.0"
+ kotest = "5.9.1"
++kover = "0.9.3"
+ ktor = "3.4.1"
+ kotlinInject = "0.9.0"
+ kotlinInjectAnvil = "0.1.7"
+ ksp = "2.3.6"
+-okhttp = "4.12.0"
+ mockk = "1.14.9"
+-mokkery = "3.2.0"
+ minSdk = "26"
+-paging = "3.4.2"
+-pagingCompose = "3.5.0-alpha01"
+-pluto = "2.2.2"
++# Pre-release pin: Room 3 is the KMP-capable line and has no stable release yet. It also drives the
++# RestrictedApi lint workaround in core:data — revisit both together on the next Room upgrade.
+ room3 = "3.0.0-alpha01"
+ sqliteBundled = "2.6.2"
+ spotless = "7.2.1"
+ kermit = "2.0.8"
+ junitVersion = "1.3.0"
+-coreKtx = "1.7.0"
+-junitKtx = "1.3.0"
+ 
+ [libraries]
+ androidx-activity-compose = { group = "androidx.activity", name = "activity-compose", version.ref = "androidxActivity" }
+-androidx-appcompat = { group = "androidx.appcompat", name = "appcompat", version.ref = "androidxAppCompat" }
+ androidx-datastore = { module = "androidx.datastore:datastore", version.ref = "androidxDataStore" }
+ androidx-datastore-core = { module = "androidx.datastore:datastore-core", version.ref = "androidxDataStore" }
+ androidx-datastore-core-okio = { module = "androidx.datastore:datastore-core-okio", version.ref = "androidxDataStore" }
+-androidx-junit-ktx = { group = "androidx.test.ext", name = "junit-ktx", version.ref = "junitKtx" }
+ androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "androidxCore" }
+-androidx-lifecycle-runtimeCompose = { group = "androidx.lifecycle", name = "lifecycle-runtime-compose", version.ref = "androidxLifecycle" }
+ androidx-lifecycle-viewmodel = { group = "androidx.lifecycle", name = "lifecycle-viewmodel", version.ref = "androidxLifecycle" }
+-androidx-lifecycle-viewModelCompose = { group = "androidx.lifecycle", name = "lifecycle-viewmodel-compose", version.ref = "androidxLifecycle" }
+ androidx-lifecycle-runtime = { group = "androidx.lifecycle", name = "lifecycle-runtime", version.ref = "androidxLifecycle" }
+ jetbrains-lifecycle-viewmodel = { group = "org.jetbrains.androidx.lifecycle", name = "lifecycle-viewmodel", version.ref = "androidxLifecycle" }
+ jetbrains-lifecycle-viewmodel-compose = { group = "org.jetbrains.androidx.lifecycle", name = "lifecycle-viewmodel-compose", version.ref = "androidxLifecycle" }
+ jetbrains-lifecycle-runtime-compose = { group = "org.jetbrains.androidx.lifecycle", name = "lifecycle-runtime-compose", version.ref = "androidxLifecycle" }
+-androidx-navigation-compose = { group = "org.jetbrains.androidx.navigation", name = "navigation-compose", version.ref = "androidxNavigation" }
+ navigation3-ui = { group = "org.jetbrains.androidx.navigation3", name = "navigation3-ui", version.ref = "navigation3" }
+-lifecycle-viewmodel-navigation3 = { group = "org.jetbrains.androidx.lifecycle", name = "lifecycle-viewmodel-navigation3", version = "2.10.0-alpha06" }
++lifecycle-viewmodel-navigation3 = { group = "org.jetbrains.androidx.lifecycle", name = "lifecycle-viewmodel-navigation3", version.ref = "lifecycleViewmodelNavigation3" }
+ coil-kt = { group = "io.coil-kt.coil3", name = "coil", version.ref = "coil" }
+ coil-kt-compose = { group = "io.coil-kt.coil3", name = "coil-compose", version.ref = "coil" }
+ coil-kt-network-ktor3 = { group = "io.coil-kt.coil3", name = "coil-network-ktor3", version.ref = "coil" }
+-core-ktx = { group = "androidx.test", name = "core-ktx", version.ref = "coreKtx" }
+ 
+ kotlin-inject-compiler = { module = "me.tatarka.inject:kotlin-inject-compiler-ksp", version.ref = "kotlinInject" }
+ kotlin-inject-runtime = { module = "me.tatarka.inject:kotlin-inject-runtime", version.ref = "kotlinInject" }
+@@ -72,7 +67,6 @@ kotlin-inject-anvil-compiler = { module = "software.amazon.lastmile.kotlin.injec
+ kotlin-inject-anvil-runtime = { module = "software.amazon.lastmile.kotlin.inject.anvil:runtime", version.ref = "kotlinInjectAnvil" }
+ kotlin-inject-anvil-runtime-optional = { module = "software.amazon.lastmile.kotlin.inject.anvil:runtime-optional", version.ref = "kotlinInjectAnvil" }
+ 
+-ksoup = { module = "com.fleeksoft.ksoup:ksoup", version.ref = "ksoup" }
+ kotlinx-coroutines-core = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-core", version.ref = "kotlinxCoroutines" }
+ kotlinx-coroutines-android = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-android", version.ref = "kotlinxCoroutines" }
+ kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "kotlinxCoroutinesTest" }
+@@ -84,14 +78,8 @@ kotest-framework-datatest = { module = "io.kotest:kotest-framework-datatest", ve
+ kotest-runner-junit5-jvm = { module = "io.kotest:kotest-runner-junit5-jvm", version.ref = "kotest" }
+ mockk-core = { module = "io.mockk:mockk", version.ref = "mockk" }
+ mockk-android = { module = "io.mockk:mockk-android", version.ref = "mockk" }
+-mokkery-runtime = { module = "dev.mokkery:mokkery-runtime", version.ref = "mokkery" }
+-mokkery-gradle = { module = "dev.mokkery:mokkery-gradle", version.ref = "mokkery" }
+ okio = { module = "com.squareup.okio:okio", version.ref = "okio" }
+ 
+-paging-runtime = { module = "androidx.paging:paging-runtime", version.ref = "paging" }
+-paging-common = { module = "androidx.paging:paging-common", version.ref = "paging" }
+-paging-compose = { module = "androidx.paging:paging-compose", version.ref = "pagingCompose" }
+-pluto = { module = "com.plutolib:pluto", version.ref = "pluto" }
+ ktor-client-core = { group = "io.ktor", name = "ktor-client-core", version.ref = "ktor" }
+ ktor-client-okhttp = { group = "io.ktor", name = "ktor-client-okhttp", version.ref = "ktor" }
+ ktor-client-darwin = { group = "io.ktor", name = "ktor-client-darwin", version.ref = "ktor" }
+@@ -101,11 +89,8 @@ ktor-client-auth = { group = "io.ktor", name = "ktor-client-auth", version.ref =
+ ktor-client-logging = { group = "io.ktor", name = "ktor-client-logging", version.ref = "ktor" }
+ ktor-client-mock = { group = "io.ktor", name = "ktor-client-mock", version.ref = "ktor" }
+ 
+-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version = "1.9.0" }
+-kotlinx-collections-immutable = { module = "org.jetbrains.kotlinx:kotlinx-collections-immutable", version = "0.4.0" }
+-
+-okhttp = { module = "com.squareup.okhttp3:okhttp", version.ref = "okhttp" }
+-okhttp-debug-logger = { module = "com.squareup.okhttp3:logging-interceptor", version.ref = "okhttp" }
++serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinxSerializationJson" }
++kotlinx-collections-immutable = { module = "org.jetbrains.kotlinx:kotlinx-collections-immutable", version.ref = "kotlinxCollectionsImmutable" }
+ 
+ room3-compiler = { module = "androidx.room3:room3-compiler", version.ref = "room3" }
+ room3-runtime = { module = "androidx.room3:room3-runtime", version.ref = "room3" }
+@@ -113,6 +98,7 @@ sqlite-bundled = { module = "androidx.sqlite:sqlite-bundled", version.ref = "sql
+ 
+ android-gradlePlugin = { group = "com.android.tools.build", name = "gradle", version.ref = "androidGradlePlugin" }
+ detekt-gradlePlugin = { group = "io.gitlab.arturbosch.detekt", name = "io.gitlab.arturbosch.detekt.gradle.plugin", version.ref = "detekt" }
++detekt-compose-rules = { module = "io.nlopez.compose.rules:detekt", version.ref = "detektCompose" }
+ kotlin-gradlePlugin = { group = "org.jetbrains.kotlin", name = "kotlin-gradle-plugin", version.ref = "kotlin" }
+ ksp-gradlePlugin = { group = "com.google.devtools.ksp", name = "com.google.devtools.ksp.gradle.plugin", version.ref = "ksp" }
+ 
+@@ -123,6 +109,7 @@ compose-runtime = { module = "org.jetbrains.compose.runtime:runtime", version.re
+ compose-foundation = { module = "org.jetbrains.compose.foundation:foundation", version.ref = "composeMultiplatform" }
+ compose-material3 = { module = "org.jetbrains.compose.material3:material3", version.ref = "composeMaterial3" }
+ compose-ui = { module = "org.jetbrains.compose.ui:ui", version.ref = "composeMultiplatform" }
++compose-ui-tooling = { module = "org.jetbrains.compose.ui:ui-tooling", version.ref = "composeMultiplatform" }
+ compose-animation = { module = "org.jetbrains.compose.animation:animation", version.ref = "composeMultiplatform" }
+ compose-components-resources = { module = "org.jetbrains.compose.components:components-resources", version.ref = "composeMultiplatform" }
+ compose-components-uiToolingPreview = { module = "org.jetbrains.compose.components:components-ui-tooling-preview", version.ref = "composeMultiplatform" }
+@@ -141,16 +128,16 @@ kotlin-multiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref
+ kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
+ compose-compiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
+ compose-multiplatform = { id = "org.jetbrains.compose", version.ref = "composeMultiplatform" }
+-kover = { id = "org.jetbrains.kotlinx.kover", version = "0.9.3" }
++kover = { id = "org.jetbrains.kotlinx.kover", version.ref = "kover" }
+ ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
+ spotless = { id = "com.diffplug.spotless", version.ref = "spotless" }
+ room3 = { id = "androidx.room3", version.ref = "room3" }
+-mokkery = { id = "dev.mokkery", version.ref = "mokkery" }
+ android-kmp-library = { id = "com.android.kotlin.multiplatform.library", version.ref = "androidGradlePlugin" }
+ # Plugins defined by this project
+ kmp-library = { id = "kmp.library", version = "unspecified" }
+ kmp-compose = { id = "kmp.compose", version = "unspecified" }
+ kmp-application = { id = "kmp.application", version = "unspecified" }
++jvm-library = { id = "jvm.library", version = "unspecified" }
+ kmp-lint = { id = "kmp.lint", version = "unspecified" }
+ kmp-detekt = { id = "kmp.detekt", version = "unspecified" }
+ kmp-kotlininject = { id = "kmp.kotlininject", version = "unspecified" }
+diff --git a/settings.gradle.kts b/settings.gradle.kts
+index 72679cf..f5de369 100644
+--- a/settings.gradle.kts
++++ b/settings.gradle.kts
+@@ -33,6 +33,8 @@ rootProject.name = "KMPComposeStarter"
+ enableFeaturePreview("TYPESAFE_PROJECT_ACCESSORS")
+ 
+ plugins {
++  // Inline version by necessity: settings plugins are resolved before the version catalog exists,
++  // so this is the one version in the repository that cannot live in gradle/libs.versions.toml.
+   id("org.gradle.toolchains.foojay-resolver-convention") version "1.0.0"
+ }
+40
+fbbf5729588f914e1419276b2a24227e4121fb8b
+40
+a32b3bb14339e344b856b63bb57334eb714fa12f
+23
+SYNTHETIC_SUPPLIED_DIFF
+23
+non-commit review scope
+1
+0

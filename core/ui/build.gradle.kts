@@ -3,7 +3,7 @@ plugins {
   alias(libs.plugins.compose.multiplatform)
   alias(libs.plugins.compose.compiler)
   alias(libs.plugins.ksp)
-  id("org.jetbrains.kotlin.plugin.serialization")
+  alias(libs.plugins.kotlin.serialization)
 }
 
 compose.resources {
@@ -11,22 +11,6 @@ compose.resources {
 }
 
 kotlin {
-  android {
-    namespace = "com.sermilion.kmpcomposestarter.core.ui"
-    compileSdk =
-      libs.versions.compileSdk
-        .get()
-        .toInt()
-    minSdk =
-      libs.versions.minSdk
-        .get()
-        .toInt()
-    withHostTestBuilder {}
-    androidResources {
-      enable = true
-    }
-  }
-
   sourceSets {
     commonMain.dependencies {
       implementation(projects.core.common)
@@ -45,9 +29,6 @@ kotlin {
       implementation(libs.coil.kt.compose)
       implementation(libs.coil.kt.network.ktor3)
       implementation(libs.kotlinx.datetime)
-      implementation(libs.paging.common)
-      implementation(libs.paging.compose)
-      implementation(libs.androidx.navigation.compose)
       implementation(libs.jetbrains.lifecycle.viewmodel)
       implementation(libs.jetbrains.lifecycle.viewmodel.compose)
       implementation(libs.kotlin.inject.runtime)
@@ -62,20 +43,18 @@ kotlin {
   }
 }
 
-tasks.named<Test>("jvmTest") {
-  useJUnitPlatform()
+// Compose generates the `Res` accessors into commonMain, but the KSP tasks read the source roots
+// through a file collection that does not always carry the generator dependency, so KSP can run
+// before `Res` exists. Compose's generator tasks are `internal` to its Gradle plugin and cannot be
+// referenced by type from here, so they are matched by name. Mirrors the explicit ordering
+// core:data declares for its generated NetworkConfig.
+val composeResourceGenerators = tasks.matching {
+  it.name.startsWith("generateResourceAccessors") ||
+    it.name.startsWith("generateComposeResClass") ||
+    it.name.startsWith("generateExpectResourceCollectors") ||
+    it.name.startsWith("generateActualResourceCollectors")
 }
 
-dependencies {
-  add("kspAndroid", libs.kotlin.inject.compiler)
-  add("kspIosArm64", libs.kotlin.inject.compiler)
-  add("kspIosSimulatorArm64", libs.kotlin.inject.compiler)
-  add("kspJvm", libs.kotlin.inject.compiler)
-}
-
-tasks.matching { it.name.contains("ksp") && it.name.contains("Kotlin") }.configureEach {
-  dependsOn(tasks.matching { it.name.startsWith("generateResourceAccessors") })
-  dependsOn(tasks.matching { it.name.contains("generateComposeResClass") })
-  dependsOn(tasks.matching { it.name.contains("generateActualResourceCollectors") })
-  dependsOn(tasks.matching { it.name.contains("generateExpectResourceCollectors") })
+tasks.matching { it.name.startsWith("ksp") }.configureEach {
+  dependsOn(composeResourceGenerators)
 }

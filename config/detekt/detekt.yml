@@ -363,7 +363,9 @@ potential-bugs:
   WrongEqualsTypeParameter:
     active: true
 
-TwitterCompose:
+# Ruleset id of io.nlopez.compose.rules:detekt, the maintained successor to the abandoned
+# com.twitter.compose.rules artifact this config was originally written against.
+Compose:
   CompositionLocalAllowlist:
     active: true
     allowedCompositionLocals:

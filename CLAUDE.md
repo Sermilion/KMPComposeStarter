@@ -41,7 +41,8 @@ The repository is organized as a Kotlin Multiplatform application starter:
 
 - Keep module boundaries clean: `data` implements contracts, `domain` stays framework-light, and `feature` code should not bypass shared abstractions without a strong reason.
 - Keep the starter generic and reusable. Avoid product-specific naming, secrets, endpoints, or release workflows.
-- Prefer shared configuration in `build-logic` and `gradle/libs.versions.toml` over duplicated per-module Gradle setup.
+- Prefer shared configuration in `build-logic` and `gradle/libs.versions.toml` over duplicated per-module Gradle setup. A module build file should declare plugins and dependencies only: the Android target, namespace, compiler arguments, test platform and KSP processors all come from the conventions.
+- Every catalog alias must be referenced by something. Do not leave an unused alias behind "for later", and keep every version literal in `[versions]` with a reason comment on each pre-release pin.
 
 ## Dependency and Build Guidance
 
@@ -70,10 +71,17 @@ The repository is organized as a Kotlin Multiplatform application starter:
 
 ## Testing and Quality Standards
 
-- `./gradlew check` is the default release gate for this starter.
-- CI should also validate at least one iOS framework link task.
-- Do not add suppressions to hide real build, lint, or test failures unless the template intentionally documents them.
-- `core:data` intentionally disables `RestrictedApi` lint while Room 3 `alpha01` reports false positives on generated KSP code and `RoomDatabase` usage in KMP lint tasks. Revisit that workaround on future Room upgrades.
+- `./gradlew check` is the default release gate for this starter. It runs detekt against the shared
+  `config/detekt/detekt.yml` over every source set of every module, ktlint, Android lint, the Kotest
+  suites, and the merged Kover report at `build/reports/kover/`.
+- CI runs two jobs: `check` plus `:androidApp:assembleDebug` on ubuntu, and the iOS framework link
+  on macOS. Keep the iOS link task in CI so multiplatform breakages surface early.
+- Do not add suppressions to hide real build, lint, or test failures unless the template intentionally documents them. In particular, do not add a detekt baseline file: fix the finding or scope the rule narrowly with a comment.
+- The configuration cache is enabled. New build logic must be configuration-cache safe; do not relax
+  `org.gradle.configuration-cache.problems` to get a green run.
+- Kover instruments JVM bytecode only, so the coverage report covers the JVM and Android unit tests
+  and not the iOS targets. Do not describe it as project-wide coverage.
+- `core:data` intentionally disables `RestrictedApi` lint while Room 3 `alpha01` reports false positives on generated KSP code and `RoomDatabase` usage in KMP lint tasks. Keep it to the one commented disable plus the path-scoped `core/data/lint.xml` ignore, and revisit on future Room upgrades.
 - Prefer Kotest assertions and MockK annotations over ad-hoc mocking setup when practical.
 - When adding repository APIs, prefer both single-item and bulk write operations instead of forcing callers into item-by-item loops.
 - Treat DataStore file renames as migrations. Renaming a file without a migration path can strand existing user data.

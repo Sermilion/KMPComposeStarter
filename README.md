@@ -19,7 +19,7 @@ This repository gives you a modern baseline for app development with Compose Mul
 - Session persistence in DataStore, restored at launch so returning users skip the login screen
 - One shared Ktor client with bearer auth, sanitized logging, and a build-configurable base URL
 - Shared Gradle convention plugins in `build-logic/`
-- Kotest, MockK, Detekt, Spotless, and GitHub automation
+- Kotest, MockK, Detekt, Spotless, Kover coverage, and GitHub automation
 
 ## Repository Layout
 
@@ -74,7 +74,7 @@ The root `ARCHITECTURE.md` remains as a lightweight entry point for tools and hu
 ### Main Commands
 
 ```bash
-# Main quality gate
+# Main quality gate: detekt, ktlint, Android lint, tests, and the merged Kover report
 ./gradlew check
 
 # Android app
@@ -110,7 +110,14 @@ The project is updated to AGP 9.1.0 and Gradle 9.4.0.
 
 Android now lives in a dedicated `androidApp` module, while shared multiplatform modules use the Android KMP library plugin.
 
-`core:data` intentionally disables the `RestrictedApi` lint check because Room 3 `alpha01` currently reports false positives for both generated KSP code and `RoomDatabase` usage in KMP lint tasks. See `docs/architecture/build-and-tooling.md` for details.
+`core:data` intentionally disables the `RestrictedApi` lint check because Room 3 `alpha01` currently reports false positives for both generated KSP code and `RoomDatabase` usage in KMP lint tasks. That is one commented suppression in the module plus the path-scoped ignore in `core/data/lint.xml`. See `docs/architecture/build-and-tooling.md` for details.
+
+`./gradlew check` runs detekt over every source set of every module against the shared
+`config/detekt/detekt.yml`, and aggregates coverage into `build/reports/kover/`. Kover instruments
+JVM bytecode only, so the report covers the JVM and Android unit tests and not the iOS targets —
+`docs/architecture/build-and-tooling.md` has the full story.
+
+The configuration cache is enabled, so keep new build logic configuration-cache safe.
 
 ### Configuration properties
 

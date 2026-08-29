@@ -1,4 +1,5 @@
 import com.sermilion.kmpcomposestarter.configureDetekt
+import com.sermilion.kmpcomposestarter.libs
 import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.kotlin.dsl.dependencies
@@ -12,7 +13,7 @@ class DetektConventionPlugin : Plugin<Project> {
       configureDetekt()
 
       dependencies {
-        add("detektPlugins", "com.twitter.compose.rules:detekt:0.0.26")
+        add("detektPlugins", libs.findLibrary("detekt.compose.rules").get())
       }
     }
   }

@@ -6,22 +6,6 @@ plugins {
 }
 
 kotlin {
-  android {
-    namespace = "com.sermilion.kmpcomposestarter.feature.auth"
-    compileSdk =
-      libs.versions.compileSdk
-        .get()
-        .toInt()
-    minSdk =
-      libs.versions.minSdk
-        .get()
-        .toInt()
-    withHostTestBuilder {}
-    androidResources {
-      enable = true
-    }
-  }
-
   sourceSets {
     commonMain.dependencies {
       implementation(projects.core.common)
@@ -43,12 +27,4 @@ kotlin {
       implementation(libs.mockk.core)
     }
   }
-
-  compilerOptions {
-    freeCompilerArgs.add("-Xexpect-actual-classes")
-  }
-}
-
-tasks.named<Test>("jvmTest") {
-  useJUnitPlatform()
 }

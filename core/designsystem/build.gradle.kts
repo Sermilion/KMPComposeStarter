@@ -5,22 +5,6 @@ plugins {
 }
 
 kotlin {
-  android {
-    namespace = "com.sermilion.kmpcomposestarter.core.designsystem"
-    compileSdk =
-      libs.versions.compileSdk
-        .get()
-        .toInt()
-    minSdk =
-      libs.versions.minSdk
-        .get()
-        .toInt()
-    withHostTestBuilder {}
-    androidResources {
-      enable = true
-    }
-  }
-
   sourceSets {
     commonMain.dependencies {
       api(projects.core.common)
@@ -38,12 +22,6 @@ kotlin {
       api(libs.androidx.activity.compose)
       implementation(libs.androidx.core.ktx)
       api(libs.coil.kt.compose)
-    }
-
-    iosMain.dependencies {
-    }
-
-    jvmMain.dependencies {
     }
   }
 }

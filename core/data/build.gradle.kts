@@ -13,28 +13,10 @@ room3 {
 }
 
 kotlin {
-  android {
-    namespace = "com.sermilion.kmpcomposestarter.core.data"
-    compileSdk =
-      libs.versions.compileSdk
-        .get()
-        .toInt()
-    minSdk =
-      libs.versions.minSdk
-        .get()
-        .toInt()
-    withHostTestBuilder {}
-    lint {
-      disable += "RestrictedApi"
-    }
-    androidResources {
-      enable = true
-    }
-  }
-
   compilerOptions {
+    // Room 3 alpha01 generates code that trips Kotlin's version warnings. Module-scoped on
+    // purpose: this is a Room-alpha workaround, not shared build policy. Drop it with the pin.
     freeCompilerArgs.add("-Xsuppress-version-warnings")
-    freeCompilerArgs.add("-Xexpect-actual-classes")
   }
 
   sourceSets {
@@ -57,27 +39,14 @@ kotlin {
       implementation(libs.room3.runtime)
       implementation(libs.sqlite.bundled)
 
-      implementation(libs.paging.common)
-
-      implementation(libs.ksoup)
-
       implementation(libs.kotlinx.datetime)
       implementation(libs.kotlinx.atomicfu)
     }
 
     androidMain.dependencies {
       implementation(libs.androidx.datastore)
-
-      implementation(libs.okhttp.debug.logger)
-      implementation(libs.pluto)
-
       implementation(libs.androidx.activity.compose)
-      implementation(libs.core.ktx)
-
       implementation(libs.ktor.client.okhttp)
-
-      implementation(libs.paging.runtime)
-      implementation(libs.paging.compose)
     }
 
     iosMain.dependencies {
@@ -111,28 +80,14 @@ kotlin {
   }
 }
 
-dependencies {
-  add("kspAndroid", libs.room3.compiler)
-  add("kspIosArm64", libs.room3.compiler)
-  add("kspIosSimulatorArm64", libs.room3.compiler)
-  add("kspJvm", libs.room3.compiler)
-
-  add("kspAndroid", libs.kotlin.inject.compiler)
-  add("kspAndroid", libs.kotlin.inject.anvil.compiler)
-  add("kspIosArm64", libs.kotlin.inject.compiler)
-  add("kspIosArm64", libs.kotlin.inject.anvil.compiler)
-  add("kspIosSimulatorArm64", libs.kotlin.inject.compiler)
-  add("kspIosSimulatorArm64", libs.kotlin.inject.anvil.compiler)
-  add("kspJvm", libs.kotlin.inject.compiler)
-  add("kspJvm", libs.kotlin.inject.anvil.compiler)
-}
-
+// The single RestrictedApi suppression for this module. Room 3 alpha01 reports false positives on
+// `RoomDatabase` usage under the KMP lint tasks; lint.xml narrows the generated-KSP half of the
+// same problem by path. Revisit both when the Room pin moves off alpha.
 configure<Lint> {
   disable += "RestrictedApi"
 }
 
 tasks.withType<Test>().configureEach {
-  useJUnitPlatform()
   // Keeps the desktop data directory (databases and the preferences file) inside the build
   // directory, so running tests never writes into the developer's home directory.
   systemProperty(
@@ -181,7 +136,8 @@ kotlin.sourceSets.commonMain {
 
 // The Kotlin compile tasks inherit the generator dependency from the source set, but the KSP tasks
 // read the same source roots through a file collection that does not always carry it, so they can
-// run before `NetworkConfig.kt` exists and fail on the unresolved reference in `HttpClientProvider`.
+// run before `NetworkConfig.kt` exists and fail on the unresolved reference in
+// `HttpClientProvider`.
 // Declared explicitly rather than left to inference.
 tasks.matching { it.name.startsWith("ksp") }.configureEach {
   dependsOn(generateNetworkConfig)

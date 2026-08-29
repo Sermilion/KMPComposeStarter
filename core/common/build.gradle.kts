@@ -7,26 +7,6 @@ plugins {
 }
 
 kotlin {
-  android {
-    namespace = "com.sermilion.kmpcomposestarter.core.common"
-    compileSdk =
-      libs.versions.compileSdk
-        .get()
-        .toInt()
-    minSdk =
-      libs.versions.minSdk
-        .get()
-        .toInt()
-    withHostTestBuilder {}
-    androidResources {
-      enable = true
-    }
-  }
-
-  compilerOptions {
-    freeCompilerArgs.add("-Xexpect-actual-classes")
-  }
-
   sourceSets {
     commonMain.dependencies {
       implementation(libs.kotlinx.coroutines.core)
@@ -43,7 +23,6 @@ kotlin {
 
     androidMain.dependencies {
       implementation(libs.kotlinx.coroutines.android)
-      implementation(libs.core.ktx)
     }
 
     commonTest.dependencies {
@@ -63,19 +42,4 @@ kotlin {
       implementation(libs.kotest.runner.junit5.jvm)
     }
   }
-}
-
-dependencies {
-  add("kspAndroid", libs.kotlin.inject.compiler)
-  add("kspAndroid", libs.kotlin.inject.anvil.compiler)
-  add("kspIosArm64", libs.kotlin.inject.compiler)
-  add("kspIosArm64", libs.kotlin.inject.anvil.compiler)
-  add("kspIosSimulatorArm64", libs.kotlin.inject.compiler)
-  add("kspIosSimulatorArm64", libs.kotlin.inject.anvil.compiler)
-  add("kspJvm", libs.kotlin.inject.compiler)
-  add("kspJvm", libs.kotlin.inject.anvil.compiler)
-}
-
-tasks.named<Test>("jvmTest") {
-  useJUnitPlatform()
 }

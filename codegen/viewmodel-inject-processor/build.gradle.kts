@@ -1,5 +1,5 @@
 plugins {
-  alias(libs.plugins.kotlin.jvm)
+  alias(libs.plugins.jvm.library)
 }
 
 dependencies {
@@ -14,8 +14,4 @@ dependencies {
   testImplementation(libs.kotest.framework.engine)
   testImplementation(libs.kotest.assertions.core)
   testImplementation(libs.kotest.runner.junit5.jvm)
-}
-
-tasks.named<Test>("test") {
-  useJUnitPlatform()
 }
