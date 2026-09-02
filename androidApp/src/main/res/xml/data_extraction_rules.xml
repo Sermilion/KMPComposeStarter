@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  API 31+ backup and device-transfer rules. `backup_rules.xml` is the API 23-30 equivalent and has
+  to say the same thing; change both together.
+
+  `cloud-backup` and `device-transfer` are listed separately on purpose: a token that must not
+  reach Google Drive must not ride a direct device-to-device transfer either.
+-->
+<data-extraction-rules>
+  <cloud-backup>
+    <exclude domain="file" path="user_preferences.json" />
+    <exclude domain="database" />
+  </cloud-backup>
+  <device-transfer>
+    <exclude domain="file" path="user_preferences.json" />
+    <exclude domain="database" />
+  </device-transfer>
+</data-extraction-rules>

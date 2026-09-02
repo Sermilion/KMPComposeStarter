@@ -38,6 +38,12 @@ jobs:
       - name: Assemble Android debug
         run: ./gradlew :androidApp:assembleDebug
 
+      # The release variant is the one that runs R8. Without this step a broken shrinker config -
+      # a missing ProGuard file, a keep rule deleted with the code it protected - only surfaces
+      # for whoever first tries to ship the template.
+      - name: Assemble Android release
+        run: ./gradlew :androidApp:assembleRelease
+
       - name: Upload reports
         if: failure()
         uses: actions/upload-artifact@v4
@@ -71,6 +77,12 @@ jobs:
 
       - name: Verify iOS framework linkability
         run: ./gradlew :composeApp:linkDebugFrameworkIosArm64
+
+      # The commonTest specs are the only tests that run on a native target, and this is the only
+      # runner that can execute them - the ubuntu job skips Apple compilations entirely. Without
+      # this step "the shared specs run on iOS too" would be a claim nothing checks.
+      - name: Run shared tests on the iOS simulator target
+        run: ./gradlew :core:common:iosSimulatorArm64Test :core:data:iosSimulatorArm64Test
 
       - name: Upload reports
         if: failure()

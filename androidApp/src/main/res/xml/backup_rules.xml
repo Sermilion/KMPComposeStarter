@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Auto Backup rules for API 23-30. `data_extraction_rules.xml` is the API 31+ equivalent and has to
+  say the same thing; change both together.
+
+  The session file holds the bearer token in plain JSON (see DataStoreAuthLocalDataSource), so it
+  must never leave the device through cloud backup. The per-user Room databases are excluded for
+  the same reason: they are one signed-in user's data, restored onto a device that may now belong
+  to someone else.
+-->
+<full-backup-content>
+  <exclude domain="file" path="user_preferences.json" />
+  <exclude domain="database" path="." />
+</full-backup-content>
