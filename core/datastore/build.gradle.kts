@@ -23,17 +23,15 @@ kotlin {
       implementation(libs.kotlinx.coroutines.android)
     }
 
-    commonTest.dependencies {
-      implementation(libs.kotest.assertions.core)
-      implementation(libs.kotest.framework.engine)
-      implementation(libs.kotest.framework.datatest)
-      implementation(libs.kotlinx.coroutines.test)
-      implementation(kotlin("test"))
-    }
-
+    // No commonTest sources in this module: its tests drive real files through okio's JVM
+    // filesystem, so they stay on the JVM target.
     jvmTest.dependencies {
       implementation(projects.core.testing)
+      implementation(libs.kotest.assertions.core)
+      implementation(libs.kotest.framework.engine)
       implementation(libs.kotest.runner.junit5.jvm)
+      implementation(libs.kotlinx.coroutines.test)
+      implementation(kotlin("test"))
     }
   }
 }

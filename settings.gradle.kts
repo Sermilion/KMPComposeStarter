@@ -39,6 +39,7 @@ plugins {
 }
 
 include(":composeApp")
+include(":appcomponent")
 include(":androidApp")
 include(":core:common")
 include(":core:data")

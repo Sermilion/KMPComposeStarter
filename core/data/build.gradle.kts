@@ -3,6 +3,7 @@ plugins {
   alias(libs.plugins.kotlin.serialization)
   alias(libs.plugins.ksp)
   alias(libs.plugins.room3)
+  alias(libs.plugins.kotest)
 }
 
 room3 {
@@ -54,18 +55,18 @@ kotlin {
       implementation(libs.ktor.client.okhttp)
     }
 
+    // Specs here run on every target. Kotest 6 discovers them on Kotlin/Native without a compiler
+    // plugin, which is why the shared logic is tested on iOS and not only on the JVM.
     commonTest.dependencies {
       implementation(libs.kotest.assertions.core)
       implementation(libs.kotest.framework.engine)
-      implementation(libs.kotest.framework.datatest)
       implementation(libs.kotlinx.coroutines.test)
       implementation(libs.ktor.client.mock)
       implementation(kotlin("test"))
     }
 
-    // commonTest specs are inherited by every target's test source set, so each JVM-backed target
-    // needs the JUnit Platform runner Kotest discovers through. The native targets use Kotest's
-    // own engine, which commonTest already brings in.
+    // The JVM-backed targets inherit the commonTest specs and discover them through the JUnit
+    // Platform, so each needs the runner.
     jvmTest.dependencies {
       implementation(projects.core.testing)
       implementation(libs.kotest.runner.junit5.jvm)

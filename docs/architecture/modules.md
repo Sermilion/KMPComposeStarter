@@ -22,6 +22,22 @@ Owns:
 
 Keep Android-only entry points here instead of mixing them into shared multiplatform modules.
 
+### `appcomponent`
+
+Owns the DI composition root: `AppComponent`, the per-platform merged components for iOS and
+desktop, and the anvil contribution anchor. It depends on every module that contributes bindings,
+because merging is the whole job.
+
+It is a separate module rather than part of `composeApp` for one concrete reason: `composeApp`
+builds the iOS framework, and a framework exports the Objective-C API of *the module it is built
+from* — dependencies are not exported unless declared with `export()`. Merging here keeps
+kotlin-inject-anvil's generated component classes out of that exported surface. With them in
+`composeApp`, `:composeApp:linkDebugFrameworkIosArm64` crashed the Kotlin/Native backend
+(`IrExternalPackageFragmentImpl cannot be cast to IrClass`) while generating ObjC constructor
+adapters for them.
+
+`androidApp` keeps its own component, because an application module builds no framework.
+
 ### `composeApp`
 
 Owns:

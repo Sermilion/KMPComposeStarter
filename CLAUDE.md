@@ -25,6 +25,7 @@ This starter is meant to stay reusable and production-ready. Treat build logic, 
 The repository is organized as a Kotlin Multiplatform application starter:
 
 - `androidApp`: Android-only application module, manifest, launcher resources, and app bootstrap
+- `appcomponent`: DI composition root (`AppComponent`, the merged iOS/desktop components). Separate from `composeApp` so anvil's generated components stay out of the iOS framework's Objective-C export surface, which crashes the Kotlin/Native backend
 - `composeApp`: shared app shell plus iOS/JVM entry points
 - `core:common`: shared utilities, DI scopes, dispatchers, navigation contracts
 - `core:data`: Room 3, repositories, local/remote data sources, user session infrastructure

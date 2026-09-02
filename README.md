@@ -30,6 +30,7 @@ This repository gives you a modern baseline for app development with Compose Mul
 ```text
 KMPComposeStarter/
 |- androidApp/                    # Android-only application module and manifest/resources
+|- appcomponent/                  # DI composition root, kept out of the iOS framework's ObjC surface
 |- composeApp/                    # Shared app shell plus iOS/JVM entry points
 |- core/
 |  |- common/                     # Cross-cutting utilities, DI scopes, dispatchers, navigation contracts
@@ -109,7 +110,7 @@ Open `iosApp/iosApp.xcodeproj` in Xcode and run the generated framework from the
 | Navigation | Navigation 3 alpha06 |
 | Persistence | Room 3 alpha01 |
 | Networking | Ktor 3.4.1 |
-| Testing | Kotest 5.9.1, MockK 1.14.9 |
+| Testing | Kotest 6.2.4, MockK 1.14.9 |
 
 ## Build Notes
 

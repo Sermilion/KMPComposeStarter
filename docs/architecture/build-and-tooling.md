@@ -149,7 +149,7 @@ CI lives in `.github/workflows/check.yml` and runs two jobs:
 | Job | Runner | Runs |
 |-----|--------|------|
 | `check` | `ubuntu-latest` | `./gradlew check`, then `:androidApp:assembleDebug` and `:androidApp:assembleRelease` |
-| `ios` | `macos-latest` | `:composeApp:linkDebugFrameworkIosArm64` |
+| `ios` | `macos-latest` | `:composeApp:linkDebugFrameworkIosArm64`, then the shared specs on `iosSimulatorArm64` |
 
 The release variant is built because it is the only one that runs R8. `androidApp/proguard-rules.pro`
 holds the keep rules the shrinker cannot infer — the kotlinx-serialization companions behind every
@@ -185,6 +185,13 @@ produces one merged report:
 | HTML | `build/reports/kover/html/index.html` |
 
 Both are wired to `check` via `onCheck`, so no separate command is needed.
+
+**Tests that are not JVM-only.** The specs in `commonTest` run on every target, including
+`iosSimulatorArm64`. That needs the `io.kotest` Gradle plugin: Kotest 6 discovers specs on
+Kotlin/Native through its KSP processor, and without the plugin the native test binary links and
+then reports no tests at all, which Gradle fails the build on. The plugin is applied by the modules
+that have `commonTest` sources. Module-specific specs stay in `jvmTest` — `core:datastore` drives
+real files through okio's JVM filesystem, so its tests cannot be shared.
 
 **What it actually covers.** Kover instruments JVM bytecode. In this repository that means the
 `jvm` target's tests and the Android unit tests — the iOS targets produce no coverage data and do

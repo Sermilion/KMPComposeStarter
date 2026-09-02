@@ -15,6 +15,7 @@ kotlin {
       implementation(libs.compose.components.resources)
       implementation(libs.compose.components.uiToolingPreview)
 
+      api(projects.appcomponent)
       implementation(projects.core.common)
       implementation(projects.core.ui)
       implementation(projects.core.designsystem)
@@ -53,12 +54,6 @@ kotlin {
       implementation(libs.kotest.runner.junit5.jvm)
       implementation(libs.kotlinx.coroutines.test)
     }
-  }
-
-  // Both iOS targets share one actual instead of two byte-identical copies.
-  sourceSets {
-    named("iosArm64Main") { kotlin.srcDir("src/iosTargetMain/kotlin") }
-    named("iosSimulatorArm64Main") { kotlin.srcDir("src/iosTargetMain/kotlin") }
   }
 }
 
