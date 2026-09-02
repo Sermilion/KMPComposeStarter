@@ -50,6 +50,7 @@ class RegisterViewModel(
 
       when (val result = authRepository.register(state.email, state.password, state.name)) {
         is LoginResult.Success -> _uiState.update { it.copy(isLoading = false) }
+
         is LoginResult.Failure -> {
           _uiState.update { it.copy(isLoading = false, error = result.error.toUiError()) }
         }

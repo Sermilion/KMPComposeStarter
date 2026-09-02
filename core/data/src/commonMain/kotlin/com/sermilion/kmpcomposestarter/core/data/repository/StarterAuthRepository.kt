@@ -82,6 +82,7 @@ class StarterAuthRepository(
         session.userRepository.saveUser(userData)
         LoginResult.Success(userData)
       }
+
       is AuthResultDataModel.Failure -> LoginResult.Failure(result.error)
     }
 

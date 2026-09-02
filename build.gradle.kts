@@ -35,7 +35,15 @@ subprojects {
       // Two targetExclude calls replace each other rather than adding up, which is how the build
       // directory pattern used to go missing. Shared style lives in .editorconfig, which ktlint
       // reads directly, so there is no override map to drift from it here.
-      targetExclude("**/build/**/*.kt", "bin/**/*.kt")
+      //
+      // Container projects (`:core`, `:feature`, `:codegen`) would otherwise match their children's
+      // sources through `**/*.kt` as well, leaving two spotlessKotlinApply tasks writing the same
+      // file. Under spotless 8 that race truncates the file instead of writing it twice.
+      targetExclude(
+        "**/build/**/*.kt",
+        "bin/**/*.kt",
+        *childProjects.values.map { "${it.projectDir.name}/**/*.kt" }.toTypedArray(),
+      )
       ktlint()
     }
     kotlinGradle {

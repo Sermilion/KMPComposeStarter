@@ -46,6 +46,7 @@ class LoginViewModel(
 
       when (val result = authRepository.login(state.email, state.password)) {
         is LoginResult.Success -> _uiState.update { it.copy(isLoading = false) }
+
         is LoginResult.Failure -> {
           _uiState.update { it.copy(isLoading = false, error = result.error.toUiError()) }
         }

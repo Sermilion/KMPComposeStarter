@@ -139,11 +139,14 @@ class ViewModelInjectProcessor(
       }
     return when {
       parameters == null -> "No primary constructor found for $viewModelSimpleName"
+
       unmarkedSavedStateHandle != null ->
         "SavedStateHandle parameter '${unmarkedSavedStateHandle.name?.asString()}' of " +
           "$viewModelSimpleName must be annotated @Assisted."
+
       namedCount != assistedCount ->
         "Every @Assisted parameter of $viewModelSimpleName must have a name."
+
       else -> null
     }
   }

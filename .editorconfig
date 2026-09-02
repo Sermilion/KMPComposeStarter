@@ -16,6 +16,12 @@ ij_kotlin_allow_trailing_comma_on_call_site = true
 # could drift away from what the IDE applies.
 ktlint_function_naming_ignore_when_annotated_with = Composable
 ktlint_standard_no-wildcard-imports = disabled
+# ktlint 1.8 (spotless 8.x) added when-entry-bracing, which braces every branch of a `when` as soon
+# as one branch needs braces. The starter keeps single-expression branches unbraced.
+ktlint_standard_when-entry-bracing = disabled
+# The Kotest suites document a regression per `test(...)` call with a KDoc block. The new kdoc rule
+# rejects KDoc inside a lambda; the comments are worth more than the rule.
+ktlint_standard_kdoc = disabled
 
 [*.xml]
 indent_size = 2
