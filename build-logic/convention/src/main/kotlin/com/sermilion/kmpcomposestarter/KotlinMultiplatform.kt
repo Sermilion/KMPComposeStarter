@@ -2,12 +2,14 @@ package com.sermilion.kmpcomposestarter
 
 import com.android.build.api.dsl.KotlinMultiplatformAndroidLibraryExtension
 import org.gradle.api.Project
+import org.gradle.api.provider.Provider
 import org.gradle.api.tasks.testing.Test
 import org.gradle.kotlin.dsl.configure
 import org.gradle.kotlin.dsl.provideDelegate
 import org.gradle.kotlin.dsl.withType
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.dsl.KotlinMultiplatformExtension
+import org.jetbrains.kotlin.gradle.targets.native.tasks.KotlinNativeSimulatorTest
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 /**
@@ -153,5 +155,39 @@ internal fun Project.configureJvmBytecodeTarget() {
 internal fun Project.configureTests() {
   tasks.withType<Test>().configureEach {
     useJUnitPlatform()
+  }
+  configureSimulatorTests()
+}
+
+/**
+ * Runs the iOS simulator tests only where a simulator toolchain actually exists.
+ *
+ * `commonTest` specs are inherited by the native targets, so `check` gains an
+ * `iosSimulatorArm64Test` task on any macOS host. Running one needs full Xcode: a machine with
+ * only the Command Line Tools installed has no `simctl`, and the task fails while merely computing
+ * its `device` property — `xcrun` exits 72 before a single test runs. That made `./gradlew check`,
+ * this repository's whole quality gate, unrunnable for anyone not set up for iOS development, on
+ * every module, including pure-Android work.
+ *
+ * The tasks are therefore skipped rather than failed when no simulator is available. They are not
+ * silently dropped in CI: the macOS job invokes them by name, on a runner that has Xcode, so the
+ * claim that the shared specs run on iOS stays checked. Gradle reports each skip as SKIPPED.
+ */
+private fun Project.configureSimulatorTests() {
+  val simulatorAvailable: Provider<Boolean> =
+    providers
+      .exec {
+        commandLine("/usr/bin/xcrun", "--find", "simctl")
+        isIgnoreExitValue = true
+      }.result
+      .map { it.exitValue == 0 }
+      .orElse(false)
+
+  tasks.withType<KotlinNativeSimulatorTest>().configureEach {
+    onlyIf("an iOS simulator toolchain is available") {
+      // Only macOS ever registers these tasks, so `xcrun` is present; what varies is whether the
+      // active developer directory is a full Xcode or just the Command Line Tools.
+      simulatorAvailable.get()
+    }
   }
 }
