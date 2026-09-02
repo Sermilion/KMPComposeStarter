@@ -20,7 +20,7 @@ The shared `DatabaseProvider` exposes:
 
 `UserScopeModule` provides the session's `UserDatabase` from `provideUserDatabase(userData.id)`, so
 a database is opened when a session opens and is bound to the user who owns it. The same module
-multibinds a `UserScopedCloseable` that calls `closeDatabaseForUser`, so signing out releases the
+multibinds a `UserScopedCloseable` that calls `closeDatabaseForUser` on the IO dispatcher, so signing out releases the
 file instead of handing a cached instance to whoever signs in next.
 
 `StarterRoomDatabaseProvider` caches opened database instances by filename so repeated requests
@@ -101,6 +101,12 @@ before the shell picks a back stack.
 > with a mock backend and not fine for a real one. Move the token to the iOS Keychain, Android
 > `EncryptedFile`/Keystore, and an OS keyring on desktop, and keep only non-secret session metadata
 > in `UserPreferences`.
+
+On Android there is a second exposure that on-device encryption alone does not close: Auto Backup
+copies `filesDir` to the user's cloud account and to a new device on transfer. `backup_rules.xml`
+(API 23-30) and `data_extraction_rules.xml` (API 31+) exclude `user_preferences.json` and the
+`databases` directory from both channels. They have to say the same thing, so change them together;
+a fork that renames the preferences file must rename it in both.
 
 Use Room for relational entities, queryable collections, and user-scoped local data.
 

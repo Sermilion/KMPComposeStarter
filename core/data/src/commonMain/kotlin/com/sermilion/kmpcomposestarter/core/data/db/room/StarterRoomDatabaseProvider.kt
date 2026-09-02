@@ -44,15 +44,10 @@ class StarterRoomDatabaseProvider(
 
   override fun deleteDatabaseForUser(userId: String): Boolean {
     val databaseFileName = userDatabaseFileName(userId)
-    // Closed before the files are touched: deleting a file an open connection still holds either
-    // fails outright or leaves that connection writing to an orphaned inode. The already-handed-out
-    // instance cannot be un-closed, which is what makes a failed deletion terminal for this
-    // session's reads rather than something the caller can retry into a working state.
     synchronized(cacheLock) { databaseCache.remove(databaseFileName) }?.close()
 
     val deleted = builderFactory.deleteDatabaseFile(databaseFileName)
     if (!deleted) {
-      // The file name is a digest, so this says which database survived without naming the user.
       Logger.w(TAG) { "Delete-my-data left files behind for database $databaseFileName" }
     }
     return deleted

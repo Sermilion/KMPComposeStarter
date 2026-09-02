@@ -81,7 +81,6 @@ class StarterUserComponentManagerTest :
       component.closeCount shouldBe 1
       component.userSessionScope.isActive shouldBe false
 
-      // Repeated teardown must not close the same resource twice.
       manager.destroyComponent()
       component.closeCount shouldBe 1
     }
@@ -106,8 +105,6 @@ class StarterUserComponentManagerTest :
           }.awaitAll()
       }
 
-      // Whatever survived the interleaving is usable, and every component that did not survive
-      // was closed exactly once.
       val live = manager.userComponent
       (live as FakeUserComponent?)?.let {
         it.closeCount shouldBe 0

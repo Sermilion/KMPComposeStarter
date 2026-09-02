@@ -3,15 +3,15 @@ package com.sermilion.kmpcomposestarter.navigation
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.snapshots.SnapshotStateList
 import com.sermilion.kmpcomposestarter.common.navigation.AuthFlowRoute
+import com.sermilion.kmpcomposestarter.common.navigation.MainFlowRoute
 import com.sermilion.kmpcomposestarter.common.navigation.Route
-import com.sermilion.kmpcomposestarter.common.navigation.TopLevelRoute
 import com.sermilion.kmpcomposestarter.feature.auth.navigation.LoginRoute
 
 @Stable
 internal data class StarterNavigationState(
   val isAuthenticated: Boolean = false,
   val authBackStack: SnapshotStateList<AuthFlowRoute> = snapshotStateListOf(LoginRoute),
-  val tabBackStacks: Map<TopLevelTab, SnapshotStateList<TopLevelRoute>> =
+  val tabBackStacks: Map<TopLevelTab, SnapshotStateList<MainFlowRoute>> =
     createInitialTabBackStacks(),
   val currentTab: TopLevelTab = TopLevelTab.HOME,
 ) {
@@ -38,5 +38,5 @@ internal data class StarterNavigationState(
     get() = isAuthenticated && currentTab != TopLevelTab.HOME && currentBackStack.size == 1
 }
 
-private fun createInitialTabBackStacks(): Map<TopLevelTab, SnapshotStateList<TopLevelRoute>> =
+private fun createInitialTabBackStacks(): Map<TopLevelTab, SnapshotStateList<MainFlowRoute>> =
   TopLevelTab.entries.associateWith { snapshotStateListOf(it.startRoute) }

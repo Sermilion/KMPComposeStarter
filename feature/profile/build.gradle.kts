@@ -13,6 +13,7 @@ kotlin {
       implementation(projects.core.designsystem)
       implementation(projects.core.ui)
 
+      implementation(libs.navigation3.ui)
       implementation(libs.kotlinx.collections.immutable)
       implementation(libs.jetbrains.lifecycle.viewmodel)
       implementation(libs.jetbrains.lifecycle.viewmodel.compose)

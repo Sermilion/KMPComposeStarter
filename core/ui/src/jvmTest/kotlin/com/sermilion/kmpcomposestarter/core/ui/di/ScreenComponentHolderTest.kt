@@ -38,11 +38,9 @@ class ScreenComponentHolderTest :
       val first = holder().provider
       val second = holder().provider
 
-      // Every @SingleIn(ScreenScope) binding on this screen resolves through this one component.
       second shouldBe first
       created shouldBe 1
 
-      // The nav entry leaves the back stack: its ViewModelStore is cleared.
       store.clear()
 
       val afterDisposal = holder().provider

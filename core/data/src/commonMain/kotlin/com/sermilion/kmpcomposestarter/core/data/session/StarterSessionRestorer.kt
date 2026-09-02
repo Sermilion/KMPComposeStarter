@@ -5,6 +5,7 @@ import com.sermilion.kmpcomposestarter.core.data.local.AuthLocalDataSource
 import com.sermilion.kmpcomposestarter.core.data.mapper.toDomainModel
 import com.sermilion.kmpcomposestarter.core.data.model.StoredSession
 import com.sermilion.kmpcomposestarter.core.domain.di.UserComponentManager
+import com.sermilion.kmpcomposestarter.core.domain.session.SessionRestorer
 import com.sermilion.kmpcomposestarter.core.domain.session.SessionState
 import kotlinx.atomicfu.atomic
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -12,30 +13,31 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import me.tatarka.inject.annotations.Inject
 import software.amazon.lastmile.kotlin.inject.anvil.AppScope
+import software.amazon.lastmile.kotlin.inject.anvil.ContributesBinding
 import software.amazon.lastmile.kotlin.inject.anvil.SingleIn
 import kotlin.coroutines.cancellation.CancellationException
 
 /**
- * Rebuilds a stored session at launch, before the shell chooses a back stack.
+ * The durable-store implementation of [SessionRestorer].
  *
- * [state] starts at [SessionState.Loading] and moves exactly once. A returning user therefore
- * never sees [SessionState.Unauthenticated] on the way to their session — which is the login
- * flash this exists to remove.
+ * When a session is on disk it opens that user's component *before* publishing
+ * [SessionState.Authenticated], so the first composition that observes the decision already has a
+ * session to render. That ordering is what removes the login flash a returning user used to see.
  */
 @Inject
 @SingleIn(AppScope::class)
-class SessionRestorer(
+@ContributesBinding(AppScope::class)
+class StarterSessionRestorer(
   private val localDataSource: AuthLocalDataSource,
   private val userComponentManager: UserComponentManager,
-) {
+) : SessionRestorer {
   private val started = atomic(false)
 
   private val mutableState = MutableStateFlow<SessionState>(SessionState.Loading)
 
-  val state: StateFlow<SessionState> = mutableState.asStateFlow()
+  override val state: StateFlow<SessionState> = mutableState.asStateFlow()
 
-  /** Idempotent: the decision is made once per process, however often the shell recomposes. */
-  suspend fun restore() {
+  override suspend fun restore() {
     if (!started.compareAndSet(expect = false, update = true)) return
 
     val session = readStoredSession()
@@ -43,8 +45,6 @@ class SessionRestorer(
       if (session == null) {
         SessionState.Unauthenticated
       } else {
-        // Publishing Authenticated only after the component exists means the first composition
-        // that observes it already has a session to render.
         userComponentManager.createComponent(session.user.toDomainModel())
         SessionState.Authenticated
       }
@@ -62,6 +62,6 @@ class SessionRestorer(
     }
 
   private companion object {
-    const val TAG = "SessionRestorer"
+    const val TAG = "StarterSessionRestorer"
   }
 }

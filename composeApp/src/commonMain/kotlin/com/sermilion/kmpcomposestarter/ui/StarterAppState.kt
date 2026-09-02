@@ -27,21 +27,12 @@ internal fun rememberStarterAppState(
   val isLoggedIn = userComponent != null
   val canShowAuthenticated = isLoggedIn && screenComponentFactory != null
 
-  // Saved rather than merely remembered, so rotation and process death come back to the same
-  // screen, tab and auth flag. The lambda is the first-launch seed only — a restored value wins
-  // over it. Seeded from the restored session rather than defaulting to signed out: the effect
-  // below only runs after the first composition, so a `false` seed would render the login stack
-  // for one frame to a user who is already signed in.
   val navigationState =
     rememberSaveable(stateSaver = StarterNavigationStateSaver) {
       mutableStateOf(StarterNavigationState(isAuthenticated = canShowAuthenticated))
     }
   val navigator = remember { StarterNavigator(navigationState) }
 
-  // The one auth-transition mechanism in the app: the session flow above drives it, and nothing
-  // else may. Screens do not emit "logged in" or "logged out" events; they change the session and
-  // this reacts. It only fires on a genuine disagreement, so a restored authenticated state that
-  // still has its session is left alone.
   val currentIsAuthenticated = navigationState.value.isAuthenticated
   LaunchedEffect(canShowAuthenticated, currentIsAuthenticated) {
     if (canShowAuthenticated && !currentIsAuthenticated) {

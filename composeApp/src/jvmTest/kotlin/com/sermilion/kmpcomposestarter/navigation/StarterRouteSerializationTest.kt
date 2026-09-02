@@ -2,8 +2,8 @@ package com.sermilion.kmpcomposestarter.navigation
 
 import androidx.navigation3.runtime.NavKey
 import com.sermilion.kmpcomposestarter.common.navigation.AuthFlowRoute
+import com.sermilion.kmpcomposestarter.common.navigation.MainFlowRoute
 import com.sermilion.kmpcomposestarter.common.navigation.Route
-import com.sermilion.kmpcomposestarter.common.navigation.TopLevelRoute
 import com.sermilion.kmpcomposestarter.feature.auth.navigation.LoginRoute
 import com.sermilion.kmpcomposestarter.feature.auth.navigation.RegisterRoute
 import com.sermilion.kmpcomposestarter.feature.home.detail.DetailRoute
@@ -36,26 +36,38 @@ private val routeSamples: List<Route> =
   )
 
 /**
- * The routes `createStarterEntryProvider` registers, read out of its source.
+ * Every route the features register, read out of their `*Entries.kt` sources.
  *
- * Derived rather than listed: a hand-copied second list passes happily while the entry provider
- * grows a route `starterSerializersModule` never learned about, which is precisely the drift that
- * throws on the first process-death restore, in production, on a screen nobody tested.
+ * Derived rather than listed: a hand-copied second list passes happily while a feature grows a
+ * route `starterSerializersModule` never learned about, which is precisely the drift that throws
+ * on the first process-death restore, in production, on a screen nobody tested.
+ *
+ * Scanning by file-name convention is what makes a *new feature module* count too. A test that
+ * read only the shell would go quiet the moment entry registration moved into the features.
  */
 private val registeredRouteClasses: List<Class<*>> =
-  run {
-    val source = entryProviderSource()
+  featureEntrySources().flatMap { source ->
+    val packageName =
+      Regex("""^package (\S+)$""", RegexOption.MULTILINE)
+        .find(source)
+        ?.groupValues
+        ?.get(1)
+        .orEmpty()
     val importsBySimpleName =
       Regex("""^import (\S+)$""", RegexOption.MULTILINE)
         .findAll(source)
         .associateBy({ it.groupValues[1].substringAfterLast('.') }, { it.groupValues[1] })
+
     Regex("""\bentry<(\w+)>""")
       .findAll(source)
       .map { it.groupValues[1] }
       .map { simpleName ->
+        // A route declared beside its own entries needs no import, so the file's own package is
+        // the fallback before this is treated as a wiring mistake.
         val qualifiedName =
           importsBySimpleName[simpleName]
-            ?: error("entry<$simpleName> in StarterEntryProvider.kt has no matching import")
+            ?: "$packageName.$simpleName".takeIf { runCatching { Class.forName(it) }.isSuccess }
+            ?: error("entry<$simpleName> resolves to no import and no type in $packageName")
         Class.forName(qualifiedName)
       }.toList()
   }
@@ -76,17 +88,26 @@ private fun isRegisteredUnder(
     serializedClassName = serializedClassName,
   ) != null
 
-private fun entryProviderSource(): String {
-  val relativePath =
-    "composeApp/src/commonMain/kotlin/com/sermilion/kmpcomposestarter/" +
-      "navigation/StarterEntryProvider.kt"
-  val file =
+/** The `*Entries.kt` file every feature module registers its routes in. */
+private fun featureEntrySources(): List<String> {
+  val featureRoot =
     generateSequence(File(".").absoluteFile) { it.parentFile }
-      .map { File(it, relativePath) }
-      .firstOrNull(File::isFile)
-      ?: error("Could not find $relativePath above ${File(".").absolutePath}")
-  return file.readText()
+      .map { File(it, "feature") }
+      .firstOrNull(File::isDirectory)
+      ?: error("Could not find the feature/ directory above ${File(".").absolutePath}")
+
+  val sources =
+    featureRoot
+      .walkTopDown()
+      .filter { it.isFile && it.name.endsWith("Entries.kt") && "/build/" !in it.invariantPath }
+      .map(File::readText)
+      .toList()
+
+  check(sources.isNotEmpty()) { "No feature *Entries.kt sources found under $featureRoot" }
+  return sources
 }
+
+private val File.invariantPath: String get() = absolutePath.replace(File.separatorChar, '/')
 
 class StarterRouteSerializationTest :
   FunSpec({
@@ -94,14 +115,10 @@ class StarterRouteSerializationTest :
     val json = Json { serializersModule = starterSerializersModule }
 
     test("every route the entry provider registers is registered in the serializers module") {
-      // A regex that stopped matching would otherwise turn this whole test green on an empty set.
       registeredRouteClasses.shouldNotBeEmpty()
 
       registeredRouteClasses.forEach { routeClass ->
-        // Each base the route implements is its own polymorphic block, and the saver decodes
-        // stacks as AuthFlowRoute and TopLevelRoute — registering only under Route still throws
-        // on restore.
-        listOf(NavKey::class, Route::class, TopLevelRoute::class, AuthFlowRoute::class)
+        listOf(NavKey::class, Route::class, MainFlowRoute::class, AuthFlowRoute::class)
           .filter { base -> base.java.isAssignableFrom(routeClass) }
           .forEach { base ->
             withClue("${routeClass.simpleName} under ${base.simpleName}") {

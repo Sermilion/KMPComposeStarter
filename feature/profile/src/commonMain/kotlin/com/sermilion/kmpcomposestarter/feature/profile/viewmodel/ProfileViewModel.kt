@@ -40,16 +40,10 @@ class ProfileViewModel(
   val effects: Flow<ProfileContract.Event> = _effects.flow
 
   init {
-    // The sign-in response seeds the screen so it is never blank, but the stored row is what it
-    // follows: a profile edited elsewhere in the session shows up here without a re-login.
     viewModelScope.launch {
       userRepository
         .observeCurrentUser()
         .catch { error ->
-          // Delete-my-data closes this session's database before it touches the files, so a
-          // failed deletion leaves the row unreadable for the rest of the session. Stop
-          // following it and keep what is already on screen: a stale profile is a better
-          // answer than taking the session down with an unhandled read failure.
           Logger.w(TAG, error) { "Stopped following the stored user row." }
         }.collect { stored ->
           if (stored != null) {

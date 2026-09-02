@@ -37,8 +37,6 @@ class ViewModelInjectProcessorTest :
       generated shouldContain "AppScope::class"
       generated shouldContain "multibinding = true"
       generated shouldContain "savedStateHandleArgName: String? = null"
-      // KotlinPoet collapses the single return into an expression body; asserting the emitted
-      // form keeps this pinned to "a no-arg ViewModel is constructed with no assisted args".
       generated shouldContain "override fun create(args: AssistedArgs): ViewModel = create()"
     }
 

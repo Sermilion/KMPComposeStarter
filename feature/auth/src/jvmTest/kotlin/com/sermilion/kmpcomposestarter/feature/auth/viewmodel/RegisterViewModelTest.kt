@@ -47,7 +47,6 @@ class RegisterViewModelTest :
     beforeEach { Dispatchers.setMain(testDispatcher) }
     afterEach { Dispatchers.resetMain() }
 
-    // A double-tapped register button creating two accounts is the failure this guards.
     test("a second register while one is in flight does not reach the repository") {
       runTest(testDispatcher) {
         val authRepository = mockk<AuthRepository>()
@@ -71,8 +70,6 @@ class RegisterViewModelTest :
       }
     }
 
-    // Login shipped exactly this defect: one message for every reason. This locks the Register
-    // mapping so the same regression cannot land here.
     test("each failure reason maps to its own error variant") {
       val expected =
         mapOf(

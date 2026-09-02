@@ -31,13 +31,8 @@ kotlin {
       implementation(kotlin("test"))
     }
 
-    getByName("androidHostTest").dependencies {
-      implementation(projects.core.testing)
-      implementation(libs.androidx.junit)
-      implementation(libs.kotest.runner.junit5.jvm)
-    }
-
     jvmTest.dependencies {
+      implementation(projects.core.testing)
       implementation(libs.kotest.runner.junit5.jvm)
     }
   }

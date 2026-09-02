@@ -4,6 +4,7 @@ import com.sermilion.kmpcomposestarter.core.data.config.MockConfig
 import com.sermilion.kmpcomposestarter.core.data.model.AuthResultDataModel
 import com.sermilion.kmpcomposestarter.core.data.model.AuthTokenDataModel
 import com.sermilion.kmpcomposestarter.core.data.model.UserDataModel
+import com.sermilion.kmpcomposestarter.core.data.util.toAuthError
 import com.sermilion.kmpcomposestarter.core.data.util.withRestErrorHandling
 import com.sermilion.kmpcomposestarter.core.domain.model.AuthError
 import kotlinx.coroutines.delay
@@ -46,7 +47,7 @@ class MockAuthRemoteDataSource : AuthRemoteDataSource {
           AuthResultDataModel.Failure(AuthError.InvalidCredentials)
         }
       },
-      errorBlock = { AuthResultDataModel.Failure(AuthError.Unexpected(it)) },
+      errorBlock = { AuthResultDataModel.Failure(it.toAuthError()) },
     )
 
   override suspend fun register(
@@ -68,7 +69,7 @@ class MockAuthRemoteDataSource : AuthRemoteDataSource {
           token = issuedToken(),
         )
       },
-      errorBlock = { AuthResultDataModel.Failure(AuthError.Unexpected(it)) },
+      errorBlock = { AuthResultDataModel.Failure(it.toAuthError()) },
     )
 
   override suspend fun logout() {

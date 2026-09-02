@@ -5,7 +5,6 @@ import com.sermilion.kmpcomposestarter.core.data.db.room.StarterRoomDatabaseProv
 import com.sermilion.kmpcomposestarter.core.data.db.room.userDatabaseFileName
 import com.sermilion.kmpcomposestarter.core.data.testing.RealDispatcherProvider
 import io.kotest.core.spec.style.FunSpec
-import io.kotest.matchers.collections.shouldContainExactly
 import io.kotest.matchers.shouldBe
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
@@ -40,7 +39,7 @@ class UserDatabaseTest :
           database.userEntityDao().upsert(user)
 
           database.userEntityDao().getById(user.id) shouldBe user
-          database.userEntityDao().observeUsers().first() shouldContainExactly listOf(user)
+          database.userEntityDao().observeById(user.id).first() shouldBe user
         } finally {
           database.close()
           databaseDirectory.deleteRecursively()
@@ -69,8 +68,6 @@ class UserDatabaseTest :
 
         provider.deleteDatabaseForUser(userId) shouldBe true
 
-        // Deleting only the main file would leave committed rows recoverable from the write-ahead
-        // log, so the whole set has to be gone before deletion may report success.
         files.filter { it.exists() } shouldBe emptyList()
       }
     }

@@ -3,8 +3,8 @@ package com.sermilion.kmpcomposestarter.navigation
 import androidx.compose.runtime.MutableState
 import co.touchlab.kermit.Logger
 import com.sermilion.kmpcomposestarter.common.navigation.AuthFlowRoute
+import com.sermilion.kmpcomposestarter.common.navigation.MainFlowRoute
 import com.sermilion.kmpcomposestarter.common.navigation.Route
-import com.sermilion.kmpcomposestarter.common.navigation.TopLevelRoute
 import com.sermilion.kmpcomposestarter.feature.auth.navigation.LoginRoute
 
 /**
@@ -26,7 +26,7 @@ internal class StarterNavigator(
    * would otherwise surface as a corrupted screen much later:
    * - a tab root, which would collide with the owning tab's own entry on content key,
    * - an [AuthFlowRoute] while signed in, which renders a login form inside the signed-in shell,
-   * - a [TopLevelRoute] while signed out, whose screen component does not exist yet.
+   * - a [MainFlowRoute] while signed out, whose screen component does not exist yet.
    *
    * A rejection leaves the state untouched.
    */
@@ -42,7 +42,7 @@ internal class StarterNavigator(
         true
       }
 
-      currentState.isAuthenticated && route is TopLevelRoute -> {
+      currentState.isAuthenticated && route is MainFlowRoute -> {
         val currentTab = currentState.currentTab
         val currentStack =
           currentState.tabBackStacks[currentTab]?.toMutableList() ?: mutableListOf()

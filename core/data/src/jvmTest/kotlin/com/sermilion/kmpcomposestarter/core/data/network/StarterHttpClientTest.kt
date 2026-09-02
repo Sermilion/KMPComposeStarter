@@ -77,8 +77,6 @@ class StarterHttpClientTest :
 
         recorded.authorization shouldBe "Bearer $SECRET_TOKEN"
         recorded.url shouldBe "${NetworkConfig.BASE_URL}session"
-        // Ktor's logger prints request headers verbatim unless the header is sanitized, which
-        // would put a live credential in every log sink the app ships with.
         logger.messages.joinToString("\n") shouldNotContain SECRET_TOKEN
       }
     }

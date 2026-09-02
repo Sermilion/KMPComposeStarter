@@ -41,12 +41,7 @@ internal fun HttpClientConfig<*>.configureStarterHttpClient(
           BearerTokens(accessToken = token.accessToken, refreshToken = token.refreshToken)
         }
       }
-      // The bundled mock issues no refresh token, so there is nothing honest to exchange here:
-      // returning null lets the request fail as unauthorized instead of inventing a credential.
-      // A fork with a real backend posts the refresh token and returns the pair it gets back.
       refreshTokens { null }
-      // Every endpoint behind this client is authenticated, so attach the token up front rather
-      // than paying an extra round trip to be told so.
       sendWithoutRequest { true }
     }
   }
@@ -54,7 +49,6 @@ internal fun HttpClientConfig<*>.configureStarterHttpClient(
   install(Logging) {
     logger = ktorLogger
     level = LogLevel.HEADERS
-    // Without this the bearer token is printed verbatim on every request.
     sanitizeHeader { header -> header == HttpHeaders.Authorization }
   }
 

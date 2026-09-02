@@ -66,8 +66,6 @@ class ViewModelInjectProcessor(
         .filterIsInstance<KSClassDeclaration>()
         .toList()
 
-    // Symbols that do not resolve yet depend on code another processor has still to emit; hand
-    // them back so KSP retries them in a later round instead of failing on a half-built graph.
     val (resolved, deferred) = symbols.partition { it.validate() }
 
     resolved.forEach(::generateViewModelEntry)
@@ -259,7 +257,6 @@ class ViewModelInjectProcessor(
       return builder.addStatement("return create()").build()
     }
 
-    // The lookup key is the constructor parameter name, the same key InjectViewModel writes.
     assistedParams.forEach { (name, parameter) ->
       builder.addStatement(
         "val %L: %T = args[%S] ?: error(%S)",

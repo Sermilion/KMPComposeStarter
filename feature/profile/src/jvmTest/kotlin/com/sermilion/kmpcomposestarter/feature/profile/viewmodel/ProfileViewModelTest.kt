@@ -54,7 +54,6 @@ class ProfileViewModelTest :
         viewModel.deleteMyData()
         advanceUntilIdle()
 
-        // Signing out here would tell the user their data is gone while it is still on disk.
         viewModel.uiState.value.dataDeletionFailed shouldBe true
         viewModel.uiState.value.isDeletingData shouldBe false
         coVerify(exactly = 0) { authRepository.logout() }
@@ -94,7 +93,6 @@ class ProfileViewModelTest :
 
         viewModel.uiState.value.isLoggingOut shouldBe false
         viewModel.uiState.value.logoutFailed shouldBe true
-        // The screen is usable again, so the user can retry.
         viewModel.uiState.value.isBusy shouldBe false
       }
     }

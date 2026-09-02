@@ -27,20 +27,9 @@ internal fun StarterApp(
 ) {
   val navigationState = appState.navigationState.value
 
-  // Authenticated screens resolve their ViewModels through the screen component. Between a
-  // session ending and the navigation state following it the factory is briefly null, and asking
-  // for one then throws. This composable never returns early over that: it renders a placeholder,
-  // so a logout can never blank the frame.
   val canRenderAuthenticatedScreens =
     !navigationState.isAuthenticated || screenComponentFactory != null
 
-  // The host half of the back policy. NavDisplay disables its own handler once there is nothing
-  // left to pop, so back at a non-HOME tab root would otherwise leave the app. Back at the HOME
-  // root and on the single-entry auth stack stays disabled here too, and falls through to the
-  // system.
-  //
-  // During the session hand-off no NavDisplay is composed at all, so the handler stays enabled
-  // and swallows back: a stray press in that window must not close the app.
   val isHandingOffSession = !canRenderAuthenticatedScreens
   NavigationBackHandler(
     state = rememberNavigationEventState(currentInfo = NavigationEventInfo.None),
@@ -74,7 +63,6 @@ internal fun StarterApp(
           navigator = appState.navigator,
         )
       } else {
-        // Deliberately unbranded: this is the hand-off between two sessions, not a screen.
         CircularProgressIndicator()
       }
     }

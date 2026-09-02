@@ -123,8 +123,6 @@ class StarterNavigatorTest :
       navigator.onLoginStateChanged(true)
       val homeStackBefore = state.value.tabBackStacks.getValue(TopLevelTab.HOME)
 
-      // Pushing ProfileRoute here would give it the same content key as the PROFILE tab's own
-      // root, so the two entries would share — and then lose — each other's saved state.
       navigator.navigate(ProfileRoute) shouldBe false
 
       rejections shouldBe listOf<Pair<Route, Boolean>>(ProfileRoute to true)
@@ -181,7 +179,6 @@ class StarterNavigatorTest :
 
       navigator.onLoginStateChanged(false)
 
-      // The next user must not sign in onto the previous user's tab, showing their pushed route.
       state.value.currentTab shouldBe TopLevelTab.HOME
       TopLevelTab.entries.forEach { tab ->
         state.value.tabBackStacks
@@ -200,9 +197,6 @@ class StarterNavigatorTest :
       navigator.navigateToTopLevel(TopLevelTab.PROFILE)
       navigator.navigateToTopLevel(TopLevelTab.HOME)
 
-      // Instance identity, not just contents: the display keys each tab's decorated entries on
-      // the list it was handed, so a navigator that rebuilt the untouched tabs on every switch
-      // would recreate their entries and drop the ViewModel stores hanging off them.
       state.value.tabBackStacks.getValue(TopLevelTab.PROFILE) shouldBeSameInstanceAs profileStack
       state.value.tabBackStacks.getValue(TopLevelTab.HOME) shouldBeSameInstanceAs homeStack
     }

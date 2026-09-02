@@ -34,7 +34,6 @@ class NavEntryViewModelStoreHostTest :
       val owner = host.ownerFor(session)
       val entryViewModel = trackedViewModel(host, session)
 
-      // The session ends and another one replaces it.
       val nextSession = Any()
       val nextOwner = host.ownerFor(nextSession)
 

@@ -45,7 +45,6 @@ internal class NavEntryViewModelStoreHost : ViewModel() {
   fun ownerFor(session: Any?): ViewModelStoreOwner {
     val existing = current
     if (existing != null && existing.canServe(session)) {
-      // Adopting the session on a pre-auth owner is what keeps the sign-in ViewModel alive.
       existing.session = session
       return existing
     }

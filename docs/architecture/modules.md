@@ -78,11 +78,18 @@ Keep design tokens centralized here instead of redefining them per feature.
 
 Owns:
 
-- shared domain contracts and use cases
-- screen-component abstractions
-- ViewModel integration primitives that should not live in app-shell code
+- domain models and the repository contracts over them
+- `TokenStore`, `SessionState` and the `SessionRestorer` contract
+- the session-shaped types the rest of the app injects (`UserDependencies`, `UserComponentManager`,
+  `UserSessionScope`)
 
-Try to keep this layer framework-light and centered on business rules and shared contracts.
+This layer is framework-light by rule: it must not reference `androidx.lifecycle`, Compose, Room,
+Ktor or the DI framework's component annotations. The DI plumbing that does — `ScreenComponent` and
+`UserScopedCloseable` — lives in `core:common` alongside `StarterViewModelFactory` and the scope
+annotations it is defined in terms of.
+
+There are deliberately no use-case classes. The repositories are the behaviour boundary; a fork that
+wants interactors adds them here.
 
 ### `core:ui`
 

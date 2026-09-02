@@ -2,7 +2,7 @@ package com.sermilion.kmpcomposestarter.navigation
 
 import androidx.compose.runtime.snapshots.SnapshotStateList
 import com.sermilion.kmpcomposestarter.common.navigation.AuthFlowRoute
-import com.sermilion.kmpcomposestarter.common.navigation.TopLevelRoute
+import com.sermilion.kmpcomposestarter.common.navigation.MainFlowRoute
 import com.sermilion.kmpcomposestarter.feature.auth.navigation.LoginRoute
 import com.sermilion.kmpcomposestarter.feature.auth.navigation.RegisterRoute
 import com.sermilion.kmpcomposestarter.feature.home.detail.DetailRoute
@@ -32,7 +32,7 @@ class StarterNavigationStateTest :
     test("currentBackStack returns current tab backstack when authenticated") {
       val tabBackStacks =
         TopLevelTab.entries.associateWith {
-          SnapshotStateList<TopLevelRoute>().apply {
+          SnapshotStateList<MainFlowRoute>().apply {
             add(it.startRoute)
           }
         }
@@ -93,13 +93,12 @@ class StarterNavigationStateTest :
     test("back at the HOME root falls through to the system") {
       val state = StarterNavigationState(isAuthenticated = true)
 
-      // False here is what lets the system close the app instead of the app swallowing back.
       state.backAtTabRootShouldReturnHome shouldBe false
     }
 
     test("back mid-stack pops rather than returning to HOME") {
       val profileStack =
-        SnapshotStateList<TopLevelRoute>().apply {
+        SnapshotStateList<MainFlowRoute>().apply {
           add(ProfileRoute)
           add(DetailRoute("item-1"))
         }
@@ -111,7 +110,7 @@ class StarterNavigationStateTest :
               if (tab == TopLevelTab.PROFILE) {
                 profileStack
               } else {
-                SnapshotStateList<TopLevelRoute>().apply { add(tab.startRoute) }
+                SnapshotStateList<MainFlowRoute>().apply { add(tab.startRoute) }
               }
             },
           currentTab = TopLevelTab.PROFILE,

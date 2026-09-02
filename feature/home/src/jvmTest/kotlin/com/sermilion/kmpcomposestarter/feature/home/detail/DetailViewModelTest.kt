@@ -38,8 +38,6 @@ class DetailViewModelTest :
       detailViewModelFrom(mapToAssistedArgs(mapOf("id" to "item-1", "savedStateHandle" to handle)))
         .onNoteChange("remember this")
 
-      // A ViewModel rebuilt against the same handle — what process-death recreation does — must
-      // still see the note.
       val recreated =
         detailViewModelFrom(
           mapToAssistedArgs(mapOf("id" to "item-1", "savedStateHandle" to handle)),

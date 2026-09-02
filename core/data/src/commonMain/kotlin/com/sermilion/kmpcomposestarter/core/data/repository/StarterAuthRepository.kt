@@ -91,8 +91,6 @@ class StarterAuthRepository(
     } catch (e: CancellationException) {
       throw e
     } catch (e: Exception) {
-      // Reported rather than rethrown: teardown still has to finish, and a sign-out that leaves
-      // the session alive is worse than one that leaves a file behind.
       Logger.e(TAG, e) { "Could not erase the stored session on sign-out." }
     }
   }

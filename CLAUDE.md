@@ -30,9 +30,9 @@ The repository is organized as a Kotlin Multiplatform application starter:
 - `core:data`: Room 3, repositories, local/remote data sources, user session infrastructure
 - `core:datastore`: preference and settings persistence
 - `core:designsystem`: shared Compose theme and design tokens
-- `core:domain`: domain contracts, screen components, shared business rules
+- `core:domain`: domain models, repository contracts, session contracts. Framework-light by rule: no `androidx.lifecycle`, Compose, Room, Ktor or DI component annotations
 - `core:ui`: shared UI wiring and screen-component helpers
-- `core:testing`: shared test helpers
+- `core:testing`: shared test helpers, consumed from the `jvmTest` source sets that use them
 - `feature:*`: app-facing features and screen-scoped presentation logic
 - `codegen:viewmodel-inject-processor`: generated ViewModel wiring support
 - `build-logic/convention`: reusable Gradle convention plugins

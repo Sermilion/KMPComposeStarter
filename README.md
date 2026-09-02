@@ -23,6 +23,7 @@ This repository gives you a modern baseline for app development with Compose Mul
 - One `Channel`-backed `Effect` idiom for one-off navigation and UI events
 - Shared Gradle convention plugins in `build-logic/`
 - Kotest, MockK, Detekt, Spotless, Kover coverage, and GitHub automation
+- Platform-agnostic specs in `commonTest`, so the shared logic is tested on the iOS target too
 
 ## Repository Layout
 
@@ -35,7 +36,7 @@ KMPComposeStarter/
 |  |- data/                       # Room 3 databases, repositories, remote/local data sources
 |  |- datastore/                  # Preferences and lightweight persistent settings
 |  |- designsystem/               # Theme, tokens, and shared UI styling
-|  |- domain/                     # Domain contracts, screen components, shared business logic
+|  |- domain/                     # Domain models, repository and session contracts (framework-light)
 |  |- testing/                    # Shared test helpers
 |  \- ui/                         # Shared UI helpers and screen-component integration
 |- feature/
@@ -82,6 +83,9 @@ The root `ARCHITECTURE.md` remains as a lightweight entry point for tools and hu
 
 # Android app
 ./gradlew :androidApp:assembleDebug
+
+# Android release APK (runs R8 against androidApp/proguard-rules.pro)
+./gradlew :androidApp:assembleRelease
 
 # iOS framework for device
 ./gradlew :composeApp:linkDebugFrameworkIosArm64
@@ -149,4 +153,4 @@ session token as plain JSON, which is fine for a template and not for a shipping
 
 ## License
 
-MIT
+MIT — see [`LICENSE`](LICENSE).

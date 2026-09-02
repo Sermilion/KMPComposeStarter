@@ -21,11 +21,6 @@ class StarterUserDao(
 ) : UserDao {
   private val userDao = database.userEntityDao()
 
-  override fun observeUsers(): Flow<List<UserLocalDataModel>> =
-    userDao
-      .observeUsers()
-      .map { list -> list.map(UserEntity::toLocalDataModel) }
-
   override fun observeUser(userId: String): Flow<UserLocalDataModel?> =
     userDao.observeById(userId).map { it?.toLocalDataModel() }
 
@@ -34,18 +29,6 @@ class StarterUserDao(
 
   override suspend fun insertUser(user: UserLocalDataModel) {
     userDao.upsert(user.toEntity())
-  }
-
-  override suspend fun insertUsers(users: List<UserLocalDataModel>) {
-    userDao.upsertAll(users.map(UserLocalDataModel::toEntity))
-  }
-
-  override suspend fun deleteUser(userId: String) {
-    userDao.deleteById(userId)
-  }
-
-  override suspend fun deleteAllUsers() {
-    userDao.deleteAll()
   }
 }
 

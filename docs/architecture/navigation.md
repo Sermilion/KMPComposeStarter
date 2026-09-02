@@ -18,9 +18,11 @@ Navigation is state-driven and intentionally explicit.
 The shared route model distinguishes between:
 
 - `AuthFlowRoute`
-- `TopLevelRoute`
+- `MainFlowRoute`
 
-That split keeps auth-only destinations separate from the authenticated tab destinations.
+That split keeps signed-out destinations separate from signed-in ones. `MainFlowRoute` means "on the
+authenticated side", not "is a tab root" — `DetailRoute` is a `MainFlowRoute` that is pushed onto a
+tab's stack. Whether a route is some tab's start destination is the separate `Route.isTabRoot`.
 
 `TopLevelTab` is the single source of tab knowledge: each entry carries its start route, icon, and
 label. The bottom bar reads those fields rather than re-deriving them in a `when`, and `Route.isTabRoot`
@@ -107,11 +109,14 @@ screen they were on rather than to a tab root. A restored stack that decodes emp
 route whose shape changed in an app update — restores as null so `rememberSaveable` starts fresh
 instead of crashing on every cold start.
 
-Every route the entry provider registers must also be registered in `starterSerializersModule`, in
-each polymorphic block it belongs to. A route missing there throws on the first restore, in
-production, on a screen nobody tested. `StarterRouteSerializationTest` reads the registered routes out
-of `StarterEntryProvider.kt` rather than listing them a second time, asserts each is registered under
-every polymorphic base it implements, and round-trips a sample instance of each.
+Every route a feature registers must also appear in `starterSerializersModule`. A route missing
+there throws on the first restore, in production, on a screen nobody tested.
+
+That module keeps one list per flow — `authRoutes` and `mainRoutes` — and registers each into every
+polymorphic hierarchy that can hold it in a loop, so a route is written down once rather than up to
+four times. `StarterRouteSerializationTest` reads the registered routes out of the features' own
+`*Entries.kt` sources rather than listing them a second time, asserts each is registered under every
+polymorphic base it implements, and round-trips a sample instance of each.
 
 Screen-level state that must outlive process death belongs in a `SavedStateHandle`, which the
 ViewModel-store decorator makes available per entry.
@@ -119,9 +124,11 @@ ViewModel-store decorator makes available per entry.
 ## Adding New Routes
 
 - Define a typed `@Serializable` route next to the screen it opens, in that screen's feature module.
-- Register it in `starterSerializersModule`, in every polymorphic block the route's bases cover, and
-  add a sample instance to `routeSamples` in `StarterRouteSerializationTest`.
-- Add a destination entry in `createStarterEntryProvider`.
+- Add it to `authRoutes` or `mainRoutes` in `starterSerializersModule`, and add a sample instance to
+  `routeSamples` in `StarterRouteSerializationTest`.
+- Bind it to its screen in that feature's own `*Entries.kt` — `authEntries`, `homeEntries` and so on.
+  A new feature module adds its own; `createStarterEntryProvider` in `composeApp` then calls it and
+  supplies the navigation callbacks it asks for.
 - Pass stable identifiers rather than full mutable domain objects whenever a deeper layer remains the
   source of truth.
 

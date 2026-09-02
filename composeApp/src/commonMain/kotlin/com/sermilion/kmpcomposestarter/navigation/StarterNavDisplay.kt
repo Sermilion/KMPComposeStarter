@@ -33,31 +33,19 @@ internal fun StarterNavDisplay(
   navigationState: StarterNavigationState,
   navigator: StarterNavigator,
   modifier: Modifier = Modifier,
-  // Remembered, not rebuilt: the default expression re-ran on every recomposition, throwing
-  // away and re-registering all six entries each frame.
   entryProvider: (Route) -> NavEntry<Route> =
     remember(navigator) { createStarterEntryProvider(navigator) },
 ) {
-  // Nav-entry state is keyed by route, so without a session-scoped owner the next user's Home
-  // entry would inherit the previous session's screen component, ViewModels and saved UI state.
-  // The owner changes only when a session ends; keying on it discards the entries with it.
   val entryStoreOwner = rememberNavEntryViewModelStoreOwner()
 
   key(entryStoreOwner) {
     val decorators =
       listOf(
-        // Order is load bearing: saveable state outermost, then the per-entry SavedStateRegistry
-        // owner it scopes, then the ViewModel stores that read that owner.
         rememberSaveableStateHolderNavEntryDecorator<Route>(),
         rememberSavedStateNavEntryDecorator<Route>(),
         rememberViewModelStoreNavEntryDecorator<Route>(viewModelStoreOwner = entryStoreOwner),
       )
 
-    // One rememberDecoratedNavEntries per back stack, which is what navigation3-runtime documents
-    // for multiple back stacks. Entries absent from the list handed to NavDisplay are popped, so
-    // the previous single-display design — one display fed a wholesale-swapped list — cleared
-    // every tab's ViewModelStore and SaveableStateHolder on each switch. These calls are
-    // unconditional over a fixed enum precisely so an off-screen tab keeps its entries alive.
     val tabEntries =
       TopLevelTab.entries.associateWith { tab ->
         rememberDecoratedNavEntries(
@@ -83,9 +71,6 @@ internal fun StarterNavDisplay(
         authEntries
       }
 
-    // Tab switches are classified by the tab actually changing. Reading it off the destination
-    // ("is a root and the stack is one deep") mislabelled every switch into a tab whose stack was
-    // deeper than one, and every pop back to a root as a tab switch.
     val previousTab = remember { PreviousTabHolder(currentTab) }
     val isTabSwitching = previousTab.value != currentTab
     SideEffect { previousTab.value = currentTab }
@@ -93,8 +78,6 @@ internal fun StarterNavDisplay(
     NavDisplay(
       entries = entries,
       modifier = modifier,
-      // The library default pops the back stack list directly, which would leave the navigator's
-      // copy of the state behind. Every mutation goes through the navigator, including this one.
       onBack = { navigator.goBack() },
       transitionSpec = {
         if (isTabSwitching) {
@@ -111,7 +94,6 @@ internal fun StarterNavDisplay(
         }
       },
       popTransitionSpec = { popTransition() },
-      // Gesture back and button back share one spec by construction, so they cannot drift.
       predictivePopTransitionSpec = { popTransition() },
     )
   }

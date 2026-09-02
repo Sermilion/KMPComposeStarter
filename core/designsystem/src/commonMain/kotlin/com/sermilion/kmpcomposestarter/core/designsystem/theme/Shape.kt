@@ -8,6 +8,5 @@ val KmpShapes =
   Shapes(
     small = RoundedCornerShape(4.dp),
     medium = RoundedCornerShape(8.dp),
-    // Monotonic on purpose: `large` used to be 0.dp, i.e. sharper than `medium`.
     large = RoundedCornerShape(16.dp),
   )

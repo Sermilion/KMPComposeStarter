@@ -1,6 +1,7 @@
+// No KSP: this module declares no DI annotations. The scope annotations, the ViewModel factory and
+// the screen component that do live in `core:common`, which keeps this layer framework-light.
 plugins {
   alias(libs.plugins.kmp.library)
-  alias(libs.plugins.ksp)
 }
 
 kotlin {
@@ -16,15 +17,6 @@ kotlin {
 
     androidMain.dependencies {
       implementation(libs.kotlinx.coroutines.android)
-    }
-
-    jvmTest.dependencies {
-      implementation(projects.core.testing)
-      implementation(libs.kotest.framework.engine)
-      implementation(libs.kotest.assertions.core)
-      implementation(libs.kotest.runner.junit5.jvm)
-      implementation(libs.kotlinx.coroutines.test)
-      implementation(libs.mockk.core)
     }
   }
 }

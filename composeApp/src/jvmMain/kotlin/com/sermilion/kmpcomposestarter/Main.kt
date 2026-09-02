@@ -7,8 +7,6 @@ import kmpcomposestarter.composeapp.generated.resources.app_window_title
 import org.jetbrains.compose.resources.stringResource
 
 fun main() {
-  // Desktop is the one target with no framework-owned process lifecycle: without this the
-  // client's engine threads and connection pool outlive the window and keep the JVM alive.
   Runtime.getRuntime().addShutdownHook(
     Thread { JvmAppComponentHolder.component.httpClient.close() },
   )

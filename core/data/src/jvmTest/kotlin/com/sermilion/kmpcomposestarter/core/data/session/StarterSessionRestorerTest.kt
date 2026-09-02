@@ -37,17 +37,14 @@ private class StubAuthLocalDataSource(
 }
 
 @OptIn(ExperimentalCoroutinesApi::class)
-class SessionRestorerTest :
+class StarterSessionRestorerTest :
   FunSpec({
 
     test("a returning user is never published as unauthenticated on the way to their session") {
       runTest {
         val manager = StarterUserComponentManager(RecordingUserComponentFactory())
-        val restorer = SessionRestorer(StubAuthLocalDataSource(storedSession), manager)
+        val restorer = StarterSessionRestorer(StubAuthLocalDataSource(storedSession), manager)
 
-        // Recording the live session alongside each state proves the ordering the shell relies
-        // on: if Authenticated were published first, the shell would render an authenticated
-        // back stack with no component behind it.
         val observed = mutableListOf<Pair<SessionState, Boolean>>()
         val collector =
           backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
@@ -71,7 +68,7 @@ class SessionRestorerTest :
       runTest {
         val factory = RecordingUserComponentFactory()
         val manager = StarterUserComponentManager(factory)
-        val restorer = SessionRestorer(StubAuthLocalDataSource(session = null), manager)
+        val restorer = StarterSessionRestorer(StubAuthLocalDataSource(session = null), manager)
 
         restorer.restore()
 
@@ -84,7 +81,7 @@ class SessionRestorerTest :
       runTest {
         val manager = StarterUserComponentManager(RecordingUserComponentFactory())
         val restorer =
-          SessionRestorer(
+          StarterSessionRestorer(
             StubAuthLocalDataSource(session = null, readFailure = IllegalStateException("corrupt")),
             manager,
           )
@@ -99,7 +96,7 @@ class SessionRestorerTest :
       runTest {
         val factory = RecordingUserComponentFactory()
         val manager = StarterUserComponentManager(factory)
-        val restorer = SessionRestorer(StubAuthLocalDataSource(storedSession), manager)
+        val restorer = StarterSessionRestorer(StubAuthLocalDataSource(storedSession), manager)
 
         restorer.restore()
         restorer.restore()

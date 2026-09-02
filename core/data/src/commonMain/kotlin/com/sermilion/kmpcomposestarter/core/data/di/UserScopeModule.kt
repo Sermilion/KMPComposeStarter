@@ -2,6 +2,7 @@ package com.sermilion.kmpcomposestarter.core.data.di
 
 import com.sermilion.kmpcomposestarter.common.coroutines.DispatcherProvider
 import com.sermilion.kmpcomposestarter.common.di.UserScope
+import com.sermilion.kmpcomposestarter.common.di.UserScopedCloseable
 import com.sermilion.kmpcomposestarter.core.data.auth.DataStoreTokenStore
 import com.sermilion.kmpcomposestarter.core.data.db.DatabaseProvider
 import com.sermilion.kmpcomposestarter.core.data.db.UserDatabase
@@ -9,12 +10,12 @@ import com.sermilion.kmpcomposestarter.core.data.db.dao.StarterUserDao
 import com.sermilion.kmpcomposestarter.core.data.db.dao.UserDao
 import com.sermilion.kmpcomposestarter.core.data.repository.StarterUserRepository
 import com.sermilion.kmpcomposestarter.core.domain.auth.TokenStore
-import com.sermilion.kmpcomposestarter.core.domain.di.UserScopedCloseable
 import com.sermilion.kmpcomposestarter.core.domain.di.UserSessionScope
 import com.sermilion.kmpcomposestarter.core.domain.model.UserData
 import com.sermilion.kmpcomposestarter.core.domain.repository.UserRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.withContext
 import me.tatarka.inject.annotations.IntoSet
 import me.tatarka.inject.annotations.Provides
 import software.amazon.lastmile.kotlin.inject.anvil.ContributesTo
@@ -56,6 +57,9 @@ interface UserScopeModule {
   fun provideUserDatabaseCloseable(
     databaseProvider: DatabaseProvider,
     userData: UserData,
+    dispatcherProvider: DispatcherProvider,
   ): UserScopedCloseable =
-    UserScopedCloseable { databaseProvider.closeDatabaseForUser(userData.id) }
+    UserScopedCloseable {
+      withContext(dispatcherProvider.io) { databaseProvider.closeDatabaseForUser(userData.id) }
+    }
 }

@@ -1,8 +1,8 @@
 package com.sermilion.kmpcomposestarter.di
 
 import com.sermilion.kmpcomposestarter.common.di.StarterViewModelFactory
-import com.sermilion.kmpcomposestarter.core.data.session.SessionRestorer
 import com.sermilion.kmpcomposestarter.core.domain.di.UserComponentManager
+import com.sermilion.kmpcomposestarter.core.domain.session.SessionRestorer
 
 /**
  * What the UI needs from the DI graph, independent of which platform built it.

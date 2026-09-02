@@ -5,8 +5,8 @@ import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.ui.graphics.vector.ImageVector
+import com.sermilion.kmpcomposestarter.common.navigation.MainFlowRoute
 import com.sermilion.kmpcomposestarter.common.navigation.Route
-import com.sermilion.kmpcomposestarter.common.navigation.TopLevelRoute
 import com.sermilion.kmpcomposestarter.feature.home.navigation.HomeRoute
 import com.sermilion.kmpcomposestarter.feature.profile.navigation.ProfileRoute
 import com.sermilion.kmpcomposestarter.feature.settings.navigation.SettingsRoute
@@ -24,7 +24,7 @@ import org.jetbrains.compose.resources.StringResource
  * is no second list to keep in step.
  */
 internal enum class TopLevelTab(
-  val startRoute: TopLevelRoute,
+  val startRoute: MainFlowRoute,
   val icon: ImageVector,
   val label: StringResource,
 ) {

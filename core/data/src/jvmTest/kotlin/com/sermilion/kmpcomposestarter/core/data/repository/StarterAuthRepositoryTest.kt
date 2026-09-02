@@ -58,8 +58,6 @@ class StarterAuthRepositoryTest :
         val session = manager.userComponent as FakeUserComponent
         session.userData shouldBe testUser
         session.tokenStore.get() shouldBe testToken
-        // Writing the row through the session's repository is what keeps it out of the previous
-        // user's database: an app-scoped write would land wherever the last session pointed.
         session.userRepositoryImpl.savedUsers shouldBe listOf(testUser)
       }
     }

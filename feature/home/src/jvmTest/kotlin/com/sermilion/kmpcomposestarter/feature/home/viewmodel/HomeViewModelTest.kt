@@ -41,7 +41,6 @@ class HomeViewModelTest :
       }
     }
 
-    // The id travels, not the object: the detail screen resolves it from the source of truth.
     test("openDetail carries the user id") {
       runTest(testDispatcher) {
         val viewModel = HomeViewModel(signedInUser)

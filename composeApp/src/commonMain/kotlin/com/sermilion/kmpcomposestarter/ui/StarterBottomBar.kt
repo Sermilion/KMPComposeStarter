@@ -21,8 +21,6 @@ internal fun StarterBottomBar(
       NavigationBarItem(
         selected = currentTab == tab,
         onClick = { onTabSelect(tab) },
-        // Null on purpose: the visible label below is already the item's announcement, and a
-        // matching contentDescription made every tab announce its name twice.
         icon = { Icon(imageVector = tab.icon, contentDescription = null) },
         label = { Text(text = label) },
       )

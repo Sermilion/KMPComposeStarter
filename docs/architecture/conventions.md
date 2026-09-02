@@ -129,13 +129,29 @@ theme every host renders through.
   resolution — but nothing injects it until a fork replaces the mock. Treat it as wired-and-tested
   scaffolding for that swap, not as a feature path this template exercises.
 
+## Comments
+
+Kotlin sources carry KDoc and nothing else. `//` and `/* */` comments are not used in `.kt` files
+under `androidApp`, `composeApp`, `core`, `feature` and `codegen`: anything worth saying about a
+declaration goes in that declaration's KDoc, where the IDE and generated docs surface it.
+
+Two places are deliberately exempt, because what they record is not attached to any declaration and
+is not recoverable from the code:
+
+- `build-logic/` — the KSP configuration-ordering race and the Apple-klib cross-compilation
+  decision are properties of the Gradle lifecycle, not of a Kotlin API.
+- Build, CI and resource files (`*.kts`, `*.xml`, `*.yml`, `*.properties`), which have no KDoc.
+
+If an implementation detail needs explaining, prefer naming it — extract a well-named private
+function — and put the reasoning in the KDoc of whatever declaration owns it.
+
 ## Documentation Workflow
 
 When changing starter-wide behavior, update the relevant docs in the same change:
 
 - `README.md` for user-facing setup or feature changes
 - `docs/architecture/*.md` for architecture or contributor guidance
-- `AGENTS.md` and `CLAUDE.md` for agent-facing workflow expectations
+- `CLAUDE.md` for agent-facing workflow expectations (`AGENTS.md` is a pointer at it, not a copy)
 - `docs/window-insets.md` when scaffold, edge-to-edge, or inset behavior changes
 
 Documentation is part of the template contract, not optional follow-up work.

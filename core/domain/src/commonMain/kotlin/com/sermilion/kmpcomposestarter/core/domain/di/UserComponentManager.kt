@@ -8,10 +8,13 @@ interface UserComponentManager {
   val userComponentFlow: StateFlow<UserDependencies?>
 
   /**
-   * Returns the live session for [userData]. Creating a session for a different user replaces and
-   * tears down the previous one; creating it for the current user is a no-op.
+   * Returns the live session for [userData]. Creating a session for a different user replaces the
+   * previous one and releases it; creating it for the current user is a no-op.
+   *
+   * `suspend` because releasing the replaced session closes its database, which is file I/O and
+   * must not run on the caller's dispatcher when that caller is a ViewModel on the main thread.
    */
-  fun createComponent(userData: UserData): UserDependencies
+  suspend fun createComponent(userData: UserData): UserDependencies
 
-  fun destroyComponent()
+  suspend fun destroyComponent()
 }

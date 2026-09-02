@@ -58,8 +58,6 @@ private class NavEntrySavedStateRegistryOwner(
     get() = controller.savedStateRegistry
 
   init {
-    // Restoring here rather than on an ON_CREATE event: the registry refuses to hand out restored
-    // state until it has been restored once, and this owner's lifecycle never moves.
     controller.performRestore(restoredState)
   }
 

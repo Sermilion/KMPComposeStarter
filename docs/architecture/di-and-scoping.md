@@ -22,7 +22,8 @@ Examples include:
 - Room database provider infrastructure
 - the `UserPreferences` DataStore and the `AuthLocalDataSource` over it
 - the single `HttpClient`, which reads the current bearer token through `UserComponentManager`
-- `SessionRestorer`, which rebuilds a stored session once per process at launch
+- `StarterSessionRestorer`, bound to the `core:domain` `SessionRestorer` contract, which rebuilds a
+  stored session once per process at launch
 - remote data sources and app-level repositories
 
 Each platform merges its own component (`AndroidApplicationComponent` in `androidApp`,
@@ -42,6 +43,28 @@ Objects tied to a specific authenticated user should live here, including the se
 the previous session, and teardown cancels `UserSessionScope` then closes every
 `UserScopedCloseable` multibinding before the component reference is cleared. Anything holding a
 resource that must not outlive the session should be multibound as a `UserScopedCloseable`.
+
+`createComponent` and `destroyComponent` are `suspend`, and `UserScopedCloseable.close` with them:
+releasing a session closes its Room database, which checkpoints the write-ahead log. Sign-out runs
+from a ViewModel coroutine on the main dispatcher, so that work hops to IO rather than blocking the
+frame. Teardown also runs outside the transition lock — publication has already happened, so nothing
+can hand out a session that is being released.
+
+### Where session orchestration lives
+
+`StarterAuthRepository` does more than a repository name suggests: it calls the remote source,
+creates the user component, writes the token and writes the user row, and on sign-out tears the
+component down whether or not the network call succeeded. That is deliberate and it is the one
+place allowed to do it.
+
+The ordering is the reason. The session has to exist *before* the token and the user row are
+written, or they land in the outgoing user's store and database; and sign-out has to destroy the
+component in a `finally`, or a failed network call leaves an authenticated session alive.
+Splitting those steps across a repository and a separate coordinator would put that ordering in two
+places. `SecondLoginIntegrationTest` pins it.
+
+Do not copy the shape for ordinary repositories. A repository that reads and writes one kind of
+data should do only that; this one is the session boundary wearing a repository's interface.
 
 ## `ScreenScope`
 

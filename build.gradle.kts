@@ -53,6 +53,29 @@ dependencies {
 
 kover {
   reports {
+    filters {
+      excludes {
+        // None of this is hand-written, so counting it says nothing about what is tested. Left
+        // unfiltered the merged report read 31% while the repositories, ViewModels, navigator and
+        // KSP processor were all between 78% and 96%.
+        classes(
+          // Compose resource accessors (`Res`, `Res.string`, ...), one class per module.
+          "*.generated.resources.*",
+          // kotlin-inject-anvil's contribution lookup package and the merged component impls.
+          "amazon.lastmile.inject.*",
+          "*.Inject*Component",
+          // ViewModelEntry multibindings emitted by codegen:viewmodel-inject-processor.
+          "*_Entry",
+          // Room's generated database, DAO and constructor implementations.
+          "*_Impl",
+          "*UserDatabaseConstructor*",
+        )
+        packages(
+          // Colour, type and shape tokens: declarations with no behaviour to exercise.
+          "com.sermilion.kmpcomposestarter.core.designsystem.theme",
+        )
+      }
+    }
     total {
       xml {
         onCheck.set(true)

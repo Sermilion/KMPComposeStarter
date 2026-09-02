@@ -113,8 +113,6 @@ private fun LoginFormFields(
     )
     uiState.error?.let { error ->
       Spacer(modifier = Modifier.height(8.dp))
-      // Each reason gets its own sentence: telling a user with no connection that their password
-      // is wrong sends them to reset a password that was never the problem.
       StarterErrorText(text = error.message())
     }
   }

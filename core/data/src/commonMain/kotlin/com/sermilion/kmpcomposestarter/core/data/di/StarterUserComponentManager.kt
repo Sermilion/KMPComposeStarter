@@ -38,29 +38,37 @@ class StarterUserComponentManager(
 
   override val userComponentFlow: StateFlow<UserDependencies?> = state.asStateFlow()
 
-  override fun createComponent(userData: UserData): UserDependencies =
-    synchronized(transitionLock) {
-      val current = state.value
-      if (current != null && current.userData == userData) {
-        current
-      } else {
-        val replacement = userComponentFactory.create(userData)
-        check(state.compareAndSet(current, replacement)) {
-          "Session changed outside the transition lock; every transition must hold it."
+  override suspend fun createComponent(userData: UserData): UserDependencies {
+    val transition =
+      synchronized(transitionLock) {
+        val current = state.value
+        if (current != null && current.userData == userData) {
+          Transition(session = current, replaced = null)
+        } else {
+          val replacement = userComponentFactory.create(userData)
+          check(state.compareAndSet(current, replacement)) {
+            "Session changed outside the transition lock; every transition must hold it."
+          }
+          Transition(session = replacement, replaced = current)
         }
-        current?.let(::tearDown)
-        replacement
       }
-    }
-
-  override fun destroyComponent() {
-    synchronized(transitionLock) {
-      state.getAndUpdate { null }?.let(::tearDown)
-    }
+    transition.replaced?.let { tearDown(it) }
+    return transition.session
   }
 
-  private fun tearDown(dependencies: UserDependencies) {
+  override suspend fun destroyComponent() {
+    val released = synchronized(transitionLock) { state.getAndUpdate { null } }
+    released?.let { tearDown(it) }
+  }
+
+  private suspend fun tearDown(dependencies: UserDependencies) {
     dependencies.userSessionScope.cancel()
     dependencies.userScopedCloseables.forEach { it.close() }
   }
+
+  /** One session transition: what the caller gets back, and what it displaced. */
+  private class Transition(
+    val session: UserDependencies,
+    val replaced: UserDependencies?,
+  )
 }

@@ -29,9 +29,6 @@ fun StarterRoot(component: AppComponent) {
   ) {
     ProvideScreenComponentFactory {
       StarterTheme {
-        // Nothing is drawn until the stored session has been read. Rendering the auth stack
-        // first and correcting it a frame later is exactly the login flash this avoids; the
-        // read is a local file, so the blank frame is not a perceptible delay.
         if (sessionState !is SessionState.Loading) {
           val screenComponentFactory = LocalScreenComponentFactory.current
           val appState =

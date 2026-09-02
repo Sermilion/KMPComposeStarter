@@ -33,8 +33,6 @@ fun createUserPreferencesDataStore(
         serializer = UserPreferencesSerializer,
         producePath = producePath,
       ),
-    // A file we cannot parse is a file we cannot trust: drop it and start signed out rather than
-    // failing every session read until the user reinstalls.
     corruptionHandler = ReplaceFileCorruptionHandler { UserPreferences() },
     scope = scope,
   )

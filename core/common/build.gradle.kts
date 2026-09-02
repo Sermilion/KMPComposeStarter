@@ -33,12 +33,14 @@ kotlin {
       implementation(kotlin("test"))
     }
 
-    getByName("androidHostTest").dependencies {
-      implementation(libs.androidx.junit)
+    // commonTest specs are inherited by every target's test source set, so each JVM-backed target
+    // needs the JUnit Platform runner Kotest discovers through. The native targets use Kotest's
+    // own engine, which commonTest already brings in.
+    jvmTest.dependencies {
       implementation(libs.kotest.runner.junit5.jvm)
     }
 
-    jvmTest.dependencies {
+    getByName("androidHostTest").dependencies {
       implementation(libs.kotest.runner.junit5.jvm)
     }
   }

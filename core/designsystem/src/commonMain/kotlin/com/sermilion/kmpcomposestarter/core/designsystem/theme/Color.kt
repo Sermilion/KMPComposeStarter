@@ -28,8 +28,6 @@ internal val KmpLightColorScheme =
     inversePrimary = Color(0xFFAED519),
     secondary = Color(0xFF576426),
     onSecondary = Color(0xFFFFFFFF),
-    // Deliberately more saturated than a stock tone-90 container: this is the NavigationBar
-    // selection pill, and at tone 90 it is indistinguishable from the bar behind it.
     secondaryContainer = Color(0xFFB1C465),
     onSecondaryContainer = Color(0xFF1A1D0B),
     tertiary = Color(0xFF2C6B38),
@@ -54,16 +52,11 @@ internal val KmpLightColorScheme =
     scrim = Color(0xFF000000),
     surfaceBright = Color(0xFFF9FAF9),
     surfaceDim = Color(0xFFDADBD7),
-    // The tonal-elevation ramp. Flattening it to white (the previous scheme did) removes every
-    // elevation cue Material3 draws with colour rather than shadow.
     surfaceContainerLowest = Color(0xFFFFFFFF),
     surfaceContainerLow = Color(0xFFF3F4F2),
     surfaceContainer = Color(0xFFEEEEEC),
     surfaceContainerHigh = Color(0xFFE8E9E6),
     surfaceContainerHighest = Color(0xFFE2E3DF),
-    // The Material 3 expressive "fixed" roles. No component this template ships renders them,
-    // but a fork that adds one would otherwise get baseline purple. They are identical in both
-    // schemes by definition — that is what "fixed" means.
     primaryFixed = Color(0xFFD4EE70),
     primaryFixedDim = Color(0xFFAED519),
     onPrimaryFixed = Color(0xFF181E03),
@@ -116,9 +109,6 @@ internal val KmpDarkColorScheme =
     surfaceContainer = Color(0xFF1F201C),
     surfaceContainerHigh = Color(0xFF2A2A26),
     surfaceContainerHighest = Color(0xFF343530),
-    // The Material 3 expressive "fixed" roles. No component this template ships renders them,
-    // but a fork that adds one would otherwise get baseline purple. They are identical in both
-    // schemes by definition — that is what "fixed" means.
     primaryFixed = Color(0xFFD4EE70),
     primaryFixedDim = Color(0xFFAED519),
     onPrimaryFixed = Color(0xFF181E03),

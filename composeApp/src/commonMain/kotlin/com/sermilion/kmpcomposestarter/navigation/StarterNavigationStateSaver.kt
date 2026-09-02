@@ -2,7 +2,7 @@ package com.sermilion.kmpcomposestarter.navigation
 
 import androidx.compose.runtime.saveable.Saver
 import com.sermilion.kmpcomposestarter.common.navigation.AuthFlowRoute
-import com.sermilion.kmpcomposestarter.common.navigation.TopLevelRoute
+import com.sermilion.kmpcomposestarter.common.navigation.MainFlowRoute
 import com.sermilion.kmpcomposestarter.feature.auth.navigation.LoginRoute
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.SerializationException
@@ -21,9 +21,6 @@ internal val StarterNavigationStateSaver: Saver<StarterNavigationState, String> 
   Saver(
     save = { encodeNavigationState(it) },
     restore = { encoded ->
-      // A payload written before a route changed shape can no longer decode. Letting that throw
-      // out of a saver turns an app update into a crash loop the user cannot clear, so an
-      // undecodable payload restores as null and `rememberSaveable` falls back to a fresh state.
       try {
         decodeNavigationState(encoded)
       } catch (error: SerializationException) {
@@ -50,15 +47,11 @@ internal fun decodeNavigationState(encoded: String): StarterNavigationState {
   val saved = navigationStateJson.decodeFromString<SavedNavigationState>(encoded)
   return StarterNavigationState(
     isAuthenticated = saved.isAuthenticated,
-    // An empty stack is not a state any display can render, so a truncated payload falls back to
-    // the start of the flow rather than crashing on restore.
     authBackStack =
       saved.authBackStack.takeIf { it.isNotEmpty() }?.toSnapshotStateList()
         ?: snapshotStateListOf(LoginRoute),
     tabBackStacks =
       TopLevelTab.entries.associateWith { tab ->
-        // A stack that is missing or empty in the restored payload falls back to the tab's start
-        // route: an empty back stack is not a state any screen can render.
         saved.tabBackStacks[tab.name]
           ?.takeIf { it.isNotEmpty() }
           ?.toSnapshotStateList()
@@ -78,13 +71,12 @@ internal fun decodeNavigationState(encoded: String): StarterNavigationState {
 private data class SavedNavigationState(
   val isAuthenticated: Boolean,
   val authBackStack: List<AuthFlowRoute>,
-  val tabBackStacks: Map<String, List<TopLevelRoute>>,
+  val tabBackStacks: Map<String, List<MainFlowRoute>>,
   val currentTab: String,
 )
 
 private val navigationStateJson =
   Json {
     serializersModule = starterSerializersModule
-    // A field dropped from a route in a later build must not fail the whole restore over one key.
     ignoreUnknownKeys = true
   }

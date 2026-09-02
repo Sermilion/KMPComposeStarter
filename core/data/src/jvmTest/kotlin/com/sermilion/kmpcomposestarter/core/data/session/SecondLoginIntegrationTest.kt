@@ -1,5 +1,7 @@
 package com.sermilion.kmpcomposestarter.core.data.session
 
+import com.sermilion.kmpcomposestarter.common.di.ScreenComponent
+import com.sermilion.kmpcomposestarter.common.di.UserScopedCloseable
 import com.sermilion.kmpcomposestarter.core.data.auth.DataStoreTokenStore
 import com.sermilion.kmpcomposestarter.core.data.db.DatabaseProvider
 import com.sermilion.kmpcomposestarter.core.data.db.dao.StarterUserDao
@@ -19,8 +21,6 @@ import com.sermilion.kmpcomposestarter.core.data.repository.StarterUserRepositor
 import com.sermilion.kmpcomposestarter.core.data.testing.RealDispatcherProvider
 import com.sermilion.kmpcomposestarter.core.datastore.createUserPreferencesDataStore
 import com.sermilion.kmpcomposestarter.core.domain.auth.TokenStore
-import com.sermilion.kmpcomposestarter.core.domain.di.ScreenComponent
-import com.sermilion.kmpcomposestarter.core.domain.di.UserScopedCloseable
 import com.sermilion.kmpcomposestarter.core.domain.di.UserSessionScope
 import com.sermilion.kmpcomposestarter.core.domain.model.UserData
 import com.sermilion.kmpcomposestarter.core.domain.repository.UserRepository
@@ -108,8 +108,6 @@ class SecondLoginIntegrationTest :
             builderFactory = PlatformRoomDatabaseBuilderFactory(),
             dispatcherProvider = RealDispatcherProvider,
           )
-        // Databases live in a directory shared with the rest of the suite, so start from a
-        // known-empty state rather than inheriting a previous run's rows.
         databaseProvider.deleteDatabaseForUser(userA.id)
         databaseProvider.deleteDatabaseForUser(userB.id)
 
@@ -146,8 +144,6 @@ class SecondLoginIntegrationTest :
           sessionB.tokenStore.get()?.accessToken shouldBe "token-for-${userB.id}"
           localDataSource.getSession()?.user?.id shouldBe userB.id
           sessionB.userDao.findUser(userB.id).shouldNotBeNull()
-          // The one that matters: a database keyed per user means the second user cannot read
-          // the first user's rows, however the sessions were opened and closed.
           sessionB.userDao.findUser(userA.id) shouldBe null
         } finally {
           manager.destroyComponent()

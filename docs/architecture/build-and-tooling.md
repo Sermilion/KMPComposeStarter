@@ -148,10 +148,15 @@ CI lives in `.github/workflows/check.yml` and runs two jobs:
 
 | Job | Runner | Runs |
 |-----|--------|------|
-| `check` | `ubuntu-latest` | `./gradlew check`, then `:androidApp:assembleDebug` |
+| `check` | `ubuntu-latest` | `./gradlew check`, then `:androidApp:assembleDebug` and `:androidApp:assembleRelease` |
 | `ios` | `macos-latest` | `:composeApp:linkDebugFrameworkIosArm64` |
 
-Splitting them keeps the expensive macOS runner scoped to the one task that needs it. Both jobs
+The release variant is built because it is the only one that runs R8. `androidApp/proguard-rules.pro`
+holds the keep rules the shrinker cannot infer — the kotlinx-serialization companions behind every
+`@Serializable` route, and Room's `@ConstructedBy` constructor object. Without a CI step a broken
+shrinker config only surfaces for whoever first tries to ship the template.
+
+Splitting the jobs keeps the expensive macOS runner scoped to the one task that needs it. Both jobs
 have `timeout-minutes`, the workflow declares `permissions: contents: read`, and a `concurrency`
 group keyed on workflow and ref cancels superseded runs. On failure each job uploads its detekt,
 lint, test and Kover reports as artifacts so a red build can be diagnosed without re-running it.
@@ -185,6 +190,14 @@ Both are wired to `check` via `onCheck`, so no separate command is needed.
 `jvm` target's tests and the Android unit tests — the iOS targets produce no coverage data and do
 not appear in the report. A module whose logic is only exercised from a native test will read as
 uncovered even though it is tested. Read the number as "JVM-side coverage", not project coverage.
+
+**What is filtered out.** The root `kover { reports { filters { ... } } }` block excludes generated
+code: Compose resource accessors, the anvil contribution lookup and merged components, the
+`*_Entry` multibindings the ViewModel processor emits, Room's `*_Impl` classes, and the
+design-system token declarations. None of it is hand-written, so counting it said nothing about
+what is tested — unfiltered, the merged report read 31% while the repositories, ViewModels,
+navigator and KSP processor were all between 78% and 96%. Add to the filter when you add a
+generator, not when a class is merely inconvenient to test.
 
 No coverage threshold is configured. The report exists to be looked at, not to fail the build on an
 arbitrary percentage.

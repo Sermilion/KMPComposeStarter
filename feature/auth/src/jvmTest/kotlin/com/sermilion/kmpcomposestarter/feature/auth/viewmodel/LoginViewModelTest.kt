@@ -76,8 +76,6 @@ class LoginViewModelTest :
 
         viewModel.uiState.value.isLoading shouldBe false
         viewModel.uiState.value.error shouldBe null
-        // The session flow the repository writes is the only thing that moves the app to the
-        // signed-in shell. A second, screen-driven signal would race it.
         viewModel.effects.test { expectNoEvents() }
         coVerify(exactly = 1) { authRepository.login("test@email.com", "password123") }
       }
