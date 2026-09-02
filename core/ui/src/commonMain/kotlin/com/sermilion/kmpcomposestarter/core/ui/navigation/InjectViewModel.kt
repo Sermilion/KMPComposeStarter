@@ -1,36 +1,43 @@
 package com.sermilion.kmpcomposestarter.core.ui.navigation
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
 import androidx.lifecycle.HasDefaultViewModelProviderFactory
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.ViewModelStoreOwner
 import androidx.lifecycle.viewmodel.CreationExtras
 import androidx.lifecycle.viewmodel.MutableCreationExtras
 import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
 import co.touchlab.kermit.Logger
+import com.sermilion.kmpcomposestarter.common.di.LocalPreAuthViewModelFactory
 import com.sermilion.kmpcomposestarter.common.di.LocalScreenComponentFactory
-import com.sermilion.kmpcomposestarter.common.di.LocalViewModelProvider
+import com.sermilion.kmpcomposestarter.common.di.ScreenComponentProvider
+import com.sermilion.kmpcomposestarter.common.di.StarterViewModelFactory
 import com.sermilion.kmpcomposestarter.common.di.mapToAssistedArgs
-import com.sermilion.kmpcomposestarter.core.domain.di.DIViewModelFactory
-import kotlinx.collections.immutable.persistentMapOf
+import com.sermilion.kmpcomposestarter.core.ui.di.ScreenComponentHolder
 
+/**
+ * Resolves [VM] from the DI graph.
+ *
+ * [assisted] is keyed by the ViewModel's constructor parameter names — the same keys the
+ * generated entry reads.
+ */
 @Composable
 inline fun <reified VM : ViewModel> injectViewModel(
   scope: ViewModelScope = ViewModelScope.Feature,
   key: String? = null,
-  assisted: Any? = null,
-): VM = when (scope) {
-  ViewModelScope.Feature -> injectFeatureScopedViewModel(key, assisted)
-  ViewModelScope.Onboarding -> injectOnboardingScopedViewModel()
-}
+  assisted: Map<String, Any?> = emptyMap(),
+): VM =
+  when (scope) {
+    ViewModelScope.Feature -> injectFeatureScopedViewModel(key, assisted)
+    ViewModelScope.PreAuth -> injectPreAuthScopedViewModel()
+  }
 
 @Composable
 @PublishedApi
 internal inline fun <reified VM : ViewModel> injectFeatureScopedViewModel(
   key: String? = null,
-  assisted: Any? = null,
+  assisted: Map<String, Any?> = emptyMap(),
 ): VM {
   val screenComponentFactory = LocalScreenComponentFactory.current
 
@@ -45,66 +52,64 @@ internal inline fun <reified VM : ViewModel> injectFeatureScopedViewModel(
     )
   }
 
-  val viewModelStoreOwner = LocalViewModelStoreOwner.current
-    ?: error("ViewModelStoreOwner not found")
+  val viewModelStoreOwner =
+    LocalViewModelStoreOwner.current
+      ?: error("ViewModelStoreOwner not found")
 
-  val screenComponent = remember(screenComponentFactory, key) { screenComponentFactory() }
-  val defaultCreationExtras = if (viewModelStoreOwner is HasDefaultViewModelProviderFactory) {
-    viewModelStoreOwner.defaultViewModelCreationExtras
-  } else {
-    CreationExtras.Empty
-  }
+  val holder = rememberScreenComponentHolder(viewModelStoreOwner, screenComponentFactory)
 
-  val assistedMap = if (assisted != null) {
-    persistentMapOf("arguments" to assisted)
-  } else {
-    persistentMapOf()
-  }
+  val defaultCreationExtras =
+    if (viewModelStoreOwner is HasDefaultViewModelProviderFactory) {
+      viewModelStoreOwner.defaultViewModelCreationExtras
+    } else {
+      CreationExtras.Empty
+    }
 
-  val extras = MutableCreationExtras(defaultCreationExtras).apply {
-    set(DIViewModelFactory.AssistedArgsKey, mapToAssistedArgs(assistedMap))
-  }
+  val extras =
+    MutableCreationExtras(defaultCreationExtras).apply {
+      set(StarterViewModelFactory.AssistedArgsKey, mapToAssistedArgs(assisted))
+    }
 
   return viewModel(
     viewModelStoreOwner = viewModelStoreOwner,
     modelClass = VM::class,
     key = key,
-    factory = screenComponent.diViewModelFactory,
+    factory = holder.provider.viewModelFactory,
     extras = extras,
   )
 }
 
 @Composable
 @PublishedApi
-internal inline fun <reified VM : ViewModel> injectOnboardingScopedViewModel(): VM {
-  val provider = LocalViewModelProvider.current
-  val viewModelStoreOwner = LocalViewModelStoreOwner.current
-    ?: error("ViewModelStoreOwner not found")
-
-  val factory = remember(provider) {
-    object : ViewModelProvider.Factory {
-      override fun <T : ViewModel> create(
-        modelClass: kotlin.reflect.KClass<T>,
-        extras: CreationExtras,
-      ): T {
-        val viewModel = provider.provide(modelClass)
-        check(modelClass.isInstance(viewModel)) {
-          "ViewModelProvider returned ${viewModel::class.simpleName} but expected ${modelClass.simpleName}"
-        }
-        @Suppress("UNCHECKED_CAST")
-        return viewModel as T
-      }
-    }
-  }
+internal inline fun <reified VM : ViewModel> injectPreAuthScopedViewModel(): VM {
+  val viewModelStoreOwner =
+    LocalViewModelStoreOwner.current
+      ?: error("ViewModelStoreOwner not found")
 
   return viewModel(
     viewModelStoreOwner = viewModelStoreOwner,
     modelClass = VM::class,
-    factory = factory,
+    factory = LocalPreAuthViewModelFactory.current,
   )
 }
 
+/**
+ * The nav entry's screen component holder.
+ *
+ * Deliberately unkeyed: every ViewModel on this nav entry must share one screen component. Kept
+ * out of the inline callers above so this body is compiled once instead of at every screen.
+ */
+@Composable
+@PublishedApi
+internal fun rememberScreenComponentHolder(
+  viewModelStoreOwner: ViewModelStoreOwner,
+  screenComponentFactory: () -> ScreenComponentProvider,
+): ScreenComponentHolder =
+  viewModel(viewModelStoreOwner = viewModelStoreOwner) {
+    ScreenComponentHolder(screenComponentFactory())
+  }
+
 enum class ViewModelScope {
   Feature,
-  Onboarding,
+  PreAuth,
 }

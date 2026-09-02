@@ -1,6 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-  <string name="home_screen_title">Home Screen</string>
+  <string name="home_screen_title">Home</string>
   <string name="home_welcome_message">Welcome, %1$s!</string>
   <string name="home_button_go_to_profile">Go to Profile</string>
+  <string name="home_button_open_detail">Open detail</string>
+  <string name="detail_screen_title">Detail</string>
+  <string name="detail_id_label">Item id: %1$s</string>
+  <string name="detail_note_label">Note</string>
+  <string name="detail_button_back">Back</string>
 </resources>

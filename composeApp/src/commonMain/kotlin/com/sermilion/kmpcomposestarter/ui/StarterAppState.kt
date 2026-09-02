@@ -5,27 +5,32 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.State
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.sermilion.kmpcomposestarter.common.di.ScreenComponentProvider
 import com.sermilion.kmpcomposestarter.common.navigation.Route
 import com.sermilion.kmpcomposestarter.core.domain.di.UserComponentManager
 import com.sermilion.kmpcomposestarter.navigation.StarterNavigationState
+import com.sermilion.kmpcomposestarter.navigation.StarterNavigationStateSaver
 import com.sermilion.kmpcomposestarter.navigation.StarterNavigator
 import com.sermilion.kmpcomposestarter.navigation.TopLevelTab
 
 @Composable
-fun rememberStarterAppState(
+internal fun rememberStarterAppState(
   userComponentManager: UserComponentManager,
-  screenComponentFactory:
-  (() -> com.sermilion.kmpcomposestarter.common.di.ScreenComponentProvider)?,
+  screenComponentFactory: (() -> ScreenComponentProvider)?,
 ): StarterAppState {
-  val userComponent by userComponentManager.userComponentFlow.collectAsState()
+  val userComponent by userComponentManager.userComponentFlow.collectAsStateWithLifecycle()
   val isLoggedIn = userComponent != null
   val canShowAuthenticated = isLoggedIn && screenComponentFactory != null
 
-  val navigationState = remember { mutableStateOf(StarterNavigationState()) }
+  val navigationState =
+    rememberSaveable(stateSaver = StarterNavigationStateSaver) {
+      mutableStateOf(StarterNavigationState(isAuthenticated = canShowAuthenticated))
+    }
   val navigator = remember { StarterNavigator(navigationState) }
 
   val currentIsAuthenticated = navigationState.value.isAuthenticated
@@ -46,7 +51,7 @@ fun rememberStarterAppState(
 }
 
 @Stable
-class StarterAppState(
+internal class StarterAppState(
   private val mutableNavigationState: MutableState<StarterNavigationState>,
   val navigator: StarterNavigator,
 ) {

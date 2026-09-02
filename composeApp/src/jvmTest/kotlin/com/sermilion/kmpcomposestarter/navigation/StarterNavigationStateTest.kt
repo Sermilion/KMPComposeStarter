@@ -2,9 +2,10 @@ package com.sermilion.kmpcomposestarter.navigation
 
 import androidx.compose.runtime.snapshots.SnapshotStateList
 import com.sermilion.kmpcomposestarter.common.navigation.AuthFlowRoute
-import com.sermilion.kmpcomposestarter.common.navigation.TopLevelRoute
+import com.sermilion.kmpcomposestarter.common.navigation.MainFlowRoute
 import com.sermilion.kmpcomposestarter.feature.auth.navigation.LoginRoute
 import com.sermilion.kmpcomposestarter.feature.auth.navigation.RegisterRoute
+import com.sermilion.kmpcomposestarter.feature.home.detail.DetailRoute
 import com.sermilion.kmpcomposestarter.feature.home.navigation.HomeRoute
 import com.sermilion.kmpcomposestarter.feature.profile.navigation.ProfileRoute
 import com.sermilion.kmpcomposestarter.feature.settings.navigation.SettingsRoute
@@ -29,16 +30,18 @@ class StarterNavigationStateTest :
     }
 
     test("currentBackStack returns current tab backstack when authenticated") {
-      val tabBackStacks = TopLevelTab.entries.associateWith {
-        SnapshotStateList<TopLevelRoute>().apply {
-          add(it.startRoute)
+      val tabBackStacks =
+        TopLevelTab.entries.associateWith {
+          SnapshotStateList<MainFlowRoute>().apply {
+            add(it.startRoute)
+          }
         }
-      }
-      val state = StarterNavigationState(
-        isAuthenticated = true,
-        tabBackStacks = tabBackStacks,
-        currentTab = TopLevelTab.HOME,
-      )
+      val state =
+        StarterNavigationState(
+          isAuthenticated = true,
+          tabBackStacks = tabBackStacks,
+          currentTab = TopLevelTab.HOME,
+        )
 
       state.currentBackStack shouldBe tabBackStacks[TopLevelTab.HOME]
       state.currentRoute.shouldBeInstanceOf<HomeRoute>()
@@ -59,10 +62,11 @@ class StarterNavigationStateTest :
     }
 
     test("currentRoute returns last item in backstack") {
-      val authBackStack = SnapshotStateList<AuthFlowRoute>().apply {
-        add(LoginRoute)
-        add(RegisterRoute)
-      }
+      val authBackStack =
+        SnapshotStateList<AuthFlowRoute>().apply {
+          add(LoginRoute)
+          add(RegisterRoute)
+        }
       val state = StarterNavigationState(authBackStack = authBackStack)
 
       state.currentRoute.shouldBeInstanceOf<RegisterRoute>()
@@ -74,5 +78,50 @@ class StarterNavigationStateTest :
       TopLevelTab.entries.forEach { tab ->
         state.tabBackStacks[tab]?.size shouldBe 1
       }
+    }
+
+    test("back at a non-HOME tab root returns to HOME") {
+      val state =
+        StarterNavigationState(
+          isAuthenticated = true,
+          currentTab = TopLevelTab.PROFILE,
+        )
+
+      state.backAtTabRootShouldReturnHome shouldBe true
+    }
+
+    test("back at the HOME root falls through to the system") {
+      val state = StarterNavigationState(isAuthenticated = true)
+
+      state.backAtTabRootShouldReturnHome shouldBe false
+    }
+
+    test("back mid-stack pops rather than returning to HOME") {
+      val profileStack =
+        SnapshotStateList<MainFlowRoute>().apply {
+          add(ProfileRoute)
+          add(DetailRoute("item-1"))
+        }
+      val state =
+        StarterNavigationState(
+          isAuthenticated = true,
+          tabBackStacks =
+            TopLevelTab.entries.associateWith { tab ->
+              if (tab == TopLevelTab.PROFILE) {
+                profileStack
+              } else {
+                SnapshotStateList<MainFlowRoute>().apply { add(tab.startRoute) }
+              }
+            },
+          currentTab = TopLevelTab.PROFILE,
+        )
+
+      state.backAtTabRootShouldReturnHome shouldBe false
+    }
+
+    test("back on the auth stack never returns to HOME") {
+      val state = StarterNavigationState(currentTab = TopLevelTab.PROFILE)
+
+      state.backAtTabRootShouldReturnHome shouldBe false
     }
   })

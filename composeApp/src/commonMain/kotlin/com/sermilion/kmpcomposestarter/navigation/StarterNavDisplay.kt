@@ -1,5 +1,6 @@
 package com.sermilion.kmpcomposestarter.navigation
 
+import androidx.compose.animation.ContentTransform
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.FiniteAnimationSpec
 import androidx.compose.animation.core.tween
@@ -9,92 +10,124 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.IntOffset
 import androidx.lifecycle.viewmodel.navigation3.rememberViewModelStoreNavEntryDecorator
 import androidx.navigation3.runtime.NavEntry
-import androidx.navigation3.runtime.NavEntryDecorator
+import androidx.navigation3.runtime.rememberDecoratedNavEntries
+import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.ui.NavDisplay
 import com.sermilion.kmpcomposestarter.common.navigation.Route
-import com.sermilion.kmpcomposestarter.feature.home.navigation.HomeRoute
-import com.sermilion.kmpcomposestarter.feature.profile.navigation.ProfileRoute
-import com.sermilion.kmpcomposestarter.feature.settings.navigation.SettingsRoute
+import com.sermilion.kmpcomposestarter.core.ui.di.rememberNavEntryViewModelStoreOwner
 
+/**
+ * Renders the active back stack.
+ *
+ * @param entryProvider injectable so a UI test can drive the display without the real DI graph.
+ */
 @Composable
-fun StarterNavDisplay(
+internal fun StarterNavDisplay(
   navigationState: StarterNavigationState,
   navigator: StarterNavigator,
-  isLoggedIn: Boolean,
   modifier: Modifier = Modifier,
+  entryProvider: (Route) -> NavEntry<Route> =
+    remember(navigator) { createStarterEntryProvider(navigator) },
 ) {
-  val savedStateDecorator = rememberSaveableStateHolderNavEntryDecorator<Route>()
-  val viewModelDecorator = rememberViewModelStoreNavEntryDecorator<Route>()
+  val entryStoreOwner = rememberNavEntryViewModelStoreOwner()
 
-  val backStack = navigationState.getBackStack(isLoggedIn)
-  val currentRoute = backStack.lastOrNull()
-  val isRootScreen = remember(currentRoute) {
-    currentRoute?.isTabRoot == true
-  }
+  key(entryStoreOwner) {
+    val decorators =
+      listOf(
+        rememberSaveableStateHolderNavEntryDecorator<Route>(),
+        rememberSavedStateNavEntryDecorator<Route>(),
+        rememberViewModelStoreNavEntryDecorator<Route>(viewModelStoreOwner = entryStoreOwner),
+      )
 
-  val isTabSwitching = isRootScreen && backStack.size == 1
-
-  NavDisplay(
-    backStack = backStack,
-    modifier = modifier,
-    entryProvider = createStarterEntryProvider(
-      navigator = navigator,
-      isLoggedIn = isLoggedIn,
-    ),
-    entryDecorators = listOf(savedStateDecorator, viewModelDecorator),
-    transitionSpec = {
-      when {
-        isTabSwitching -> fadeIn(fadeAnimationSpec) togetherWith fadeOut(fadeAnimationSpec)
-        else -> slideInHorizontally(
-          initialOffsetX = { it },
-          animationSpec = slideAnimationSpec,
-        ) togetherWith slideOutHorizontally(
-          targetOffsetX = { -it / 3 },
-          animationSpec = slideAnimationSpec,
+    val tabEntries =
+      TopLevelTab.entries.associateWith { tab ->
+        rememberDecoratedNavEntries(
+          backStack =
+            navigationState.tabBackStacks[tab]?.takeIf { it.isNotEmpty() }
+              ?: listOf(tab.startRoute),
+          entryDecorators = decorators,
+          entryProvider = entryProvider,
         )
       }
-    },
-    popTransitionSpec = {
-      slideInHorizontally(
-        initialOffsetX = { -it / 3 },
-        animationSpec = slideAnimationSpec,
-      ) togetherWith slideOutHorizontally(
-        targetOffsetX = { it },
-        animationSpec = slideAnimationSpec,
+    val authEntries =
+      rememberDecoratedNavEntries(
+        backStack = navigationState.authBackStack,
+        entryDecorators = decorators,
+        entryProvider = entryProvider,
       )
-    },
-  )
-}
 
-val Route.isTabRoot: Boolean
-  get() = this is HomeRoute || this is ProfileRoute || this is SettingsRoute
-
-@Composable
-private fun <T : Any> rememberSaveableStateHolderNavEntryDecorator(): NavEntryDecorator<T> {
-  val saveableStateHolder = rememberSaveableStateHolder()
-  return remember(saveableStateHolder) {
-    NavEntryDecorator(
-      onPop = { contentKey -> saveableStateHolder.removeState(contentKey) },
-    ) { entry: NavEntry<T> ->
-      saveableStateHolder.SaveableStateProvider(key = entry.contentKey) {
-        entry.Content()
+    val currentTab = navigationState.currentTab
+    val entries =
+      if (navigationState.isAuthenticated) {
+        tabEntries.getValue(currentTab)
+      } else {
+        authEntries
       }
-    }
+
+    val previousTab = remember { PreviousTabHolder(currentTab) }
+    val isTabSwitching = previousTab.value != currentTab
+    SideEffect { previousTab.value = currentTab }
+
+    NavDisplay(
+      entries = entries,
+      modifier = modifier,
+      onBack = { navigator.goBack() },
+      transitionSpec = {
+        if (isTabSwitching) {
+          fadeIn(fadeAnimationSpec) togetherWith fadeOut(fadeAnimationSpec)
+        } else {
+          slideInHorizontally(
+            initialOffsetX = { it },
+            animationSpec = slideAnimationSpec,
+          ) togetherWith
+            slideOutHorizontally(
+              targetOffsetX = { -it / 3 },
+              animationSpec = slideAnimationSpec,
+            )
+        }
+      },
+      popTransitionSpec = { popTransition() },
+      predictivePopTransitionSpec = { popTransition() },
+    )
   }
 }
 
-private val fadeAnimationSpec: FiniteAnimationSpec<Float> = tween(
-  durationMillis = 300,
-  easing = FastOutSlowInEasing,
+/**
+ * The previously rendered tab, held outside the snapshot system on purpose.
+ *
+ * A snapshot write from the [SideEffect] would invalidate this composition, and the recomposition
+ * it forced would re-read `isTabSwitching` as false — swapping the tab-switch fade for a push
+ * slide while the transition was still running.
+ */
+private class PreviousTabHolder(
+  var value: TopLevelTab,
 )
 
-private val slideAnimationSpec: FiniteAnimationSpec<IntOffset> = tween(
-  durationMillis = 350,
-  easing = FastOutSlowInEasing,
-)
+private fun popTransition(): ContentTransform =
+  slideInHorizontally(
+    initialOffsetX = { -it / 3 },
+    animationSpec = slideAnimationSpec,
+  ) togetherWith
+    slideOutHorizontally(
+      targetOffsetX = { it },
+      animationSpec = slideAnimationSpec,
+    )
+
+private val fadeAnimationSpec: FiniteAnimationSpec<Float> =
+  tween(
+    durationMillis = 300,
+    easing = FastOutSlowInEasing,
+  )
+
+private val slideAnimationSpec: FiniteAnimationSpec<IntOffset> =
+  tween(
+    durationMillis = 350,
+    easing = FastOutSlowInEasing,
+  )

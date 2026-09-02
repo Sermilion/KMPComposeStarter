@@ -5,26 +5,21 @@ import androidx.room3.Query
 import androidx.room3.Upsert
 import kotlinx.coroutines.flow.Flow
 
+/**
+ * Room's view of the `users` table.
+ *
+ * One row per database, because each database belongs to one signed-in user - see
+ * [com.sermilion.kmpcomposestarter.core.data.db.room.userDatabaseFileName]. Deleting a user's data
+ * removes the whole database file rather than issuing a DELETE, so there is no delete query here.
+ */
 @Dao
 interface UserEntityDao {
-  @Query("SELECT * FROM users ORDER BY createdAt DESC")
-  fun observeUsers(): Flow<List<UserDataModel>>
+  @Query("SELECT * FROM users WHERE id = :id LIMIT 1")
+  fun observeById(id: String): Flow<UserEntity?>
 
   @Query("SELECT * FROM users WHERE id = :id LIMIT 1")
-  fun observeById(id: String): Flow<UserDataModel?>
-
-  @Query("SELECT * FROM users WHERE id = :id LIMIT 1")
-  suspend fun getById(id: String): UserDataModel?
+  suspend fun getById(id: String): UserEntity?
 
   @Upsert
-  suspend fun upsert(user: UserDataModel)
-
-  @Upsert
-  suspend fun upsertAll(users: List<UserDataModel>)
-
-  @Query("DELETE FROM users WHERE id = :id")
-  suspend fun deleteById(id: String)
-
-  @Query("DELETE FROM users")
-  suspend fun deleteAll()
+  suspend fun upsert(user: UserEntity)
 }

@@ -12,6 +12,10 @@ indent_size = 2
 max_line_length = 100
 ij_kotlin_allow_trailing_comma = true
 ij_kotlin_allow_trailing_comma_on_call_site = true
+# ktlint reads its own settings from here too, so spotless needs no editorConfigOverride map that
+# could drift away from what the IDE applies.
+ktlint_function_naming_ignore_when_annotated_with = Composable
+ktlint_standard_no-wildcard-imports = disabled
 
 [*.xml]
 indent_size = 2

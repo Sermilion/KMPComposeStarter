@@ -3,41 +3,72 @@ package com.sermilion.kmpcomposestarter.core.data.di
 import com.sermilion.kmpcomposestarter.core.domain.di.UserComponentManager
 import com.sermilion.kmpcomposestarter.core.domain.di.UserDependencies
 import com.sermilion.kmpcomposestarter.core.domain.model.UserData
-import kotlinx.atomicfu.atomic
+import kotlinx.atomicfu.locks.SynchronizedObject
+import kotlinx.atomicfu.locks.synchronized
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.getAndUpdate
 import me.tatarka.inject.annotations.Inject
 import software.amazon.lastmile.kotlin.inject.anvil.AppScope
 import software.amazon.lastmile.kotlin.inject.anvil.ContributesBinding
 import software.amazon.lastmile.kotlin.inject.anvil.SingleIn
 
+/**
+ * Owns the signed-in session. The [MutableStateFlow] is the only source of truth, and every
+ * transition runs under [transitionLock], so sign-in and sign-out are ordered by lock acquisition:
+ * whoever goes last wins, a sign-out can never be overtaken by a sign-in that started before it,
+ * and the session handed back to a caller is not being torn down as it is returned. Publication
+ * still goes through a compare-and-set, which under the lock also asserts that nothing mutates the
+ * session from outside — and which keeps teardown exactly-once.
+ */
 @Inject
 @SingleIn(AppScope::class)
 @ContributesBinding(AppScope::class)
-class StarterUserComponentManager(private val userComponentFactory: UserComponent.Factory) :
-  UserComponentManager {
+class StarterUserComponentManager(
+  private val userComponentFactory: UserComponent.Factory,
+) : UserComponentManager {
+  private val transitionLock = SynchronizedObject()
 
-  private val _userComponent = atomic<UserComponent?>(null)
-  private val _userComponentFlow = MutableStateFlow<UserDependencies?>(null)
+  private val state = MutableStateFlow<UserDependencies?>(null)
 
   override val userComponent: UserDependencies?
-    get() = _userComponent.value
+    get() = state.value
 
-  override val userComponentFlow: StateFlow<UserDependencies?>
-    get() = _userComponentFlow.asStateFlow()
+  override val userComponentFlow: StateFlow<UserDependencies?> = state.asStateFlow()
 
-  override fun createComponent(userData: UserData) {
-    val current = _userComponent.value
-    if (current == null) {
-      val component = userComponentFactory.create(userData)
-      _userComponent.value = component
-      _userComponentFlow.value = component
-    }
+  override suspend fun createComponent(userData: UserData): UserDependencies {
+    val transition =
+      synchronized(transitionLock) {
+        val current = state.value
+        if (current != null && current.userData == userData) {
+          Transition(session = current, replaced = null)
+        } else {
+          val replacement = userComponentFactory.create(userData)
+          check(state.compareAndSet(current, replacement)) {
+            "Session changed outside the transition lock; every transition must hold it."
+          }
+          Transition(session = replacement, replaced = current)
+        }
+      }
+    transition.replaced?.let { tearDown(it) }
+    return transition.session
   }
 
-  override fun destroyComponent() {
-    _userComponent.value = null
-    _userComponentFlow.value = null
+  override suspend fun destroyComponent() {
+    val released = synchronized(transitionLock) { state.getAndUpdate { null } }
+    released?.let { tearDown(it) }
   }
+
+  private suspend fun tearDown(dependencies: UserDependencies) {
+    dependencies.userSessionScope.cancel()
+    dependencies.userScopedCloseables.forEach { it.close() }
+  }
+
+  /** One session transition: what the caller gets back, and what it displaced. */
+  private class Transition(
+    val session: UserDependencies,
+    val replaced: UserDependencies?,
+  )
 }

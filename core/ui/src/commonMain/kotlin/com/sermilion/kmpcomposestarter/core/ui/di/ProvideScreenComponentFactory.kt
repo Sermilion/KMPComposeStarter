@@ -13,16 +13,10 @@ fun ProvideScreenComponentFactory(content: @Composable () -> Unit) {
   val userComponentManager = LocalUserComponentManager.current
   val userComponent by userComponentManager.userComponentFlow.collectAsState()
 
-  val factory = remember(userComponent) {
-    userComponent?.let { component ->
-      {
-        object : ScreenComponentProvider {
-          override val diViewModelFactory =
-            component.screenComponentFactory.create().diViewModelFactory
-        }
-      }
+  val factory: (() -> ScreenComponentProvider)? =
+    remember(userComponent) {
+      userComponent?.let { component -> { component.screenComponentFactory.create() } }
     }
-  }
 
   CompositionLocalProvider(LocalScreenComponentFactory provides factory) {
     content()

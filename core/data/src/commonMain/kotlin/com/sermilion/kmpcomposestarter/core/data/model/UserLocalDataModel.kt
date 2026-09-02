@@ -1,12 +1,15 @@
 package com.sermilion.kmpcomposestarter.core.data.model
 
 import kotlinx.datetime.Instant
-import kotlin.uuid.ExperimentalUuidApi
-import kotlin.uuid.Uuid
 
-@OptIn(ExperimentalUuidApi::class)
+/**
+ * A stored user as the rest of the data layer sees it.
+ *
+ * [id] stays the opaque string the backend issued: forcing it into a UUID would reject perfectly
+ * valid server ids at the persistence boundary.
+ */
 data class UserLocalDataModel(
-  val id: Uuid,
+  val id: String,
   val name: String,
   val email: String?,
   val createdAt: Instant,

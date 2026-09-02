@@ -1,75 +1,37 @@
 plugins {
   alias(libs.plugins.kmp.library)
-  alias(libs.plugins.kmp.jacoco)
   alias(libs.plugins.ksp)
   alias(libs.plugins.kotlin.serialization)
 }
 
 kotlin {
-  android {
-    namespace = "com.sermilion.kmpcomposestarter.core.datastore"
-    compileSdk =
-      libs.versions.compileSdk
-        .get()
-        .toInt()
-    minSdk =
-      libs.versions.minSdk
-        .get()
-        .toInt()
-    withHostTestBuilder {}
-    androidResources {
-      enable = true
-    }
-  }
-
   sourceSets {
     commonMain.dependencies {
       implementation(projects.core.domain)
       implementation(projects.core.common)
-      implementation(libs.androidx.datastore.core)
+      // api: DataStore<UserPreferences> and okio Path are part of this module's own contract.
+      api(libs.androidx.datastore.core)
+      api(libs.okio)
       implementation(libs.androidx.datastore.core.okio)
       implementation(libs.serialization.json)
       implementation(libs.kermit)
       implementation(libs.kotlin.inject.runtime)
       implementation(libs.kotlin.inject.anvil.runtime)
-      implementation(libs.okio)
     }
 
     androidMain.dependencies {
       implementation(libs.kotlinx.coroutines.android)
     }
 
-    commonTest.dependencies {
+    // No commonTest sources in this module: its tests drive real files through okio's JVM
+    // filesystem, so they stay on the JVM target.
+    jvmTest.dependencies {
+      implementation(projects.core.testing)
       implementation(libs.kotest.assertions.core)
       implementation(libs.kotest.framework.engine)
-      implementation(libs.kotest.framework.datatest)
+      implementation(libs.kotest.runner.junit5.jvm)
       implementation(libs.kotlinx.coroutines.test)
       implementation(kotlin("test"))
     }
-
-    getByName("androidHostTest").dependencies {
-      implementation(projects.core.testing)
-      implementation(libs.androidx.junit)
-      implementation(libs.kotest.runner.junit5.jvm)
-    }
-
-    jvmTest.dependencies {
-      implementation(libs.kotest.runner.junit5.jvm)
-    }
   }
-}
-
-dependencies {
-  add("kspAndroid", libs.kotlin.inject.compiler)
-  add("kspAndroid", libs.kotlin.inject.anvil.compiler)
-  add("kspIosArm64", libs.kotlin.inject.compiler)
-  add("kspIosArm64", libs.kotlin.inject.anvil.compiler)
-  add("kspIosSimulatorArm64", libs.kotlin.inject.compiler)
-  add("kspIosSimulatorArm64", libs.kotlin.inject.anvil.compiler)
-  add("kspJvm", libs.kotlin.inject.compiler)
-  add("kspJvm", libs.kotlin.inject.anvil.compiler)
-}
-
-tasks.named<Test>("jvmTest") {
-  useJUnitPlatform()
 }

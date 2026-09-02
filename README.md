@@ -15,22 +15,29 @@ This repository gives you a modern baseline for app development with Compose Mul
 - Multi-module app architecture with clear `core` and `feature` boundaries
 - Compile-time dependency injection with `kotlin-inject` + Anvil
 - Navigation 3 with typed routes and explicit back stack ownership
-- Room 3 persistence with shared schemas and platform-specific database builders
+- Room 3 persistence with shared schemas, a per-user database, and platform-specific builders
+- Session persistence in DataStore, restored at launch so returning users skip the login screen
+- One shared Ktor client with bearer auth, sanitized logging, and a build-configurable base URL
+- Complete light and dark Material 3 schemes generated from one brand seed, with light/dark
+  previews for every screen and design-system component
+- One `Channel`-backed `Effect` idiom for one-off navigation and UI events
 - Shared Gradle convention plugins in `build-logic/`
-- Kotest, MockK, Detekt, Spotless, and GitHub automation
+- Kotest, MockK, Detekt, Spotless, Kover coverage, and GitHub automation
+- Platform-agnostic specs in `commonTest`, so the shared logic is tested on the iOS target too
 
 ## Repository Layout
 
 ```text
 KMPComposeStarter/
 |- androidApp/                    # Android-only application module and manifest/resources
+|- appcomponent/                  # DI composition root, kept out of the iOS framework's ObjC surface
 |- composeApp/                    # Shared app shell plus iOS/JVM entry points
 |- core/
 |  |- common/                     # Cross-cutting utilities, DI scopes, dispatchers, navigation contracts
 |  |- data/                       # Room 3 databases, repositories, remote/local data sources
 |  |- datastore/                  # Preferences and lightweight persistent settings
 |  |- designsystem/               # Theme, tokens, and shared UI styling
-|  |- domain/                     # Domain contracts, screen components, shared business logic
+|  |- domain/                     # Domain models, repository and session contracts (framework-light)
 |  |- testing/                    # Shared test helpers
 |  \- ui/                         # Shared UI helpers and screen-component integration
 |- feature/
@@ -57,6 +64,8 @@ The architecture docs are split into focused files so contributors and agents ca
 - `docs/architecture/build-and-tooling.md`
 - `docs/architecture/conventions.md`
 
+Platform-behavior notes: `docs/window-insets.md`.
+
 The root `ARCHITECTURE.md` remains as a lightweight entry point for tools and humans that expect it at the repository root.
 
 ## Getting Started
@@ -70,11 +79,14 @@ The root `ARCHITECTURE.md` remains as a lightweight entry point for tools and hu
 ### Main Commands
 
 ```bash
-# Main quality gate
+# Main quality gate: detekt, ktlint, Android lint, tests, and the merged Kover report
 ./gradlew check
 
 # Android app
 ./gradlew :androidApp:assembleDebug
+
+# Android release APK (runs R8 against androidApp/proguard-rules.pro)
+./gradlew :androidApp:assembleRelease
 
 # iOS framework for device
 ./gradlew :composeApp:linkDebugFrameworkIosArm64
@@ -93,20 +105,38 @@ Open `iosApp/iosApp.xcodeproj` in Xcode and run the generated framework from the
 |----------|------------|
 | Kotlin | 2.3.10 |
 | Compose Multiplatform | 1.10.2 |
-| Android Gradle Plugin | 9.0.1 |
-| Dependency Injection | kotlin-inject 0.8.0 + Anvil 0.1.6 |
+| Android Gradle Plugin | 9.1.0 |
+| Dependency Injection | kotlin-inject 0.9.0 + Anvil 0.1.7 |
 | Navigation | Navigation 3 alpha06 |
 | Persistence | Room 3 alpha01 |
-| Networking | Ktor 3.3.2 |
-| Testing | Kotest 5.9.1, MockK 1.14.6 |
+| Networking | Ktor 3.4.1 |
+| Testing | Kotest 6.2.4, MockK 1.14.9 |
 
 ## Build Notes
 
-The project is updated to AGP 9 and Gradle 9.1.0.
+The project is updated to AGP 9.1.0 and Gradle 9.4.0.
 
 Android now lives in a dedicated `androidApp` module, while shared multiplatform modules use the Android KMP library plugin.
 
-`core:data` intentionally disables the `RestrictedApi` lint check because Room 3 `alpha01` currently reports false positives for both generated KSP code and `RoomDatabase` usage in KMP lint tasks. See `docs/architecture/build-and-tooling.md` for details.
+`core:data` intentionally disables the `RestrictedApi` lint check because Room 3 `alpha01` currently reports false positives for both generated KSP code and `RoomDatabase` usage in KMP lint tasks. That is one commented suppression in the module plus the path-scoped ignore in `core/data/lint.xml`. See `docs/architecture/build-and-tooling.md` for details.
+
+`./gradlew check` runs detekt over every source set of every module against the shared
+`config/detekt/detekt.yml`, and aggregates coverage into `build/reports/kover/`. Kover instruments
+JVM bytecode only, so the report covers the JVM and Android unit tests and not the iOS targets —
+`docs/architecture/build-and-tooling.md` has the full story.
+
+The configuration cache is enabled, so keep new build logic configuration-cache safe.
+
+### Configuration properties
+
+| Property | Default | Purpose |
+| --- | --- | --- |
+| `starter.api.baseUrl` | `https://api.example.com/` | Base URL for the shared Ktor client. The default host is deliberately fake: this template ships no backend. Override it in `gradle.properties` or with `-Pstarter.api.baseUrl=...`. |
+| `-Dstarter.dataDir` | `~/.kmpcomposestarter` | Desktop data directory for the per-user databases and the preferences file. The Gradle test tasks point it at a build directory. |
+
+The starter authenticates against `MockAuthRemoteDataSource`, an in-process fake. It persists the
+session token as plain JSON, which is fine for a template and not for a shipping app — see
+`docs/architecture/persistence.md` before pointing this at a real backend.
 
 ## Demo Credentials
 
@@ -124,4 +154,4 @@ Android now lives in a dedicated `androidApp` module, while shared multiplatform
 
 ## License
 
-MIT
+MIT — see [`LICENSE`](LICENSE).

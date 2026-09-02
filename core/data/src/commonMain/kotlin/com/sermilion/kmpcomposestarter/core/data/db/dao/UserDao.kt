@@ -2,16 +2,18 @@ package com.sermilion.kmpcomposestarter.core.data.db.dao
 
 import com.sermilion.kmpcomposestarter.core.data.model.UserLocalDataModel
 import kotlinx.coroutines.flow.Flow
-import kotlin.uuid.ExperimentalUuidApi
-import kotlin.uuid.Uuid
 
-@OptIn(ExperimentalUuidApi::class)
+/**
+ * The signed-in user's own row.
+ *
+ * Scoped to one user's database, which holds exactly that user's record - so there is deliberately
+ * no list query and no bulk write here. A fork whose database grows a table with many rows should
+ * add both single-item and bulk operations for that table rather than widening this one.
+ */
 interface UserDao {
-  fun observeUsers(): Flow<List<UserLocalDataModel>>
-  fun observeUser(userId: Uuid): Flow<UserLocalDataModel?>
-  suspend fun findUser(userId: Uuid): UserLocalDataModel?
+  fun observeUser(userId: String): Flow<UserLocalDataModel?>
+
+  suspend fun findUser(userId: String): UserLocalDataModel?
+
   suspend fun insertUser(user: UserLocalDataModel)
-  suspend fun insertUsers(users: List<UserLocalDataModel>)
-  suspend fun deleteUser(userId: Uuid)
-  suspend fun deleteAllUsers()
 }

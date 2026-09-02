@@ -10,23 +10,28 @@ class KmpLintConventionPlugin : Plugin<Project> {
     with(target) {
       when {
         pluginManager.hasPlugin("com.android.application") ->
-          configure<ApplicationExtension> { lint { configure(project) } }
+          // Only the app aggregates: it is the one place where a library's lint findings actually
+          // ship, and letting every library re-check its dependencies multiplies the same work.
+          configure<ApplicationExtension> { lint { configure(project, checkDependencies = true) } }
 
         pluginManager.hasPlugin("com.android.library") ->
-          configure<LibraryExtension> { lint { configure(project) } }
+          configure<LibraryExtension> { lint { configure(project, checkDependencies = false) } }
 
         else -> {
           pluginManager.apply("com.android.lint")
-          configure<Lint> { configure(project) }
+          configure<Lint> { configure(project, checkDependencies = false) }
         }
       }
     }
   }
 }
 
-private fun Lint.configure(project: Project) {
+private fun Lint.configure(
+  project: Project,
+  checkDependencies: Boolean,
+) {
   xmlReport = true
-  checkDependencies = true
+  this.checkDependencies = checkDependencies
   checkGeneratedSources = false
   val lintConfigFile = project.file("lint.xml")
   if (lintConfigFile.exists()) {

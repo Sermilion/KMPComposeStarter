@@ -22,6 +22,22 @@ Owns:
 
 Keep Android-only entry points here instead of mixing them into shared multiplatform modules.
 
+### `appcomponent`
+
+Owns the DI composition root: `AppComponent`, the per-platform merged components for iOS and
+desktop, and the anvil contribution anchor. It depends on every module that contributes bindings,
+because merging is the whole job.
+
+It is a separate module rather than part of `composeApp` for one concrete reason: `composeApp`
+builds the iOS framework, and a framework exports the Objective-C API of *the module it is built
+from* — dependencies are not exported unless declared with `export()`. Merging here keeps
+kotlin-inject-anvil's generated component classes out of that exported surface. With them in
+`composeApp`, `:composeApp:linkDebugFrameworkIosArm64` crashed the Kotlin/Native backend
+(`IrExternalPackageFragmentImpl cannot be cast to IrClass`) while generating ObjC constructor
+adapters for them.
+
+`androidApp` keeps its own component, because an application module builds no framework.
+
 ### `composeApp`
 
 Owns:
@@ -61,6 +77,9 @@ Owns lightweight preference-style persistence.
 
 Use it for settings and small structured values, not relational data that belongs in Room.
 
+It holds `UserPreferences`, the JSON-backed document that persists the signed-in session. `core:data`
+reads and writes it through `DataStoreAuthLocalDataSource`.
+
 ### `core:designsystem`
 
 Owns:
@@ -75,11 +94,18 @@ Keep design tokens centralized here instead of redefining them per feature.
 
 Owns:
 
-- shared domain contracts and use cases
-- screen-component abstractions
-- ViewModel integration primitives that should not live in app-shell code
+- domain models and the repository contracts over them
+- `TokenStore`, `SessionState` and the `SessionRestorer` contract
+- the session-shaped types the rest of the app injects (`UserDependencies`, `UserComponentManager`,
+  `UserSessionScope`)
 
-Try to keep this layer framework-light and centered on business rules and shared contracts.
+This layer is framework-light by rule: it must not reference `androidx.lifecycle`, Compose, Room,
+Ktor or the DI framework's component annotations. The DI plumbing that does — `ScreenComponent` and
+`UserScopedCloseable` — lives in `core:common` alongside `StarterViewModelFactory` and the scope
+annotations it is defined in terms of.
+
+There are deliberately no use-case classes. The repositories are the behaviour boundary; a fork that
+wants interactors adds them here.
 
 ### `core:ui`
 

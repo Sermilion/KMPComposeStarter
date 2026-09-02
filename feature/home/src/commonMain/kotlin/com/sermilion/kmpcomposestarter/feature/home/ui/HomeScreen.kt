@@ -14,27 +14,28 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.sermilion.kmpcomposestarter.core.designsystem.theme.StarterTheme
 import com.sermilion.kmpcomposestarter.feature.home.viewmodel.HomeContract
 import kmpcomposestarter.feature.home.generated.resources.Res
 import kmpcomposestarter.feature.home.generated.resources.home_button_go_to_profile
+import kmpcomposestarter.feature.home.generated.resources.home_button_open_detail
 import kmpcomposestarter.feature.home.generated.resources.home_screen_title
 import kmpcomposestarter.feature.home.generated.resources.home_welcome_message
 import org.jetbrains.compose.resources.stringResource
+import org.jetbrains.compose.ui.tooling.preview.Preview
 
 @Composable
-fun HomeScreen(uiState: HomeContract.UiState, onNavigateToProfile: () -> Unit) {
-  HomeScreenContent(
-    uiState = uiState,
-    onNavigateToProfile = onNavigateToProfile,
-  )
-}
-
-@Composable
-private fun HomeScreenContent(uiState: HomeContract.UiState, onNavigateToProfile: () -> Unit) {
+fun HomeScreen(
+  uiState: HomeContract.UiState,
+  onNavigateToProfile: () -> Unit,
+  onOpenDetail: () -> Unit,
+  modifier: Modifier = Modifier,
+) {
   Column(
-    modifier = Modifier
-      .fillMaxSize()
-      .padding(24.dp),
+    modifier =
+      modifier
+        .fillMaxSize()
+        .padding(24.dp),
     horizontalAlignment = Alignment.CenterHorizontally,
     verticalArrangement = Arrangement.Center,
   ) {
@@ -64,5 +65,35 @@ private fun HomeScreenContent(uiState: HomeContract.UiState, onNavigateToProfile
     ) {
       Text(stringResource(Res.string.home_button_go_to_profile))
     }
+
+    Spacer(modifier = Modifier.height(16.dp))
+
+    Button(
+      onClick = onOpenDetail,
+      modifier = Modifier.fillMaxWidth(),
+    ) {
+      Text(stringResource(Res.string.home_button_open_detail))
+    }
   }
 }
+
+private val sampleHomeState =
+  HomeContract.UiState(
+    userName = "Ada Lovelace",
+    userEmail = "ada@example.com",
+  )
+
+@Composable
+private fun HomeScreenPreviewHost(darkTheme: Boolean) {
+  StarterTheme(darkTheme = darkTheme) {
+    HomeScreen(uiState = sampleHomeState, onNavigateToProfile = {}, onOpenDetail = {})
+  }
+}
+
+@Preview
+@Composable
+internal fun HomeScreenLightPreview() = HomeScreenPreviewHost(darkTheme = false)
+
+@Preview
+@Composable
+internal fun HomeScreenDarkPreview() = HomeScreenPreviewHost(darkTheme = true)

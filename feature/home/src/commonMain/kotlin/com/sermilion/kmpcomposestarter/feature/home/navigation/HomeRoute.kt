@@ -1,8 +1,7 @@
 package com.sermilion.kmpcomposestarter.feature.home.navigation
 
-import com.sermilion.kmpcomposestarter.common.navigation.TopLevelRoute
-import com.sermilion.kmpcomposestarter.common.navigation.UserScopedRoute
+import com.sermilion.kmpcomposestarter.common.navigation.MainFlowRoute
 import kotlinx.serialization.Serializable
 
 @Serializable
-data object HomeRoute : TopLevelRoute, UserScopedRoute
+data object HomeRoute : MainFlowRoute

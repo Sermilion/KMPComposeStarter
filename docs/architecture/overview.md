@@ -50,11 +50,15 @@ That keeps auth gating, top-level tab resets, and back behavior visible in code.
 
 Room 3 is the shared persistence layer.
 
-The starter keeps one onboarding database plus one user-specific database per active user, with platform-specific builders handling file locations and driver details.
+The starter opens one user-specific database per active user, with platform-specific builders handling file locations and deletion details.
+
+`UserScope` owns that database: opening a session opens it, and signing out closes it through a
+`UserScopedCloseable`. Session identity and the bearer token persist separately, in `core:datastore`,
+so a returning user is restored at launch rather than sent back to the login screen.
 
 ## Current Build Shape
 
-The repository targets AGP 9 and Gradle 9.1.0 with the Android app split into its own module.
+The repository targets AGP 9.1.0 and Gradle 9.4.0 with the Android app split into its own module.
 
 - `androidApp` uses the Android application plugin.
 - Shared modules use the Android KMP library plugin.

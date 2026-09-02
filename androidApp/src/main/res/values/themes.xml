@@ -1,4 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+  <!--
+    Day half of the DayNight pair; `values-night/themes.xml` carries the night half. The window
+    background has to follow the system setting on its own, because it is painted before the first
+    Compose frame - a light window under a dark `StarterTheme` is a white flash on every launch.
+
+    The platform's own DayNight parents start at API 29 while this template's minSdk is 26, and
+    pulling in AppCompat or the Material Components library only to inherit a theme parent would
+    add a dependency the app does not otherwise use. The `-night` resource qualifier is the same
+    mechanism with nothing extra on the classpath.
+
+    System bars are deliberately not styled here: `MainActivity` calls `enableEdgeToEdge()`, which
+    owns bar transparency and icon contrast, and a theme attribute would fight it.
+  -->
   <style name="Theme.KMPComposeStarter" parent="android:Theme.Material.Light.NoActionBar" />
 </resources>

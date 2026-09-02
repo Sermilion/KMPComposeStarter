@@ -1,33 +1,13 @@
 plugins {
   alias(libs.plugins.kmp.library)
-  alias(libs.plugins.kmp.jacoco)
   alias(libs.plugins.ksp)
   alias(libs.plugins.compose.multiplatform)
   alias(libs.plugins.compose.compiler)
   alias(libs.plugins.kotlin.serialization)
+  alias(libs.plugins.kotest)
 }
 
 kotlin {
-  android {
-    namespace = "com.sermilion.kmpcomposestarter.core.common"
-    compileSdk =
-      libs.versions.compileSdk
-        .get()
-        .toInt()
-    minSdk =
-      libs.versions.minSdk
-        .get()
-        .toInt()
-    withHostTestBuilder {}
-    androidResources {
-      enable = true
-    }
-  }
-
-  compilerOptions {
-    freeCompilerArgs.add("-Xexpect-actual-classes")
-  }
-
   sourceSets {
     commonMain.dependencies {
       implementation(libs.kotlinx.coroutines.core)
@@ -44,39 +24,25 @@ kotlin {
 
     androidMain.dependencies {
       implementation(libs.kotlinx.coroutines.android)
-      implementation(libs.core.ktx)
     }
 
+    // Specs here run on every target. Kotest 6 discovers them on Kotlin/Native without a compiler
+    // plugin, which is why the shared logic is tested on iOS and not only on the JVM.
     commonTest.dependencies {
       implementation(libs.kotest.assertions.core)
       implementation(libs.kotest.framework.engine)
-      implementation(libs.kotest.framework.datatest)
       implementation(libs.kotlinx.coroutines.test)
       implementation(kotlin("test"))
     }
 
-    getByName("androidHostTest").dependencies {
-      implementation(libs.androidx.junit)
-      implementation(libs.kotest.runner.junit5.jvm)
-    }
-
+    // The JVM-backed targets inherit the commonTest specs and discover them through the JUnit
+    // Platform, so each needs the runner.
     jvmTest.dependencies {
       implementation(libs.kotest.runner.junit5.jvm)
     }
+
+    getByName("androidHostTest").dependencies {
+      implementation(libs.kotest.runner.junit5.jvm)
+    }
   }
-}
-
-dependencies {
-  add("kspAndroid", libs.kotlin.inject.compiler)
-  add("kspAndroid", libs.kotlin.inject.anvil.compiler)
-  add("kspIosArm64", libs.kotlin.inject.compiler)
-  add("kspIosArm64", libs.kotlin.inject.anvil.compiler)
-  add("kspIosSimulatorArm64", libs.kotlin.inject.compiler)
-  add("kspIosSimulatorArm64", libs.kotlin.inject.anvil.compiler)
-  add("kspJvm", libs.kotlin.inject.compiler)
-  add("kspJvm", libs.kotlin.inject.anvil.compiler)
-}
-
-tasks.named<Test>("jvmTest") {
-  useJUnitPlatform()
 }

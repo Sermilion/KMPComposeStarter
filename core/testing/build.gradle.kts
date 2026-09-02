@@ -1,24 +1,11 @@
+// A dependency-only module: it carries no source of its own and exists to `api`-export one test
+// stack (kotest, coroutines-test, MockK) to :core:data, :core:datastore and :core:domain. Deleting
+// it because it looks empty takes those three modules' test dependencies with it.
 plugins {
   alias(libs.plugins.kmp.library)
 }
 
 kotlin {
-  android {
-    namespace = "com.sermilion.kmpcomposestarter.core.testing"
-    compileSdk =
-      libs.versions.compileSdk
-        .get()
-        .toInt()
-    minSdk =
-      libs.versions.minSdk
-        .get()
-        .toInt()
-    withHostTestBuilder {}
-    androidResources {
-      enable = true
-    }
-  }
-
   sourceSets {
     commonMain.dependencies {
       api(projects.core.common)
@@ -36,9 +23,9 @@ kotlin {
       api(libs.mockk.core)
     }
 
-    // Note: iOS testing doesn't include MockK as it's not supported on Kotlin Native
+    // Note: iOS testing doesn't include MockK as it's not supported on Kotlin Native.
     // Options for iOS mocking:
-    // 1. Use Mokkery (multiplatform mocking library) - already in version catalog
+    // 1. Add a multiplatform mocking library such as Mokkery to the version catalog
     // 2. Create manual test doubles
     // 3. Use real implementations with test configurations
     // 4. Use fake implementations that implement the same interface

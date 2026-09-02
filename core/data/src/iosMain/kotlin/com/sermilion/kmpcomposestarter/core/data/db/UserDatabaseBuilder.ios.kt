@@ -6,24 +6,20 @@ import androidx.sqlite.driver.bundled.BundledSQLiteDriver
 import kotlinx.cinterop.ExperimentalForeignApi
 import platform.Foundation.NSDocumentDirectory
 import platform.Foundation.NSFileManager
-import platform.Foundation.NSURL
 import platform.Foundation.NSUserDomainMask
+import kotlin.coroutines.CoroutineContext
 
 fun createUserDatabaseBuilder(
   databaseFileName: String,
+  queryContext: CoroutineContext,
   path: String = defaultDatabasePath(databaseFileName),
-): RoomDatabase.Builder<UserDatabase> = Room.databaseBuilder<UserDatabase>(
-  name = path,
-  factory = UserDatabaseConstructor::initialize,
-).setDriver(BundledSQLiteDriver())
-
-fun createOnboardingDatabaseBuilder(
-  databaseFileName: String = ONBOARDING_DATABASE_FILE_NAME,
-  path: String = defaultDatabasePath(databaseFileName),
-): RoomDatabase.Builder<OnboardingDatabase> = Room.databaseBuilder<OnboardingDatabase>(
-  name = path,
-  factory = OnboardingDatabaseConstructor::initialize,
-).setDriver(BundledSQLiteDriver())
+): RoomDatabase.Builder<UserDatabase> =
+  Room
+    .databaseBuilder<UserDatabase>(
+      name = path,
+      factory = UserDatabaseConstructor::initialize,
+    ).setDriver(BundledSQLiteDriver())
+    .setQueryCoroutineContext(queryContext)
 
 @OptIn(ExperimentalForeignApi::class)
 internal fun defaultDatabasePath(databaseFileName: String): String {
@@ -32,12 +28,9 @@ internal fun defaultDatabasePath(databaseFileName: String): String {
       directory = NSDocumentDirectory,
       inDomain = NSUserDomainMask,
       appropriateForURL = null,
-      create = false,
+      create = true,
       error = null,
     )
 
-  return requireNotNull(documentDirectory?.path) + "/$databaseFileName"
+  return "${requireNotNull(documentDirectory?.path)}/$databaseFileName"
 }
-
-internal fun databaseFileUrl(databaseFileName: String): NSURL =
-  NSURL.fileURLWithPath(defaultDatabasePath(databaseFileName))

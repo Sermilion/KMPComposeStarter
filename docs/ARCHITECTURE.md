@@ -14,6 +14,10 @@ This documentation is intentionally split into focused files so contributors and
 6. `docs/architecture/build-and-tooling.md`
 7. `docs/architecture/conventions.md`
 
+Platform-behavior notes live alongside these files:
+
+- `docs/window-insets.md`
+
 ## Contents
 
 ### Overview
@@ -47,6 +51,7 @@ Read: `docs/architecture/di-and-scoping.md`
 - Typed route conventions
 - Explicit back stack ownership
 - Auth flow vs authenticated tabs
+- Per-tab retention and process-death restore
 - Navigation rules for new features
 
 Read: `docs/architecture/navigation.md`
@@ -54,9 +59,10 @@ Read: `docs/architecture/navigation.md`
 ### Persistence
 
 - Room 3 database layout
-- Per-user versus shared onboarding data
+- Per-user database lifetime
 - Platform-specific database builders
-- Schema export expectations
+- Schema export and migration expectations
+- Session and preference persistence through `core:datastore`
 
 Read: `docs/architecture/persistence.md`
 
@@ -72,8 +78,11 @@ Read: `docs/architecture/build-and-tooling.md`
 ### Conventions
 
 - Reusable starter-safe contribution rules
-- State hoisting and preview guidance
+- State hoisting, `Modifier`, lifecycle-aware collection and preview guidance
+- The single `Channel`-backed `Effect` idiom for one-off events
+- The `StarterTheme` contract: complete light/dark schemes, `dynamicColor`, measured contrast
 - Repository and source-of-truth rules
+- Networking, base URL, and credential-handling rules
 - Documentation update expectations
 
 Read: `docs/architecture/conventions.md`

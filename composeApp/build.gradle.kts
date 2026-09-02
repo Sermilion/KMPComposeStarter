@@ -5,28 +5,7 @@ plugins {
 }
 
 kotlin {
-  android {
-    namespace = "com.sermilion.kmpcomposestarter.composeapp"
-    compileSdk =
-      libs.versions.compileSdk
-        .get()
-        .toInt()
-    minSdk =
-      libs.versions.minSdk
-        .get()
-        .toInt()
-    withHostTestBuilder {}
-    androidResources {
-      enable = true
-    }
-  }
-
   sourceSets {
-    all {
-      languageSettings.optIn("kotlinx.coroutines.ExperimentalCoroutinesApi")
-      languageSettings.optIn("androidx.compose.material3.ExperimentalMaterial3Api")
-    }
-
     commonMain.dependencies {
       implementation(libs.compose.runtime)
       implementation(libs.compose.foundation)
@@ -36,6 +15,7 @@ kotlin {
       implementation(libs.compose.components.resources)
       implementation(libs.compose.components.uiToolingPreview)
 
+      api(projects.appcomponent)
       implementation(projects.core.common)
       implementation(projects.core.ui)
       implementation(projects.core.designsystem)
@@ -53,14 +33,19 @@ kotlin {
       implementation(libs.kermit)
       implementation(libs.navigation3.ui)
       implementation(libs.lifecycle.viewmodel.navigation3)
+      implementation(libs.navigationevent.compose)
+      implementation(libs.androidx.savedstate)
+      implementation(libs.androidx.savedstate.compose)
       implementation(libs.jetbrains.lifecycle.viewmodel)
       implementation(libs.jetbrains.lifecycle.viewmodel.compose)
+      implementation(libs.jetbrains.lifecycle.runtime.compose)
     }
 
     jvmMain.dependencies {
       implementation(compose.desktop.currentOs)
       implementation(libs.kotlinx.coroutines.core)
       implementation(libs.androidx.datastore)
+      implementation(libs.ktor.client.core)
     }
 
     jvmTest.dependencies {
@@ -70,45 +55,6 @@ kotlin {
       implementation(libs.kotlinx.coroutines.test)
     }
   }
-}
-
-tasks.named<Test>("jvmTest") {
-  useJUnitPlatform()
-}
-
-dependencies {
-  add("kspCommonMainMetadata", libs.kotlin.inject.compiler)
-  add("kspCommonMainMetadata", libs.kotlin.inject.anvil.compiler)
-  add("kspAndroid", libs.kotlin.inject.compiler)
-  add("kspAndroid", libs.kotlin.inject.anvil.compiler)
-  add("kspIosArm64", libs.kotlin.inject.compiler)
-  add("kspIosArm64", libs.kotlin.inject.anvil.compiler)
-  add("kspIosSimulatorArm64", libs.kotlin.inject.compiler)
-  add("kspIosSimulatorArm64", libs.kotlin.inject.anvil.compiler)
-  add("kspJvm", libs.kotlin.inject.compiler)
-  add("kspJvm", libs.kotlin.inject.anvil.compiler)
-}
-
-tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
-  if (name.contains("IosSimulatorArm64")) {
-    dependsOn("kspKotlinIosSimulatorArm64")
-  }
-  if (name.contains("IosArm64") && !name.contains("Simulator")) {
-    dependsOn("kspKotlinIosArm64")
-  }
-  if (name.contains("Jvm")) {
-    dependsOn("kspKotlinJvm")
-  }
-}
-
-kotlin.sourceSets.named("iosSimulatorArm64Main") {
-  kotlin.srcDir("build/generated/ksp/iosSimulatorArm64/iosSimulatorArm64Main/kotlin")
-}
-kotlin.sourceSets.named("iosArm64Main") {
-  kotlin.srcDir("build/generated/ksp/iosArm64/iosArm64Main/kotlin")
-}
-kotlin.sourceSets.named("jvmMain") {
-  kotlin.srcDir("build/generated/ksp/jvm/jvmMain/kotlin")
 }
 
 compose.desktop {
@@ -124,12 +70,14 @@ compose.desktop {
       packageName = "KMPComposeStarter"
       packageVersion = "1.0.0"
 
+      // Only the JDK modules the desktop app needs are bundled: `java.sql` for the JVM SQLite and
+      // Room stack, `jdk.unsupported` for the `sun.misc.Unsafe` access several Kotlin and Compose
+      // dependencies still rely on. `includeAllModules = true` shipped the entire JDK instead,
+      // which is what made the distributables large enough to be worth curating.
       modules(
         "java.sql",
         "jdk.unsupported",
       )
-
-      includeAllModules = true
     }
   }
 }

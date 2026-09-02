@@ -33,10 +33,13 @@ rootProject.name = "KMPComposeStarter"
 enableFeaturePreview("TYPESAFE_PROJECT_ACCESSORS")
 
 plugins {
+  // Inline version by necessity: settings plugins are resolved before the version catalog exists,
+  // so this is the one version in the repository that cannot live in gradle/libs.versions.toml.
   id("org.gradle.toolchains.foojay-resolver-convention") version "1.0.0"
 }
 
 include(":composeApp")
+include(":appcomponent")
 include(":androidApp")
 include(":core:common")
 include(":core:data")

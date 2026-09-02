@@ -1,19 +1,20 @@
 package com.sermilion.kmpcomposestarter.common.di
 
 import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.lifecycle.ViewModelProvider
 
-val LocalViewModelFactory = staticCompositionLocalOf<ViewModelFactory> {
-  error("ViewModelFactory not provided")
-}
+/** Factory for ViewModels that must resolve before a user session exists (login, register). */
+val LocalPreAuthViewModelFactory =
+  staticCompositionLocalOf<ViewModelProvider.Factory> {
+    error("ViewModel factory not provided")
+  }
 
-val LocalViewModelProvider = staticCompositionLocalOf<ViewModelProvider> {
-  error("ViewModelProvider not provided")
-}
-
-val LocalScreenComponentFactory = staticCompositionLocalOf<(() -> ScreenComponentProvider)?> {
-  null
-}
+/** `null` until a user session exists; creates one screen component per nav entry. */
+val LocalScreenComponentFactory =
+  staticCompositionLocalOf<(() -> ScreenComponentProvider)?> {
+    null
+  }
 
 interface ScreenComponentProvider {
-  val diViewModelFactory: androidx.lifecycle.ViewModelProvider.Factory
+  val viewModelFactory: ViewModelProvider.Factory
 }

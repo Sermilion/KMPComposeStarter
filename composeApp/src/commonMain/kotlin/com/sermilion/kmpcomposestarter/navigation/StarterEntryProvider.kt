@@ -1,127 +1,40 @@
 package com.sermilion.kmpcomposestarter.navigation
 
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
 import androidx.navigation3.runtime.entryProvider
 import com.sermilion.kmpcomposestarter.common.navigation.Route
-import com.sermilion.kmpcomposestarter.core.ui.navigation.ViewModelScope
-import com.sermilion.kmpcomposestarter.core.ui.navigation.injectViewModel
-import com.sermilion.kmpcomposestarter.feature.auth.navigation.LoginRoute
 import com.sermilion.kmpcomposestarter.feature.auth.navigation.RegisterRoute
-import com.sermilion.kmpcomposestarter.feature.auth.ui.LoginScreen
-import com.sermilion.kmpcomposestarter.feature.auth.ui.RegisterScreen
-import com.sermilion.kmpcomposestarter.feature.auth.viewmodel.LoginContract
-import com.sermilion.kmpcomposestarter.feature.auth.viewmodel.LoginViewModel
-import com.sermilion.kmpcomposestarter.feature.auth.viewmodel.RegisterContract
-import com.sermilion.kmpcomposestarter.feature.auth.viewmodel.RegisterViewModel
-import com.sermilion.kmpcomposestarter.feature.home.navigation.HomeRoute
-import com.sermilion.kmpcomposestarter.feature.home.ui.HomeScreen
-import com.sermilion.kmpcomposestarter.feature.home.viewmodel.HomeContract
-import com.sermilion.kmpcomposestarter.feature.home.viewmodel.HomeViewModel
-import com.sermilion.kmpcomposestarter.feature.profile.navigation.ProfileRoute
-import com.sermilion.kmpcomposestarter.feature.profile.ui.ProfileScreen
-import com.sermilion.kmpcomposestarter.feature.profile.viewmodel.ProfileContract
-import com.sermilion.kmpcomposestarter.feature.profile.viewmodel.ProfileViewModel
-import com.sermilion.kmpcomposestarter.feature.settings.navigation.SettingsRoute
-import com.sermilion.kmpcomposestarter.feature.settings.ui.SettingsScreen
-import com.sermilion.kmpcomposestarter.feature.settings.viewmodel.SettingsContract
-import com.sermilion.kmpcomposestarter.feature.settings.viewmodel.SettingsViewModel
+import com.sermilion.kmpcomposestarter.feature.auth.navigation.authEntries
+import com.sermilion.kmpcomposestarter.feature.home.detail.DetailRoute
+import com.sermilion.kmpcomposestarter.feature.home.navigation.homeEntries
+import com.sermilion.kmpcomposestarter.feature.profile.navigation.profileEntries
+import com.sermilion.kmpcomposestarter.feature.settings.navigation.settingsEntries
 
-@Suppress("LongMethod")
-@Composable
-fun createStarterEntryProvider(navigator: StarterNavigator, isLoggedIn: Boolean) =
+/**
+ * The one place a feature's screens are joined to this app's back stack.
+ *
+ * Each feature registers its own routes; the shell supplies the navigation each one asks for. That
+ * keeps the route-to-screen binding next to the screen it names, and keeps the back stack rules in
+ * the navigator - a feature never pushes onto a stack it does not own.
+ *
+ * Every feature is registered unconditionally: which entries are reachable is decided by the back
+ * stack the display is handed, not by a gate here, so a signed-out user can no more reach
+ * [com.sermilion.kmpcomposestarter.feature.home.navigation.HomeRoute] than a registration that
+ * forgot its entry can silently render nothing.
+ *
+ * Any route registered by a feature must also appear in [starterSerializersModule], or the first
+ * process-death restore fails on it. `StarterRouteSerializationTest` is the check for that.
+ */
+internal fun createStarterEntryProvider(navigator: StarterNavigator) =
   entryProvider<Route> {
-    entry<LoginRoute> {
-      val viewModel = injectViewModel<LoginViewModel>(scope = ViewModelScope.Onboarding)
-      val uiState by viewModel.uiState.collectAsState()
-      LaunchedEffect(Unit) {
-        viewModel.events.collect { event ->
-          when (event) {
-            LoginContract.Event.LoginSuccess -> { }
-            LoginContract.Event.NavigateToRegister -> navigator.navigate(RegisterRoute)
-          }
-        }
-      }
-      LoginScreen(
-        uiState = uiState,
-        onEmailChange = viewModel::onEmailChange,
-        onPasswordChange = viewModel::onPasswordChange,
-        onLoginClick = viewModel::login,
-        onDemoLoginClick = viewModel::loginDemo,
-        onNavigateToRegister = viewModel::navigateToRegister,
-      )
-    }
-
-    entry<RegisterRoute> {
-      val viewModel = injectViewModel<RegisterViewModel>(scope = ViewModelScope.Onboarding)
-      val uiState by viewModel.uiState.collectAsState()
-      LaunchedEffect(Unit) {
-        viewModel.events.collect { event ->
-          when (event) {
-            RegisterContract.Event.RegisterSuccess -> { }
-            RegisterContract.Event.NavigateBack -> navigator.goBack()
-          }
-        }
-      }
-      RegisterScreen(
-        uiState = uiState,
-        onRegisterDemo = viewModel::registerDemo,
-        onNavigateBack = viewModel::navigateBack,
-      )
-    }
-
-    if (isLoggedIn) {
-      entry<HomeRoute> {
-        val viewModel = injectViewModel<HomeViewModel>()
-        val uiState by viewModel.uiState.collectAsState()
-        LaunchedEffect(Unit) {
-          viewModel.events.collect { event ->
-            when (event) {
-              HomeContract.Event.NavigateToProfile -> navigator.navigateToTopLevel(
-                TopLevelTab.PROFILE,
-              )
-            }
-          }
-        }
-        HomeScreen(
-          uiState = uiState,
-          onNavigateToProfile = viewModel::navigateToProfile,
-        )
-      }
-
-      entry<ProfileRoute> {
-        val viewModel = injectViewModel<ProfileViewModel>()
-        val uiState by viewModel.uiState.collectAsState()
-        LaunchedEffect(Unit) {
-          viewModel.events.collect { event ->
-            when (event) {
-              ProfileContract.Event.NavigateBack -> navigator.goBack()
-              ProfileContract.Event.LogoutSuccess -> { }
-            }
-          }
-        }
-        ProfileScreen(
-          uiState = uiState,
-          onNavigateBack = viewModel::navigateBack,
-          onLogout = viewModel::logout,
-        )
-      }
-
-      entry<SettingsRoute> {
-        val viewModel = injectViewModel<SettingsViewModel>()
-        val uiState by viewModel.uiState.collectAsState()
-        LaunchedEffect(Unit) {
-          viewModel.events.collect { event ->
-            when (event) {
-              SettingsContract.Event.NavigateBack -> navigator.goBack()
-            }
-          }
-        }
-        SettingsScreen(
-          uiState = uiState,
-        )
-      }
-    }
+    authEntries(
+      onNavigateToRegister = { navigator.navigate(RegisterRoute) },
+      onNavigateBack = { navigator.goBack() },
+    )
+    homeEntries(
+      onNavigateToProfile = { navigator.navigateToTopLevel(TopLevelTab.PROFILE) },
+      onOpenDetail = { id -> navigator.navigate(DetailRoute(id)) },
+      onNavigateBack = { navigator.goBack() },
+    )
+    profileEntries(onNavigateBack = { navigator.goBack() })
+    settingsEntries()
   }
