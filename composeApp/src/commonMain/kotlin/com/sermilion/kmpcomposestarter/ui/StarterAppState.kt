@@ -19,7 +19,7 @@ import com.sermilion.kmpcomposestarter.navigation.StarterNavigator
 import com.sermilion.kmpcomposestarter.navigation.TopLevelTab
 
 @Composable
-fun rememberStarterAppState(
+internal fun rememberStarterAppState(
   userComponentManager: UserComponentManager,
   screenComponentFactory: (() -> ScreenComponentProvider)?,
 ): StarterAppState {
@@ -60,7 +60,7 @@ fun rememberStarterAppState(
 }
 
 @Stable
-class StarterAppState(
+internal class StarterAppState(
   private val mutableNavigationState: MutableState<StarterNavigationState>,
   val navigator: StarterNavigator,
 ) {

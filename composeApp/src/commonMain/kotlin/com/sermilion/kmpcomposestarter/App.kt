@@ -20,7 +20,7 @@ import com.sermilion.kmpcomposestarter.ui.StarterAppState
 import com.sermilion.kmpcomposestarter.ui.StarterBottomBar
 
 @Composable
-fun StarterApp(
+internal fun StarterApp(
   appState: StarterAppState,
   screenComponentFactory: (() -> ScreenComponentProvider)?,
   modifier: Modifier = Modifier,

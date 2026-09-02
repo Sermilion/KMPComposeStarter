@@ -34,7 +34,7 @@ import androidx.savedstate.savedState
  * `SavedStateNavEntryDecorator` once navigation3-runtime ships one.
  */
 @Composable
-fun <T : Any> rememberSavedStateNavEntryDecorator(): NavEntryDecorator<T> =
+internal fun <T : Any> rememberSavedStateNavEntryDecorator(): NavEntryDecorator<T> =
   remember {
     NavEntryDecorator { entry ->
       val owner =

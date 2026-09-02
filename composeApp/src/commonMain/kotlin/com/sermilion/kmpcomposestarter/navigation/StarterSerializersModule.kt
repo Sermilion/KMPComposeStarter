@@ -20,7 +20,7 @@ import kotlinx.serialization.modules.subclass
  * Every route the entry provider can render must appear here, or restoring after process death
  * throws on it. `StarterRouteSerializationTest` fails when the two lists drift apart.
  */
-val starterSerializersModule =
+internal val starterSerializersModule =
   SerializersModule {
     polymorphic(NavKey::class) {
       subclass(LoginRoute::class, LoginRoute.serializer())

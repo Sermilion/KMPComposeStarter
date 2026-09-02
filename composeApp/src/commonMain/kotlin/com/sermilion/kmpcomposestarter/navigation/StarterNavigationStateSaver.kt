@@ -17,7 +17,7 @@ import kotlinx.serialization.json.Json
  * in development, rather than degrading silently. Restore is deliberately the lenient direction —
  * see the comment on it.
  */
-val StarterNavigationStateSaver: Saver<StarterNavigationState, String> =
+internal val StarterNavigationStateSaver: Saver<StarterNavigationState, String> =
   Saver(
     save = { encodeNavigationState(it) },
     restore = { encoded ->

@@ -8,7 +8,7 @@ import com.sermilion.kmpcomposestarter.common.navigation.TopLevelRoute
 import com.sermilion.kmpcomposestarter.feature.auth.navigation.LoginRoute
 
 @Stable
-data class StarterNavigationState(
+internal data class StarterNavigationState(
   val isAuthenticated: Boolean = false,
   val authBackStack: SnapshotStateList<AuthFlowRoute> = snapshotStateListOf(LoginRoute),
   val tabBackStacks: Map<TopLevelTab, SnapshotStateList<TopLevelRoute>> =

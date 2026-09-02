@@ -14,7 +14,7 @@ import com.sermilion.kmpcomposestarter.feature.auth.navigation.LoginRoute
  *   the current stack. The production default logs at ERROR; it is injectable so a test can
  *   observe a rejection without scraping logs.
  */
-class StarterNavigator(
+internal class StarterNavigator(
   private val state: MutableState<StarterNavigationState>,
   private val onRejectedNavigation: (Route, StarterNavigationState) -> Unit =
     ::logRejectedNavigation,

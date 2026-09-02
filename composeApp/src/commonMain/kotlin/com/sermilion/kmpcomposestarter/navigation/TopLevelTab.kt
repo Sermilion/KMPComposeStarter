@@ -23,7 +23,7 @@ import org.jetbrains.compose.resources.StringResource
  * reads [icon] and [label] off this enum, and [isTabRoot] is derived from [startRoute], so there
  * is no second list to keep in step.
  */
-enum class TopLevelTab(
+internal enum class TopLevelTab(
   val startRoute: TopLevelRoute,
   val icon: ImageVector,
   val label: StringResource,
@@ -40,5 +40,5 @@ enum class TopLevelTab(
  * another tab's stack would give two entries the same content key and let them share — and then
  * lose — each other's saved state.
  */
-val Route.isTabRoot: Boolean
+internal val Route.isTabRoot: Boolean
   get() = TopLevelTab.entries.any { it.startRoute == this }

@@ -10,7 +10,7 @@ import com.sermilion.kmpcomposestarter.navigation.TopLevelTab
 import org.jetbrains.compose.resources.stringResource
 
 @Composable
-fun StarterBottomBar(
+internal fun StarterBottomBar(
   currentTab: TopLevelTab,
   onTabSelect: (TopLevelTab) -> Unit,
   modifier: Modifier = Modifier,

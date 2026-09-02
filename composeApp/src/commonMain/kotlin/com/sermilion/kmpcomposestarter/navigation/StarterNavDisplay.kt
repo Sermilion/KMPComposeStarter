@@ -29,7 +29,7 @@ import com.sermilion.kmpcomposestarter.core.ui.di.rememberNavEntryViewModelStore
  * @param entryProvider injectable so a UI test can drive the display without the real DI graph.
  */
 @Composable
-fun StarterNavDisplay(
+internal fun StarterNavDisplay(
   navigationState: StarterNavigationState,
   navigator: StarterNavigator,
   modifier: Modifier = Modifier,

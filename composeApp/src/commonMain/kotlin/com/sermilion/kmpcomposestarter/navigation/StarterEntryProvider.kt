@@ -41,7 +41,7 @@ import com.sermilion.kmpcomposestarter.feature.settings.viewmodel.SettingsViewMo
  * process-death restore fails on it. `StarterRouteSerializationTest` is the check for that.
  */
 @Suppress("LongMethod")
-fun createStarterEntryProvider(navigator: StarterNavigator) =
+internal fun createStarterEntryProvider(navigator: StarterNavigator) =
   entryProvider<Route> {
     entry<LoginRoute> {
       val viewModel = injectViewModel<LoginViewModel>(scope = ViewModelScope.PreAuth)
