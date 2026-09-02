@@ -144,12 +144,18 @@ override map in the Gradle build that can drift away from what the IDE applies.
 
 ### GitHub Actions
 
-CI lives in `.github/workflows/check.yml` and runs two jobs:
+CI lives in `.github/workflows/check.yml` and runs three jobs:
 
 | Job | Runner | Runs |
 |-----|--------|------|
-| `check` | `ubuntu-latest` | `./gradlew check`, then `:androidApp:assembleDebug` and `:androidApp:assembleRelease` |
+| `check` | `ubuntu-latest` | `./gradlew check` |
+| `android` | `ubuntu-latest` | `:androidApp:assembleDebug`, then `:androidApp:assembleRelease` |
 | `ios` | `macos-latest` | `:composeApp:linkDebugFrameworkIosArm64`, then the shared specs on `iosSimulatorArm64` |
+
+`check` and `android` are separate jobs, not steps of one. As a single job they took the full
+hour and were cancelled by the job's own `timeout-minutes`; `check` alone is what costs that time,
+so the assembles moved off its critical path instead of the limit simply being raised. Both run on
+`ubuntu-latest` and share the Gradle cache `setup-gradle` writes.
 
 The release variant is built because it is the only one that runs R8. `androidApp/proguard-rules.pro`
 holds the keep rules the shrinker cannot infer — the kotlinx-serialization companions behind every
