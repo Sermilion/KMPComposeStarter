@@ -6,9 +6,9 @@ import com.sermilion.kmpcomposestarter.core.data.db.UserEntity
 import com.sermilion.kmpcomposestarter.core.data.model.UserLocalDataModel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
-import kotlinx.datetime.Instant
 import me.tatarka.inject.annotations.Inject
 import software.amazon.lastmile.kotlin.inject.anvil.SingleIn
+import kotlin.time.Instant
 
 /**
  * Shared wrapper over the Room-generated DAO. Entity-to-local mapping and time conversion live

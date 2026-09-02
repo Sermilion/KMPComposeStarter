@@ -1,6 +1,6 @@
 package com.sermilion.kmpcomposestarter.core.data.model
 
-import kotlinx.datetime.Instant
+import kotlin.time.Instant
 
 /**
  * A stored user as the rest of the data layer sees it.

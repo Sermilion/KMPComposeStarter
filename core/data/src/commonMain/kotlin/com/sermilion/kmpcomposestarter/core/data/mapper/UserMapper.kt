@@ -2,7 +2,7 @@ package com.sermilion.kmpcomposestarter.core.data.mapper
 
 import com.sermilion.kmpcomposestarter.core.data.model.UserLocalDataModel
 import com.sermilion.kmpcomposestarter.core.domain.model.UserData
-import kotlinx.datetime.Instant
+import kotlin.time.Instant
 
 /**
  * [createdAt] is a parameter, not a `Clock.System.now()` call inside the mapper: a mapping that

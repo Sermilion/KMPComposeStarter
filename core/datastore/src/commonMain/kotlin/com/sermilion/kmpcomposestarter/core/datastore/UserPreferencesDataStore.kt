@@ -5,7 +5,6 @@ import androidx.datastore.core.DataStoreFactory
 import androidx.datastore.core.handlers.ReplaceFileCorruptionHandler
 import androidx.datastore.core.okio.OkioStorage
 import kotlinx.coroutines.CoroutineScope
-import okio.FileSystem
 import okio.Path
 
 /**
@@ -29,7 +28,7 @@ fun createUserPreferencesDataStore(
   DataStoreFactory.create(
     storage =
       OkioStorage(
-        fileSystem = FileSystem.SYSTEM,
+        fileSystem = platformFileSystem,
         serializer = UserPreferencesSerializer,
         producePath = producePath,
       ),

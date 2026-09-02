@@ -6,7 +6,10 @@ build:
 config:
   validation: true
   warningsAsErrors: false
-  excludes: ''
+  # io.nlopez.compose.rules 0.6.x dropped `allowedCompositionLocals` from the ruleset's bundled
+  # default config, so detekt's config validation reports it as unknown even though the rule still
+  # reads it. Scoped to that one property; drop this once the ruleset ships the key again.
+  excludes: 'Compose>CompositionLocalAllowlist>allowedCompositionLocals'
 
 processors:
   active: true

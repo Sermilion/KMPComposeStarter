@@ -1,6 +1,6 @@
 [versions]
 androidGradlePlugin = "9.1.0"
-kotlinpoet = "2.2.0"
+kotlinpoet = "2.3.0"
 composeMultiplatform = "1.10.2"
 # Pre-release pin: org.jetbrains.compose.material3 is published on its own alpha-only line for the
 # Compose Multiplatform 1.10 cycle; there is no stable release to move to yet.
@@ -22,26 +22,26 @@ androidxSavedState = "1.4.0"
 coil = "3.4.0"
 compileSdk = "36"
 detekt = "1.23.8"
-detektCompose = "0.4.22"
+detektCompose = "0.6.4"
 kotlin = "2.3.10"
-kotlinCompileTesting = "0.12.1"
-okio = "3.17.0"
-kotlinxCoroutines = "1.10.2"
-kotlinxCoroutinesTest = "1.10.2"
-kotlinxDatetime = "0.6.2"
-kotlinxAtomicfu = "0.29.0"
-kotlinxSerializationJson = "1.9.0"
-kotlinxCollectionsImmutable = "0.4.0"
+kotlinCompileTesting = "0.13.0"
+okio = "3.18.1"
+kotlinxCoroutines = "1.11.0"
+kotlinxCoroutinesTest = "1.11.0"
+kotlinxDatetime = "0.8.0"
+kotlinxAtomicfu = "0.33.0"
+kotlinxSerializationJson = "1.11.0"
+kotlinxCollectionsImmutable = "0.5.2"
 kotest = "6.2.4"
 # 0.9.9 is the first Kover release that understands AGP 9: the KMP Android library target now
 # reports platformType `androidJvm` and there is no project-level `android` extension, which older
 # Kover versions treat as a fatal misconfiguration.
 kover = "0.9.9"
-ktor = "3.4.1"
+ktor = "3.5.2"
 kotlinInject = "0.9.0"
 kotlinInjectAnvil = "0.1.7"
-ksp = "2.3.6"
-mockk = "1.14.9"
+ksp = "2.3.11"
+mockk = "1.14.11"
 minSdk = "26"
 # Pre-release pin: Room 3 is the KMP-capable line and has no stable release yet. It also drives the
 # RestrictedApi lint workaround in core:data — revisit both together on the next Room upgrade.
@@ -49,7 +49,7 @@ room3 = "3.0.0-alpha01"
 sqliteBundled = "2.6.2"
 spotless = "8.10.1"
 turbine = "1.2.1"
-kermit = "2.0.8"
+kermit = "2.1.0"
 junitVersion = "1.3.0"
 
 [libraries]

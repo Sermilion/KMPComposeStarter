@@ -22,8 +22,25 @@ class KmpLintConventionPlugin : Plugin<Project> {
           configure<Lint> { configure(project, checkDependencies = false) }
         }
       }
+
+      orderLintAfterKsp()
     }
   }
+}
+
+/**
+ * AGP 9.1.0 hands its KMP lint tasks the KSP output directories as sources without declaring the
+ * producing task, which Gradle 9.7's stricter input validation rejects outright. Declaring the
+ * dependency here fixes the wiring rather than relaxing the validation; drop it once AGP wires the
+ * lint tasks itself.
+ */
+private fun Project.orderLintAfterKsp() {
+  val kspTasks = tasks.matching { it.name.startsWith("ksp") }
+  tasks
+    .matching { task ->
+      task.name.startsWith("lintAnalyze") ||
+        (task.name.startsWith("generate") && task.name.endsWith("LintModel"))
+    }.configureEach { dependsOn(kspTasks) }
 }
 
 private fun Lint.configure(
