@@ -8,11 +8,11 @@ import com.sermilion.kmpcomposestarter.core.data.util.toAuthError
 import com.sermilion.kmpcomposestarter.core.data.util.withRestErrorHandling
 import com.sermilion.kmpcomposestarter.core.domain.model.AuthError
 import kotlinx.coroutines.delay
-import kotlinx.datetime.Clock
 import me.tatarka.inject.annotations.Inject
 import software.amazon.lastmile.kotlin.inject.anvil.AppScope
 import software.amazon.lastmile.kotlin.inject.anvil.ContributesBinding
 import software.amazon.lastmile.kotlin.inject.anvil.SingleIn
+import kotlin.time.Clock
 
 /**
  * The starter's only bound [AuthRemoteDataSource]: an in-process fake that accepts the demo
