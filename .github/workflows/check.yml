@@ -22,7 +22,10 @@ jobs:
   check:
     name: Check
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    # Raised from 90 so the first run after the ~/.konan cache was introduced has room to do the
+    # cold Kotlin/Native download and commonization and then seed the cache. Bring it back down
+    # once warm runs are landing well inside the old ceiling.
+    timeout-minutes: 150
 
     steps:
       - name: Checkout
@@ -33,6 +36,17 @@ jobs:
         with:
           distribution: temurin
           java-version: "17"
+
+      # setup-gradle caches ~/.gradle but not ~/.konan, so every run re-downloaded the
+      # Kotlin/Native distribution and re-ran commonizeNativeDistribution from scratch. Those
+      # tasks emit no output while they work, so the job looked hung and then hit its timeout.
+      # Keyed on the version catalog, which is where the Kotlin version lives.
+      - name: Cache Kotlin/Native
+        uses: actions/cache@v4
+        with:
+          path: ~/.konan
+          key: konan-${{ runner.os }}-${{ hashFiles('gradle/libs.versions.toml') }}
+          restore-keys: konan-${{ runner.os }}-
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v6
@@ -67,6 +81,13 @@ jobs:
         with:
           distribution: temurin
           java-version: "17"
+
+      - name: Cache Kotlin/Native
+        uses: actions/cache@v4
+        with:
+          path: ~/.konan
+          key: konan-${{ runner.os }}-${{ hashFiles('gradle/libs.versions.toml') }}
+          restore-keys: konan-${{ runner.os }}-
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v6
@@ -104,6 +125,13 @@ jobs:
         with:
           distribution: temurin
           java-version: "17"
+
+      - name: Cache Kotlin/Native
+        uses: actions/cache@v4
+        with:
+          path: ~/.konan
+          key: konan-${{ runner.os }}-${{ hashFiles('gradle/libs.versions.toml') }}
+          restore-keys: konan-${{ runner.os }}-
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v6
